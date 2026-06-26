@@ -1,6 +1,6 @@
 import Foundation
 
-public final class HostSessionManager {
+public final class HostSessionManager: @unchecked Sendable {
     private let remoteFileSystem: RemoteFileSystem
     private let credentialStore: CredentialStore
     private let defaultLocalPath: () -> String
@@ -91,4 +91,3 @@ public final class HostSessionManager {
         return initialState
     }
 }
-
