@@ -1,21 +1,44 @@
 import Foundation
 
-public final class MockRemoteFileSystem: RemoteFileSystem {
+public final class MockRemoteFileSystem: RemoteFileSystem, @unchecked Sendable {
     public struct ListCall: Equatable {
         public let path: String
+        public let session: RemoteSession
+    }
+
+    public struct UploadCall: Equatable {
+        public let request: UploadRequest
+        public let session: RemoteSession
+    }
+
+    public struct DownloadCall: Equatable {
+        public let request: DownloadRequest
         public let session: RemoteSession
     }
 
     public var listingsByPath: [String: [FileItem]]
     public var connectError: Error?
     public var listErrorsByPath: [String: Error]
+    public var uploadProgressEvents: [TransferProgress]
+    public var downloadProgressEvents: [TransferProgress]
+    public var uploadError: Error?
+    public var downloadError: Error?
     public private(set) var connectCalls: [ConnectionSpec] = []
     public private(set) var listCalls: [ListCall] = []
+    public private(set) var uploadCalls: [UploadCall] = []
+    public private(set) var downloadCalls: [DownloadCall] = []
     public private(set) var disconnectedSessions: [RemoteSession] = []
 
-    public init(listingsByPath: [String: [FileItem]] = [:], listErrorsByPath: [String: Error] = [:]) {
+    public init(
+        listingsByPath: [String: [FileItem]] = [:],
+        listErrorsByPath: [String: Error] = [:],
+        uploadProgressEvents: [TransferProgress] = [],
+        downloadProgressEvents: [TransferProgress] = []
+    ) {
         self.listingsByPath = listingsByPath
         self.listErrorsByPath = listErrorsByPath
+        self.uploadProgressEvents = uploadProgressEvents
+        self.downloadProgressEvents = downloadProgressEvents
     }
 
     public func connect(_ spec: ConnectionSpec) async throws -> RemoteSession {
@@ -37,5 +60,32 @@ public final class MockRemoteFileSystem: RemoteFileSystem {
         }
         return listingsByPath[path] ?? []
     }
-}
 
+    public func upload(
+        _ request: UploadRequest,
+        in session: RemoteSession,
+        progress: @escaping @Sendable (TransferProgress) async -> Void
+    ) async throws {
+        uploadCalls.append(UploadCall(request: request, session: session))
+        if let uploadError {
+            throw uploadError
+        }
+        for event in uploadProgressEvents {
+            await progress(event)
+        }
+    }
+
+    public func download(
+        _ request: DownloadRequest,
+        in session: RemoteSession,
+        progress: @escaping @Sendable (TransferProgress) async -> Void
+    ) async throws {
+        downloadCalls.append(DownloadCall(request: request, session: session))
+        if let downloadError {
+            throw downloadError
+        }
+        for event in downloadProgressEvents {
+            await progress(event)
+        }
+    }
+}

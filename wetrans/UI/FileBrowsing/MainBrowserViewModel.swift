@@ -18,16 +18,26 @@ public final class MainBrowserViewModel: ObservableObject {
 
     public convenience init() {
         let credentialStore = KeychainCredentialStore()
-        let remoteFileSystem = LibSSH2RemoteFileSystem()
+        let hostCatalog = FileHostCatalog(applicationSupportDirectory: FileManager.wetransApplicationSupportDirectory)
+        let browsingRemoteFileSystem = LibSSH2RemoteFileSystem()
+        let transferRemoteFileSystem = LibSSH2RemoteFileSystem()
+        let transferConnectionProvider = HostCatalogTransferConnectionProvider(
+            hostCatalog: hostCatalog,
+            credentialStore: credentialStore,
+            remoteFileSystem: transferRemoteFileSystem
+        )
         self.init(
-            hostCatalog: FileHostCatalog(applicationSupportDirectory: FileManager.wetransApplicationSupportDirectory),
+            hostCatalog: hostCatalog,
             hostSessionManager: HostSessionManager(
-                remoteFileSystem: remoteFileSystem,
+                remoteFileSystem: browsingRemoteFileSystem,
                 credentialStore: credentialStore
             ),
             localFileSystem: FileManagerLocalFileSystem(),
             transferQueue: TransferQueue(
-                engine: UnavailableTransferEngine(),
+                engine: SFTPTransferEngine(
+                    connectionProvider: transferConnectionProvider,
+                    remoteFileSystem: transferRemoteFileSystem
+                ),
                 historyStore: FileTransferHistoryStore()
             )
         )

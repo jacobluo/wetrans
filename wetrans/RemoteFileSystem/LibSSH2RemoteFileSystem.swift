@@ -1,6 +1,6 @@
 import Foundation
 
-public final class LibSSH2RemoteFileSystem: RemoteFileSystem {
+public final class LibSSH2RemoteFileSystem: RemoteFileSystem, @unchecked Sendable {
     private let runtime: LibSSH2RuntimeManaging
     private let trustedHostStore: TrustedHostStore
     private let clientFactory: LibSSH2ClientFactory
@@ -82,6 +82,28 @@ public final class LibSSH2RemoteFileSystem: RemoteFileSystem {
             throw RemoteFileSystemError.disconnected
         }
         return try client.listDirectory(path)
+    }
+
+    public func upload(
+        _ request: UploadRequest,
+        in session: RemoteSession,
+        progress: @escaping @Sendable (TransferProgress) async -> Void
+    ) async throws {
+        guard let client = clientsBySessionId[session.id] else {
+            throw RemoteFileSystemError.disconnected
+        }
+        try await client.upload(request, progress: progress)
+    }
+
+    public func download(
+        _ request: DownloadRequest,
+        in session: RemoteSession,
+        progress: @escaping @Sendable (TransferProgress) async -> Void
+    ) async throws {
+        guard let client = clientsBySessionId[session.id] else {
+            throw RemoteFileSystemError.disconnected
+        }
+        try await client.download(request, progress: progress)
     }
 }
 
