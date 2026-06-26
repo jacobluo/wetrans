@@ -241,18 +241,19 @@ Future option:
 
 ## 9. Swift Package and Xcode Layout
 
-Recommended first implementation:
+Selected first implementation:
 
-- Xcode macOS app project.
-- Swift Package for domain modules only if it keeps tests cleaner.
+- SwiftPM-first macOS app skeleton.
+- Xcode can open `Package.swift` directly during early implementation.
+- Commit a generated `.xcodeproj` later only when app bundle settings, UI tests, signing, or notarization workflows need stable project metadata.
 - Keep C library adapter isolated in `RemoteFileSystem`.
 
 Avoid premature over-modularization. The first useful split is:
 
-- App/UI target.
+- Executable app target.
+- Core library target.
 - Unit test target.
-- UI test target.
-- Optional domain Swift Package if Xcode project organization becomes noisy.
+- Later Xcode app/UI-test targets when bundle-level workflows become necessary.
 
 ## 10. Distribution and Signing
 

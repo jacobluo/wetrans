@@ -79,14 +79,17 @@
 
 **Scope:**
 
-- Create Xcode macOS app project named `wetrans`.
+- Create SwiftPM-first macOS app skeleton named `wetrans`.
+- Keep the package directly openable from Xcode during early development.
+- Defer committed `.xcodeproj` generation until app bundle, signing, or UI-test workflows require it.
 - Set bundle identifier and app display name.
-- Add unit test and UI test targets.
+- Add unit test target.
+- Add UI test target when a committed Xcode project or app bundle exists.
 - Establish source layout:
 
 ```text
+wetransApp/
 wetrans/
-  App/
   UI/
   AppKitAdapters/
   Domain/
@@ -105,7 +108,7 @@ docs/
 - App builds.
 - Unit test target runs.
 - A minimal empty window launches.
-- Xcode project settings are documented if non-obvious.
+- Xcode project or SwiftPM package settings are documented if non-obvious.
 
 ### M2: Domain Models and Persistence
 
