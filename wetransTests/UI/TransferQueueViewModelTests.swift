@@ -84,9 +84,9 @@ final class TransferQueueViewModelTests: XCTestCase {
         )
         let viewModel = TransferQueueViewModel(queue: queue)
 
-        XCTAssertFalse(viewModel.isExpanded)
-        viewModel.toggleExpanded()
         XCTAssertTrue(viewModel.isExpanded)
+        viewModel.toggleExpanded()
+        XCTAssertFalse(viewModel.isExpanded)
 
         await viewModel.refresh()
         await viewModel.remove(taskId: succeeded.id)

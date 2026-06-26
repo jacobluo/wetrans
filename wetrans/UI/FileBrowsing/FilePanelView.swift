@@ -68,18 +68,25 @@ public struct FilePanelView: View {
             header
             Divider()
             content
+            statusLine
         }
         .frame(minWidth: 320)
+        .background(.background)
+        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .stroke(Color(nsColor: .separatorColor).opacity(0.7), lineWidth: 1)
+        }
     }
 
     private var header: some View {
         HStack(spacing: 8) {
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(state.title)
-                    .font(.headline)
+                    .font(.system(size: 12, weight: .semibold))
                     .lineLimit(1)
                 Text(state.path.isEmpty ? " " : state.path)
-                    .font(.caption)
+                    .font(.system(size: 10))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .truncationMode(.middle)
@@ -89,9 +96,11 @@ public struct FilePanelView: View {
 
             if let action {
                 Button(action: action.perform) {
-                    Image(systemName: action.systemImage)
+                    Label(action.title, systemImage: action.systemImage)
+                        .labelStyle(.titleAndIcon)
                 }
-                .buttonStyle(.borderless)
+                .buttonStyle(.bordered)
+                .controlSize(.mini)
                 .disabled(!action.isEnabled)
                 .help(action.title)
             }
@@ -99,35 +108,40 @@ public struct FilePanelView: View {
             Button(action: onGoUp) {
                 Image(systemName: "arrow.up")
             }
-            .buttonStyle(.borderless)
+            .buttonStyle(.bordered)
+            .controlSize(.mini)
             .help("Go Up")
 
             Button(action: onRefresh) {
                 Image(systemName: "arrow.clockwise")
             }
-            .buttonStyle(.borderless)
+            .buttonStyle(.bordered)
+            .controlSize(.mini)
             .help("Refresh")
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 9)
+        .frame(height: 50)
     }
 
     @ViewBuilder
     private var content: some View {
         switch state.loadingState {
         case .idle:
-            ContentUnavailableView("No Directory Loaded", systemImage: "folder")
+            ContentUnavailableView(idleTitle, systemImage: "folder", description: Text(idleDescription))
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .loading:
             ProgressView()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .empty:
             ContentUnavailableView("Empty Folder", systemImage: "folder")
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .failed(let message):
             ContentUnavailableView(
                 "Could Not Load",
                 systemImage: "exclamationmark.triangle",
                 description: Text(message)
             )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .listing(let listing):
             FilePanelListView(
                 listing: listing,
@@ -137,6 +151,47 @@ public struct FilePanelView: View {
                 onOpen: onOpen
             )
         }
+    }
+
+    private var statusLine: some View {
+        Text(statusText)
+            .font(.system(size: 10))
+            .foregroundStyle(state.title == "Remote" ? Color(red: 0.216, green: 0.412, blue: 0.659) : .secondary)
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 12)
+            .frame(height: 24)
+            .background(.background)
+    }
+
+    private var statusText: String {
+        let selectedCount = state.selectedItemIds.count
+        if selectedCount > 0 {
+            let noun = selectedCount == 1 ? "selected" : "selected"
+            if state.title == "Remote" {
+                return "\(selectedCount) \(noun) • downloads target current local directory"
+            }
+            return "\(selectedCount) \(noun) • uploads target current remote directory"
+        }
+        if state.title == "Remote" {
+            if case .idle = state.loadingState {
+                return "Add or select a host to start browsing remote files."
+            }
+            if case .failed = state.loadingState {
+                return "Remote listing failed • keep the last path and retry."
+            }
+            return "Connected • host key verified • current path remembered per host"
+        }
+        return "Browse local files and choose upload sources"
+    }
+
+    private var idleTitle: String {
+        state.title == "Remote" ? "No host selected" : "No Directory Loaded"
+    }
+
+    private var idleDescription: String {
+        state.title == "Remote" ? "Add or select a host to start browsing remote files." : "Choose a local directory to browse."
     }
 }
 
@@ -148,68 +203,109 @@ private struct FilePanelListView: View {
     let onOpen: (FileItem) -> Void
 
     var body: some View {
-        List(listing.items) { item in
-            FileItemRow(item: item)
-                .contentShape(Rectangle())
-                .listRowBackground(selectedItemIds.contains(item.id) ? Color.accentColor.opacity(0.16) : Color.clear)
-                .onTapGesture {
-                    onSelect(item)
-                }
-                .onTapGesture(count: 2) {
-                    onOpen(item)
-                }
-                .contextMenu {
-                    ForEach(contextActions(item)) { action in
-                        Button {
-                            action.perform()
-                        } label: {
-                            Label(action.title, systemImage: action.systemImage)
-                        }
-                        .disabled(!action.isEnabled)
+        VStack(spacing: 0) {
+            tableHeader
+            ScrollView {
+                LazyVStack(spacing: 0) {
+                    ForEach(listing.items) { item in
+                        FileItemRow(item: item, isSelected: selectedItemIds.contains(item.id))
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                onSelect(item)
+                            }
+                            .onTapGesture(count: 2) {
+                                onOpen(item)
+                            }
+                            .contextMenu {
+                                ForEach(contextActions(item)) { action in
+                                    Button {
+                                        action.perform()
+                                    } label: {
+                                        Label(action.title, systemImage: action.systemImage)
+                                    }
+                                    .disabled(!action.isEnabled)
+                                }
+                            }
                     }
                 }
+                .padding(.vertical, 3)
+            }
         }
-        .listStyle(.inset)
+    }
+
+    private var tableHeader: some View {
+        HStack(spacing: 8) {
+            Text("Name")
+                .frame(minWidth: 120, maxWidth: .infinity, alignment: .leading)
+            Text("Size")
+                .frame(width: 68, alignment: .trailing)
+            Text("Modified")
+                .frame(width: 96, alignment: .leading)
+            Text("Perms")
+                .frame(width: 76, alignment: .leading)
+        }
+        .font(.system(size: 10, weight: .medium))
+        .foregroundStyle(.secondary)
+        .padding(.horizontal, 14)
+        .frame(height: 28)
+        .background(Color(nsColor: .controlBackgroundColor))
+        .overlay(alignment: .bottom) {
+            Divider()
+        }
     }
 }
 
 private struct FileItemRow: View {
     let item: FileItem
+    let isSelected: Bool
 
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: item.isDirectory ? "folder" : "doc")
                 .foregroundStyle(item.isDirectory ? .blue : .secondary)
-                .frame(width: 18)
+                .frame(width: 16)
 
             Text(item.name)
                 .lineLimit(1)
                 .truncationMode(.middle)
+                .frame(minWidth: 94, maxWidth: .infinity, alignment: .leading)
 
-            Spacer(minLength: 12)
+            Text(sizeText)
+                .foregroundStyle(.secondary)
+                .font(.system(size: 11))
+                .monospacedDigit()
+                .frame(width: 68, alignment: .trailing)
 
-            if let size = item.size, !item.isDirectory {
-                Text(Self.sizeFormatter.string(fromByteCount: Int64(size)))
-                    .foregroundStyle(.secondary)
-                    .font(.caption)
-                    .monospacedDigit()
-            }
+            Text(modifiedText)
+                .foregroundStyle(.secondary)
+                .font(.system(size: 11))
+                .monospacedDigit()
+                .frame(width: 96, alignment: .leading)
 
-            if let modifiedAt = item.modifiedAt {
-                Text(Self.dateFormatter.string(from: modifiedAt))
-                    .foregroundStyle(.secondary)
-                    .font(.caption)
-                    .monospacedDigit()
-            }
-
-            if let permissions = item.permissions {
-                Text(permissions)
-                    .foregroundStyle(.secondary)
-                    .font(.caption)
-                    .monospaced()
-            }
+            Text(item.permissions ?? "-")
+                .foregroundStyle(.secondary)
+                .font(.system(size: 11))
+                .monospaced()
+                .frame(width: 76, alignment: .leading)
         }
-        .padding(.vertical, 2)
+        .font(.system(size: 12))
+        .padding(.horizontal, 14)
+        .frame(height: 28)
+        .background(isSelected ? Color(red: 0.863, green: 0.922, blue: 1) : Color.clear)
+    }
+
+    private var sizeText: String {
+        guard let size = item.size, !item.isDirectory else {
+            return "-"
+        }
+        return Self.sizeFormatter.string(fromByteCount: Int64(size))
+    }
+
+    private var modifiedText: String {
+        guard let modifiedAt = item.modifiedAt else {
+            return "-"
+        }
+        return Self.dateFormatter.string(from: modifiedAt)
     }
 
     private static let sizeFormatter: ByteCountFormatter = {

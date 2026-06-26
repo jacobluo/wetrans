@@ -86,6 +86,12 @@ final class FilePanelViewTests: XCTestCase {
         XCTAssertNotNil(String(describing: type(of: view.body)))
     }
 
+    func testConnectHostDialogViewCanRenderDesignOptions() {
+        let view = ConnectHostDialogView()
+
+        XCTAssertNotNil(String(describing: type(of: view.body)))
+    }
+
     func testTransferQueueSummaryViewCanRenderExpandedPanel() async {
         let failed = TransferTask(
             hostId: UUID(),
