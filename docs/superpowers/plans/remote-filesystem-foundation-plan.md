@@ -176,7 +176,7 @@ git commit -m "feat: add remote filesystem contracts"
 - Create: `wetrans/RemoteFileSystem/HostSessionManager.swift`
 - Test: `wetransTests/RemoteFileSystem/HostSessionManagerTests.swift`
 
-- [ ] **Step 1: Write failing session manager tests**
+- [x] **Step 1: Write failing session manager tests**
 
 Create tests that verify:
 
@@ -188,7 +188,7 @@ XCTAssertEqual(manager.state(for: dev).currentRemotePath, "/project")
 XCTAssertEqual(manager.state(for: prod).currentRemotePath, "/var/www")
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run:
 
@@ -198,7 +198,7 @@ swift test --filter HostSessionManagerTests
 
 Expected: FAIL because `HostSessionManager` is missing.
 
-- [ ] **Step 3: Implement HostSessionManager**
+- [x] **Step 3: Implement HostSessionManager**
 
 Implement:
 
@@ -214,7 +214,7 @@ public final class HostSessionManager {
 
 Store sessions by host ID and reuse live sessions for repeated listings.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run:
 
@@ -224,7 +224,7 @@ swift test --filter HostSessionManagerTests
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add wetrans/RemoteFileSystem/HostSessionManager.swift wetransTests/RemoteFileSystem/HostSessionManagerTests.swift docs/superpowers/plans/remote-filesystem-foundation-plan.md
