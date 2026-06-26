@@ -186,7 +186,7 @@ git commit -m "feat: add sftp directory metadata mapping"
 - Modify: `wetrans/RemoteFileSystem/LibSSH2Runtime.swift`
 - Modify: `wetransTests/RemoteFileSystem/LibSSH2RuntimeTests.swift`
 
-- [ ] **Step 1: Write failing runtime symbol-provider tests**
+- [x] **Step 1: Write failing runtime symbol-provider tests**
 
 Tests must prove a loaded library can provide symbols through a protocol:
 
@@ -195,7 +195,7 @@ XCTAssertNil(fake.symbol(named: "missing"))
 XCTAssertNotNil(fake.symbol(named: "present"))
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 swift test --filter LibSSH2RuntimeTests
@@ -203,7 +203,7 @@ swift test --filter LibSSH2RuntimeTests
 
 Expected: FAIL because symbol lookup is not exposed.
 
-- [ ] **Step 3: Implement dynamic client**
+- [x] **Step 3: Implement dynamic client**
 
 Implement:
 
@@ -220,7 +220,7 @@ The dynamic client must:
 - Convert entries to `FileItem`.
 - Close SFTP handles, session, and socket in `disconnect`.
 
-- [ ] **Step 4: Run focused tests**
+- [x] **Step 4: Run focused tests**
 
 ```bash
 swift test --filter LibSSH2RuntimeTests
@@ -229,7 +229,7 @@ swift test --filter LibSSH2DynamicClientTests
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add wetrans/RemoteFileSystem/LibSSH2Runtime.swift wetrans/RemoteFileSystem/LibSSH2Client.swift wetrans/RemoteFileSystem/LibSSH2DynamicClient.swift wetransTests/RemoteFileSystem/LibSSH2RuntimeTests.swift docs/superpowers/plans/sftp-connect-and-listing-plan.md

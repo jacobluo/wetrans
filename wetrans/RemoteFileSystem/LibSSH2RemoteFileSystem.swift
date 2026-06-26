@@ -9,11 +9,11 @@ public final class LibSSH2RemoteFileSystem: RemoteFileSystem {
     public init(
         runtime: LibSSH2RuntimeManaging = LibSSH2Runtime(),
         trustedHostStore: TrustedHostStore = LibSSH2RemoteFileSystem.makeDefaultTrustedHostStore(),
-        clientFactory: LibSSH2ClientFactory = DefaultLibSSH2ClientFactory()
+        clientFactory: LibSSH2ClientFactory? = nil
     ) {
         self.runtime = runtime
         self.trustedHostStore = trustedHostStore
-        self.clientFactory = clientFactory
+        self.clientFactory = clientFactory ?? DefaultLibSSH2ClientFactory(runtime: runtime)
     }
 
     public static func makeDefaultTrustedHostStore() -> TrustedHostStore {

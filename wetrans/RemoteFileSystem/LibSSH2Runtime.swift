@@ -16,12 +16,17 @@ public enum LibSSH2Error: Error, Equatable {
     case missingSymbol(String)
     case initializationFailed(Int32)
     case operationUnsupported(String)
+    case symbolProviderUnavailable
 }
 
 public protocol LoadedLibSSH2Library: AnyObject {
     var info: LibSSH2LibraryInfo { get }
     func initialize() throws
     func shutdown()
+}
+
+public protocol LibSSH2SymbolProviding: LoadedLibSSH2Library {
+    func symbol(named name: String) -> UnsafeMutableRawPointer?
 }
 
 public protocol LibSSH2LibraryLoading {
@@ -31,7 +36,14 @@ public protocol LibSSH2LibraryLoading {
 public protocol LibSSH2RuntimeManaging {
     @discardableResult
     func initialize() throws -> LibSSH2LibraryInfo
+    func symbolProvider() throws -> LibSSH2SymbolProviding
     func shutdown()
+}
+
+public extension LibSSH2RuntimeManaging {
+    func symbolProvider() throws -> LibSSH2SymbolProviding {
+        throw LibSSH2Error.symbolProviderUnavailable
+    }
 }
 
 public final class LibSSH2Runtime: LibSSH2RuntimeManaging {
@@ -90,6 +102,14 @@ public final class LibSSH2Runtime: LibSSH2RuntimeManaging {
         isShutdown = true
         isInitialized = false
     }
+
+    public func symbolProvider() throws -> LibSSH2SymbolProviding {
+        _ = try initialize()
+        guard let provider = loadedLibrary as? LibSSH2SymbolProviding else {
+            throw LibSSH2Error.symbolProviderUnavailable
+        }
+        return provider
+    }
 }
 
 public final class DarwinLibSSH2LibraryLoader: LibSSH2LibraryLoading {
@@ -110,7 +130,7 @@ public final class DarwinLibSSH2LibraryLoader: LibSSH2LibraryLoading {
     }
 }
 
-private final class DarwinLoadedLibSSH2Library: LoadedLibSSH2Library {
+private final class DarwinLoadedLibSSH2Library: LibSSH2SymbolProviding {
     typealias VersionFunction = @convention(c) (Int32) -> UnsafePointer<CChar>?
     typealias InitFunction = @convention(c) (Int32) -> Int32
     typealias ExitFunction = @convention(c) () -> Void
@@ -158,5 +178,9 @@ private final class DarwinLoadedLibSSH2Library: LoadedLibSSH2Library {
 
     func shutdown() {
         exitFunction()
+    }
+
+    func symbol(named name: String) -> UnsafeMutableRawPointer? {
+        dlsym(handle, name)
     }
 }

@@ -14,33 +14,13 @@ public protocol LibSSH2ClientFactory {
 }
 
 public final class DefaultLibSSH2ClientFactory: LibSSH2ClientFactory {
-    public init() {}
+    private let runtime: LibSSH2RuntimeManaging
+
+    public init(runtime: LibSSH2RuntimeManaging = LibSSH2Runtime()) {
+        self.runtime = runtime
+    }
 
     public func makeClient() -> LibSSH2Client {
-        UnsupportedLibSSH2Client()
+        LibSSH2DynamicClient(runtime: runtime)
     }
-}
-
-private final class UnsupportedLibSSH2Client: LibSSH2Client {
-    func connect(_ spec: ConnectionSpec) throws {
-        throw LibSSH2Error.operationUnsupported("libssh2 dynamic client is not implemented yet")
-    }
-
-    func hostKey(hostId: UUID, hostname: String, port: Int, at date: Date) throws -> TrustedHostKey {
-        throw LibSSH2Error.operationUnsupported("libssh2 dynamic client is not implemented yet")
-    }
-
-    func authenticate(username: String, auth: ConnectionAuth) throws {
-        throw LibSSH2Error.operationUnsupported("libssh2 dynamic client is not implemented yet")
-    }
-
-    func openSFTP() throws {
-        throw LibSSH2Error.operationUnsupported("libssh2 dynamic client is not implemented yet")
-    }
-
-    func listDirectory(_ path: String) throws -> [FileItem] {
-        throw LibSSH2Error.operationUnsupported("libssh2 dynamic client is not implemented yet")
-    }
-
-    func disconnect() {}
 }
