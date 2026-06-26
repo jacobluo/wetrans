@@ -485,14 +485,13 @@ User home directory
 - Browse local directories.
 - Go to parent directory.
 - Refresh.
-- Select one file.
+- Select multiple files.
 - Show file name, size, type, and modified time.
-- Upload selected file to the current remote directory.
+- Upload selected files to the current remote directory.
 - Reveal selected file in Finder.
 
 ### 8.3 P1 Features
 
-- Multi-select.
 - Drag local files to remote panel.
 - Context menu upload.
 - Quick jump to default download directory.
@@ -515,8 +514,8 @@ Remote home directory
 - Go to parent directory.
 - Refresh current directory.
 - Show file name, size, modified time, and permissions.
-- Select one file.
-- Download selected file to the current local directory.
+- Select multiple files.
+- Download selected files to the current local directory.
 - Copy remote path.
 - Show loading and error states.
 
@@ -533,7 +532,6 @@ Rules:
 
 ### 9.4 P1 Remote Operations
 
-- Multi-select.
 - Drag remote files to local panel.
 - Rename.
 - Delete.
@@ -548,11 +546,10 @@ Rules:
 #### MVP Entry Points
 
 - Upload toolbar button.
-- Upload selected local file to current remote directory.
+- Upload selected local files to current remote directory.
 
 #### MVP Rules
 
-- Single-file upload.
 - Show progress.
 - Allow cancel.
 - Refresh remote directory after success.
@@ -560,7 +557,6 @@ Rules:
 
 #### P1 Rules
 
-- Multi-file upload.
 - Drag local files into remote panel.
 - File conflict handling.
 - Retry failed transfers.
@@ -570,11 +566,10 @@ Rules:
 #### MVP Entry Points
 
 - Download toolbar button.
-- Download selected remote file to current local directory.
+- Download selected remote files to current local directory.
 
 #### MVP Rules
 
-- Single-file download.
 - Show progress.
 - Allow cancel.
 - Refresh local directory after success.
@@ -582,7 +577,6 @@ Rules:
 
 #### P1 Rules
 
-- Multi-file download.
 - Drag remote files into local panel.
 - File conflict handling.
 - Retry failed transfers.
@@ -664,15 +658,14 @@ MVP does not need pause/resume behavior. `Paused` can be reserved for future use
 
 MVP:
 
-- Global serial transfer.
-- Only one transfer runs at a time.
-- Other tasks wait.
+- Global concurrent transfer with a default limit of 3 running tasks.
+- The same host runs up to 2 transfers at a time by default.
+- Other tasks wait in the global queue.
 
 P1:
 
-- Global concurrency limit of 2-3 tasks.
-- Per-host concurrency limit of 1-2 tasks.
-- User-configurable concurrency.
+- User-configurable global concurrency limit.
+- User-configurable per-host concurrency limit.
 
 ### 11.6 Host Switching Behavior
 
@@ -953,7 +946,7 @@ Interface responsibilities:
 
 - Enqueue upload.
 - Enqueue download.
-- Run global serial queue in MVP.
+- Run bounded concurrent queue in MVP.
 - Track progress.
 - Cancel running or pending task.
 - Mark success or failure.
@@ -1075,9 +1068,9 @@ Error messages should:
 - Remote directory listing.
 - Local directory listing.
 - Host switching with path preservation.
-- Single-file upload.
-- Single-file download.
-- Global serial transfer queue.
+- Multi-file upload.
+- Multi-file download.
+- Global concurrent transfer queue.
 - Transfer progress.
 - Transfer cancellation.
 - Basic transfer failure messages.
@@ -1089,7 +1082,6 @@ Error messages should:
 - Folder upload.
 - Folder download.
 - Recursive remote scanning.
-- Multi-file transfer.
 - Pause/resume transfer.
 - Resume interrupted transfer.
 - Directory sync.
@@ -1104,7 +1096,6 @@ Error messages should:
 
 ### 16.3 P1 Features
 
-- Multi-file upload/download.
 - Drag-and-drop upload/download.
 - File conflict handling.
 - Retry failed transfers.
@@ -1114,7 +1105,6 @@ Error messages should:
 - Delete.
 - Copy remote path.
 - Context menus.
-- Transfer queue concurrency.
 - Refresh from SSH Config for generated hosts.
 
 ### 16.4 P2 Features
@@ -1155,8 +1145,8 @@ Error messages should:
 
 ### 17.3 Transfers
 
-- User can upload one local file to the current remote directory.
-- User can download one remote file to the current local directory.
+- User can upload multiple local files to the current remote directory.
+- User can download multiple remote files to the current local directory.
 - Upload and download tasks appear in the same global transfer queue.
 - Queue shows host, file, direction, progress, and status.
 - User can cancel a pending or running task.
@@ -1238,9 +1228,7 @@ Outcome:
 
 Scope:
 
-- Single-file upload.
-- Single-file download.
-- Global serial queue.
+- Global concurrent queue with a default limit of 3 running tasks.
 - Progress tracking.
 - Cancellation.
 - Completion refresh.
@@ -1248,7 +1236,7 @@ Scope:
 
 Outcome:
 
-- User can reliably upload and download one file at a time.
+- User can reliably upload and download multiple selected files with bounded concurrency.
 
 ### Milestone 4: Productization for Internal Testing
 
@@ -1297,7 +1285,7 @@ Normal host metadata is saved locally. Sensitive credentials are stored in macOS
 
 ### Decision 8: MVP Focuses on SFTP File Management
 
-The first release focuses on host creation, browsing, single-file upload/download, and queue management. Terminal, sync, and advanced SSH features come later.
+The first release focuses on host creation, browsing, multi-file upload/download, and queue management. Terminal, sync, and advanced SSH features come later.
 
 ## 21. Implementation Planning Defaults
 
@@ -1327,7 +1315,18 @@ MVP should persist completed, failed, and cancelled task summaries so users can 
 
 MVP should not attempt to resume running tasks after app restart. Any task that was running when the app quit should be marked as failed or interrupted on next launch with a retry option.
 
-### 21.4 Host Key Persistence
+### 21.4 Transfer Concurrency
+
+MVP should support multi-file upload and download by creating one transfer task per selected file.
+
+Default limits:
+
+- Global running tasks: 3
+- Running tasks per host: 2
+
+This gives users visible parallelism while avoiding unsafe sharing of a single SSH/SFTP session handle. P1 can make these limits configurable after the core transfer behavior is stable.
+
+### 21.5 Host Key Persistence
 
 MVP should persist trusted host key records under Application Support, separate from `hosts.json`.
 
@@ -1347,13 +1346,13 @@ Each record should include:
 - First trusted time
 - Last verified time
 
-### 21.5 Editing Generated Hosts
+### 21.6 Editing Generated Hosts
 
 Hosts generated from SSH Config should be editable before first save and after save.
 
 `originSSHConfigAlias` and `resolvedAt` are metadata, not locks. Users can change display name, username, port, identity file, default remote path, note, and authentication method after generation.
 
-### 21.6 Distribution and File Access
+### 21.7 Distribution and File Access
 
 MVP should target Developer ID distribution outside the Mac App Store first. This keeps local file access and SSH/SFTP integration simpler during early development.
 
@@ -1378,4 +1377,4 @@ The most important MVP decisions are:
 - Saved host data persists locally.
 - Sensitive credentials live in Keychain.
 - Three-pane browsing and global transfers define the main product experience.
-- The first version focuses on reliable single-file SFTP transfer before advanced features.
+- The first version focuses on reliable multi-file SFTP transfer with bounded concurrency before advanced features.

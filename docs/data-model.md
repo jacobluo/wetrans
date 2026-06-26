@@ -223,6 +223,8 @@ struct TrustedHostKey: Identifiable, Codable, Equatable {
 
 ## 7. transfer_history.json
 
+Each selected file becomes one `TransferTask`. A multi-file upload or download is represented as multiple task records in the same global queue rather than a nested batch object in MVP.
+
 ### 7.1 Document Shape
 
 ```json

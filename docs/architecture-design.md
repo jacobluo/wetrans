@@ -258,6 +258,7 @@ Implementation notes:
 
 - Concrete adapter may be `LibSSH2RemoteFileSystem` or `LibSSHRemoteFileSystem`.
 - Session handles must not be shared concurrently unless the chosen library explicitly supports it.
+- MVP concurrent transfers should use separate safe transfer contexts, such as separate SFTP sessions or library-supported independent handles.
 - Transfer progress should be emitted through async streams or callback closures wrapped by higher-level Swift types.
 
 ### 4.8 HostSessionManager
@@ -291,7 +292,8 @@ Owns global upload/download task execution.
 Responsibilities:
 
 - Enqueue transfer tasks.
-- Run one task at a time in MVP.
+- Run bounded concurrent transfers in MVP.
+- Create one transfer task per selected file.
 - Own progress and status updates.
 - Support cancellation.
 - Persist task summaries.
@@ -311,7 +313,8 @@ protocol TransferQueue {
 
 MVP execution rule:
 
-- Global serial queue.
+- Global concurrent queue with a default limit of 3 running tasks.
+- Per-host queue with a default limit of 2 running tasks.
 - No pause/resume.
 - Running tasks interrupted by app quit are marked interrupted on next launch.
 
@@ -356,8 +359,9 @@ User selects host
 ### 5.4 Upload
 
 ```text
-User selects local file and clicks Upload
+User selects local files and clicks Upload
 -> TransferQueue.enqueueUpload
+-> queue creates one task per file
 -> queue resolves host/session
 -> RemoteFileSystem.upload
 -> progress updates TransferTask
@@ -367,8 +371,9 @@ User selects local file and clicks Upload
 ### 5.5 Download
 
 ```text
-User selects remote file and clicks Download
+User selects remote files and clicks Download
 -> TransferQueue.enqueueDownload
+-> queue creates one task per file
 -> queue resolves host/session
 -> RemoteFileSystem.download
 -> progress updates TransferTask

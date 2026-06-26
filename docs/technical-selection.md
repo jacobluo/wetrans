@@ -98,6 +98,8 @@ MVP needs:
 - SFTP list directory.
 - SFTP upload.
 - SFTP download.
+- Multi-file transfer by creating one task per selected file.
+- Bounded transfer concurrency: default 3 global running tasks and 2 running tasks per host.
 - Progress reporting.
 - Cancellation.
 - Reasonable macOS packaging.
@@ -274,9 +276,10 @@ Before building the full browser UI, run a technical spike:
 5. Authenticate with password.
 6. Authenticate with key + passphrase.
 7. List a remote directory.
-8. Upload a small file.
-9. Download a small file.
-10. Cancel or interrupt a transfer cleanly.
+8. Upload multiple small files.
+9. Download multiple small files.
+10. Run two transfers to the same host concurrently without sharing unsafe session handles.
+11. Cancel or interrupt a transfer cleanly.
 
 Spike success means:
 
