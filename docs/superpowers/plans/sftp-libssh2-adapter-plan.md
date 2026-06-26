@@ -35,7 +35,7 @@ docs/technical-selection.md
 - Create: `wetrans/RemoteFileSystem/LibSSH2Runtime.swift`
 - Test: `wetransTests/RemoteFileSystem/LibSSH2RuntimeTests.swift`
 
-- [ ] **Step 1: Write failing runtime tests**
+- [x] **Step 1: Write failing runtime tests**
 
 Tests must cover:
 
@@ -47,7 +47,7 @@ XCTAssertEqual(loader.loadedLibraries[0].shutdownCount, 1)
 XCTAssertThrowsError(try runtime.initialize())
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 swift test --filter LibSSH2RuntimeTests
@@ -55,7 +55,7 @@ swift test --filter LibSSH2RuntimeTests
 
 Expected: FAIL because libssh2 runtime types are missing.
 
-- [ ] **Step 3: Implement runtime, fakeable loader, and Darwin loader**
+- [x] **Step 3: Implement runtime, fakeable loader, and Darwin loader**
 
 Implement:
 
@@ -74,7 +74,7 @@ Runtime behavior:
 - shutdown calls loaded library shutdown at most once.
 - missing library throws `.libraryNotFound(candidates)`.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 ```bash
 swift test --filter LibSSH2RuntimeTests
@@ -82,7 +82,7 @@ swift test --filter LibSSH2RuntimeTests
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add wetrans/RemoteFileSystem/LibSSH2Runtime.swift wetransTests/RemoteFileSystem/LibSSH2RuntimeTests.swift docs/superpowers/plans/sftp-libssh2-adapter-plan.md
