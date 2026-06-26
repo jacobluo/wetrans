@@ -15,6 +15,8 @@ public final class MainBrowserViewModel: ObservableObject {
     private let hostSessionManager: HostSessionManager
     private let localFileSystem: LocalFileSystem
     private let transferQueue: TransferQueue
+    private let fileRevealer: FileRevealer
+    private let pasteboardWriter: PasteboardWriting
     private let defaultLocalPath: () -> String
     private var transferQueueEventsTask: Task<Void, Never>?
 
@@ -41,7 +43,9 @@ public final class MainBrowserViewModel: ObservableObject {
                     remoteFileSystem: transferRemoteFileSystem
                 ),
                 historyStore: FileTransferHistoryStore()
-            )
+            ),
+            fileRevealer: NSWorkspaceFileRevealer(),
+            pasteboardWriter: SystemPasteboardWriter()
         )
     }
 
@@ -50,6 +54,8 @@ public final class MainBrowserViewModel: ObservableObject {
         hostSessionManager: HostSessionManager,
         localFileSystem: LocalFileSystem,
         transferQueue: TransferQueue = TransferQueue(engine: UnavailableTransferEngine()),
+        fileRevealer: FileRevealer = NSWorkspaceFileRevealer(),
+        pasteboardWriter: PasteboardWriting = SystemPasteboardWriter(),
         sidebarViewModel: HostSidebarViewModel = HostSidebarViewModel(),
         defaultLocalPath: @escaping () -> String = {
             FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first?.path
@@ -60,6 +66,8 @@ public final class MainBrowserViewModel: ObservableObject {
         self.hostSessionManager = hostSessionManager
         self.localFileSystem = localFileSystem
         self.transferQueue = transferQueue
+        self.fileRevealer = fileRevealer
+        self.pasteboardWriter = pasteboardWriter
         self.transferQueueViewModel = TransferQueueViewModel(queue: transferQueue)
         self.sidebarViewModel = sidebarViewModel
         self.defaultLocalPath = defaultLocalPath
@@ -178,6 +186,14 @@ public final class MainBrowserViewModel: ObservableObject {
 
     public func selectRemoteItem(_ item: FileItem) {
         toggleSelection(item.id, in: &remotePanel)
+    }
+
+    public func revealLocalItemInFinder(_ item: FileItem) {
+        fileRevealer.reveal(path: item.path)
+    }
+
+    public func copyRemotePath(_ item: FileItem) {
+        pasteboardWriter.writeString(item.path)
     }
 
     public func enqueueUploadSelection() async {

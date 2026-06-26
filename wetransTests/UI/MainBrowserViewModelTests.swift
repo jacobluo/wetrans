@@ -262,17 +262,41 @@ final class MainBrowserViewModelTests: XCTestCase {
         XCTAssertEqual(tasks, [])
     }
 
+    func testRevealLocalItemUsesInjectedFileRevealer() {
+        let revealer = RecordingFileRevealer()
+        let viewModel = makeViewModel(fileRevealer: revealer)
+        let item = FileItem(name: "config.yaml", path: "/Users/me/Downloads/config.yaml", isDirectory: false)
+
+        viewModel.revealLocalItemInFinder(item)
+
+        XCTAssertEqual(revealer.revealedPaths, ["/Users/me/Downloads/config.yaml"])
+    }
+
+    func testCopyRemotePathUsesInjectedPasteboardWriter() {
+        let pasteboard = RecordingPasteboardWriter()
+        let viewModel = makeViewModel(pasteboardWriter: pasteboard)
+        let item = FileItem(name: "app.log", path: "/var/log/app.log", isDirectory: false)
+
+        viewModel.copyRemotePath(item)
+
+        XCTAssertEqual(pasteboard.strings, ["/var/log/app.log"])
+    }
+
     private func makeViewModel(
         hosts: [SavedHost] = [],
         localFileSystem: LocalFileSystem = FakeLocalFileSystem(),
         remoteFileSystem: MockRemoteFileSystem = MockRemoteFileSystem(),
-        transferQueue: TransferQueue = TransferQueue(engine: RecordingTransferEngine())
+        transferQueue: TransferQueue = TransferQueue(engine: RecordingTransferEngine()),
+        fileRevealer: FileRevealer = RecordingFileRevealer(),
+        pasteboardWriter: PasteboardWriting = RecordingPasteboardWriter()
     ) -> MainBrowserViewModel {
         makeViewModel(
             hostCatalog: FakeHostCatalog(hosts: hosts),
             localFileSystem: localFileSystem,
             remoteFileSystem: remoteFileSystem,
-            transferQueue: transferQueue
+            transferQueue: transferQueue,
+            fileRevealer: fileRevealer,
+            pasteboardWriter: pasteboardWriter
         )
     }
 
@@ -280,7 +304,9 @@ final class MainBrowserViewModelTests: XCTestCase {
         hostCatalog: HostCatalog,
         localFileSystem: LocalFileSystem = FakeLocalFileSystem(),
         remoteFileSystem: MockRemoteFileSystem = MockRemoteFileSystem(),
-        transferQueue: TransferQueue = TransferQueue(engine: RecordingTransferEngine())
+        transferQueue: TransferQueue = TransferQueue(engine: RecordingTransferEngine()),
+        fileRevealer: FileRevealer = RecordingFileRevealer(),
+        pasteboardWriter: PasteboardWriting = RecordingPasteboardWriter()
     ) -> MainBrowserViewModel {
         let sessionManager = HostSessionManager(
             remoteFileSystem: remoteFileSystem,
@@ -292,6 +318,8 @@ final class MainBrowserViewModelTests: XCTestCase {
             hostSessionManager: sessionManager,
             localFileSystem: localFileSystem,
             transferQueue: transferQueue,
+            fileRevealer: fileRevealer,
+            pasteboardWriter: pasteboardWriter,
             defaultLocalPath: { "/Users/me/Downloads" }
         )
     }
@@ -302,6 +330,22 @@ private struct RecordingTransferEngine: TransferEngine {
         task: TransferTask,
         progress: @escaping @Sendable (TransferProgress) async -> Void
     ) async throws {}
+}
+
+private final class RecordingFileRevealer: FileRevealer, @unchecked Sendable {
+    private(set) var revealedPaths: [String] = []
+
+    func reveal(path: String) {
+        revealedPaths.append(path)
+    }
+}
+
+private final class RecordingPasteboardWriter: PasteboardWriting, @unchecked Sendable {
+    private(set) var strings: [String] = []
+
+    func writeString(_ value: String) {
+        strings.append(value)
+    }
 }
 
 @MainActor

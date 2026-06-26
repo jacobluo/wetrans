@@ -22,7 +22,7 @@
 
 ## Task 1: Support Adapters
 
-- [ ] **Step 1: Write failing view model tests for reveal and copy**
+- [x] **Step 1: Write failing view model tests for reveal and copy**
 
 Add to `wetransTests/UI/MainBrowserViewModelTests.swift`:
 
@@ -77,7 +77,7 @@ pasteboardWriter: PasteboardWriting = RecordingPasteboardWriter()
 
 and pass them to `MainBrowserViewModel`.
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run:
 
@@ -87,7 +87,7 @@ swift test --filter MainBrowserViewModelTests
 
 Expected: compile failure because `FileRevealer`, `PasteboardWriting`, `revealLocalItemInFinder`, and `copyRemotePath` do not exist.
 
-- [ ] **Step 3: Implement support adapter protocols**
+- [x] **Step 3: Implement support adapter protocols**
 
 Create `wetrans/Support/FileRevealer.swift`:
 
@@ -128,7 +128,7 @@ public struct SystemPasteboardWriter: PasteboardWriting {
 }
 ```
 
-- [ ] **Step 4: Inject adapters and add methods**
+- [x] **Step 4: Inject adapters and add methods**
 
 Modify `MainBrowserViewModel` to add properties:
 
@@ -163,7 +163,7 @@ public func copyRemotePath(_ item: FileItem) {
 }
 ```
 
-- [ ] **Step 5: Re-run tests**
+- [x] **Step 5: Re-run tests**
 
 Run:
 
@@ -173,7 +173,7 @@ swift test --filter MainBrowserViewModelTests
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit support adapters**
+- [x] **Step 6: Commit support adapters**
 
 Run:
 
