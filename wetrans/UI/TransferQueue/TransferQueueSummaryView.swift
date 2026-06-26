@@ -20,6 +20,7 @@ public struct TransferQueueSummaryView: View {
         .task {
             await viewModel.refresh()
         }
+        .accessibilityIdentifier("Transfer Queue")
     }
 
     private var collapsedBar: some View {
@@ -47,6 +48,7 @@ public struct TransferQueueSummaryView: View {
             }
             .buttonStyle(.borderless)
             .help("Expand Transfer Queue")
+            .accessibilityIdentifier("Transfer Queue Expand")
         }
         .font(.callout)
         .padding(.horizontal, 14)
@@ -76,6 +78,7 @@ public struct TransferQueueSummaryView: View {
                                     copyError(message)
                                 }
                             )
+                            .accessibilityIdentifier("Transfer Row \(row.fileName)")
                         }
                     }
                 }
@@ -125,6 +128,7 @@ public struct TransferQueueSummaryView: View {
             }
             .menuStyle(.borderlessButton)
             .help("Clear finished transfers")
+            .accessibilityIdentifier("Transfer Queue Clear")
 
             Button {
                 viewModel.toggleExpanded()
@@ -133,6 +137,7 @@ public struct TransferQueueSummaryView: View {
             }
             .buttonStyle(.borderless)
             .help("Collapse Transfer Queue")
+            .accessibilityIdentifier("Transfer Queue Collapse")
         }
         .font(.callout)
         .padding(.horizontal, 12)

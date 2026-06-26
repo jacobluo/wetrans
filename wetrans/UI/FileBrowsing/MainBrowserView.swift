@@ -36,6 +36,7 @@ public struct MainBrowserView: View {
             }
         }
         .background(Color(nsColor: .windowBackgroundColor))
+        .accessibilityIdentifier("Wetrans Main Browser")
         .task {
             try? viewModel.loadHosts()
             viewModel.refreshLocal()
@@ -51,11 +52,7 @@ public struct MainBrowserView: View {
             "Confirm Host Key",
             isPresented: Binding(
                 get: { viewModel.pendingHostKeyTrust != nil },
-                set: { isPresented in
-                    if !isPresented {
-                        viewModel.cancelPendingHostKeyTrust()
-                    }
-                }
+                set: { _ in }
             )
         ) {
             Button("Trust and Continue") {
@@ -63,9 +60,11 @@ public struct MainBrowserView: View {
                     await viewModel.trustPendingHostKeyAndRefresh()
                 }
             }
+            .accessibilityIdentifier("Host Key Trust Continue")
             Button("Cancel", role: .cancel) {
                 viewModel.cancelPendingHostKeyTrust()
             }
+            .accessibilityIdentifier("Host Key Trust Cancel")
         } message: {
             Text(viewModel.pendingHostKeyTrustMessage)
         }

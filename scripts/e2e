@@ -4,3 +4,27 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 "$ROOT/script/build_and_run.sh" --verify
+swift run wetrans-e2e smoke
+
+if [[ "${WETRANS_E2E_RUN_FULL:-0}" == "1" ]]; then
+  swift run wetrans-e2e manual-host
+  swift run wetrans-e2e ssh-config-host
+  swift run wetrans-e2e transfer
+else
+  cat <<'EOF'
+Full UI E2E skipped. Set WETRANS_E2E_RUN_FULL=1 with:
+  WETRANS_E2E_MANUAL_DISPLAY_NAME
+  WETRANS_E2E_MANUAL_HOST
+  WETRANS_E2E_MANUAL_USER
+  WETRANS_E2E_SSH_ALIAS
+  WETRANS_E2E_UPLOAD_FILE_NAME
+  WETRANS_E2E_DOWNLOAD_FILE_NAME
+
+Optional:
+  WETRANS_E2E_REQUIRE_AX=1
+  WETRANS_E2E_MANUAL_PORT
+  WETRANS_E2E_MANUAL_PASSWORD
+  WETRANS_E2E_MANUAL_IDENTITY_FILE
+  WETRANS_E2E_MANUAL_DEFAULT_REMOTE_PATH
+EOF
+fi

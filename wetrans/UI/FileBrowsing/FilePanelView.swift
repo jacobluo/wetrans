@@ -77,6 +77,7 @@ public struct FilePanelView: View {
             RoundedRectangle(cornerRadius: 6, style: .continuous)
                 .stroke(Color(nsColor: .separatorColor).opacity(0.7), lineWidth: 1)
         }
+        .accessibilityIdentifier("\(state.title) File Panel")
     }
 
     private var header: some View {
@@ -103,6 +104,7 @@ public struct FilePanelView: View {
                 .controlSize(.mini)
                 .disabled(!action.isEnabled)
                 .help(action.title)
+                .accessibilityIdentifier("\(state.title) \(action.title)")
             }
 
             Button(action: onGoUp) {
@@ -111,6 +113,7 @@ public struct FilePanelView: View {
             .buttonStyle(.bordered)
             .controlSize(.mini)
             .help("Go Up")
+            .accessibilityIdentifier("\(state.title) Go Up")
 
             Button(action: onRefresh) {
                 Image(systemName: "arrow.clockwise")
@@ -118,6 +121,7 @@ public struct FilePanelView: View {
             .buttonStyle(.bordered)
             .controlSize(.mini)
             .help("Refresh")
+            .accessibilityIdentifier("\(state.title) Refresh")
         }
         .padding(.horizontal, 12)
         .frame(height: 50)
@@ -144,6 +148,7 @@ public struct FilePanelView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .listing(let listing):
             FilePanelListView(
+                panelTitle: state.title,
                 listing: listing,
                 selectedItemIds: state.selectedItemIds,
                 contextActions: contextActions,
@@ -196,6 +201,7 @@ public struct FilePanelView: View {
 }
 
 private struct FilePanelListView: View {
+    let panelTitle: String
     let listing: FilePanelListing
     let selectedItemIds: Set<String>
     let contextActions: (FileItem) -> [FilePanelContextAction]
@@ -208,7 +214,7 @@ private struct FilePanelListView: View {
             ScrollView {
                 LazyVStack(spacing: 0) {
                     ForEach(listing.items) { item in
-                        FileItemRow(item: item, isSelected: selectedItemIds.contains(item.id))
+                        FileItemRow(panelTitle: panelTitle, item: item, isSelected: selectedItemIds.contains(item.id))
                             .contentShape(Rectangle())
                             .onTapGesture {
                                 onSelect(item)
@@ -256,6 +262,7 @@ private struct FilePanelListView: View {
 }
 
 private struct FileItemRow: View {
+    let panelTitle: String
     let item: FileItem
     let isSelected: Bool
 
@@ -292,6 +299,10 @@ private struct FileItemRow: View {
         .padding(.horizontal, 14)
         .frame(height: 28)
         .background(isSelected ? Color(red: 0.863, green: 0.922, blue: 1) : Color.clear)
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("\(panelTitle) File Row \(item.name)")
+        .accessibilityLabel(item.name)
+        .accessibilityAddTraits(.isButton)
     }
 
     private var sizeText: String {
