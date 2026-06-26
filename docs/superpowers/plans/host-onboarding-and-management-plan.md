@@ -879,7 +879,7 @@ git commit -m "Add SSH config resolver"
 - Create: `wetrans/UI/HostManagement/HostSidebarViewModel.swift`
 - Test: `wetransTests/UI/HostSidebarViewModelTests.swift`
 
-- [ ] **Step 1: Write failing grouping tests**
+- [x] **Step 1: Write failing grouping tests**
 
 ```swift
 import XCTest
@@ -935,7 +935,7 @@ private extension SavedHost {
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run:
 
@@ -945,7 +945,7 @@ xcodebuild test -scheme wetrans -destination 'platform=macOS' -only-testing:wetr
 
 Expected: fails because `HostSidebarViewModel` is missing.
 
-- [ ] **Step 3: Implement grouping**
+- [x] **Step 3: Implement grouping**
 
 ```swift
 import Foundation
@@ -983,7 +983,7 @@ final class HostSidebarViewModel: ObservableObject {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run:
 
@@ -993,7 +993,7 @@ xcodebuild test -scheme wetrans -destination 'platform=macOS' -only-testing:wetr
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add wetrans/UI/HostManagement/HostSidebarViewModel.swift wetransTests/UI/HostSidebarViewModelTests.swift
