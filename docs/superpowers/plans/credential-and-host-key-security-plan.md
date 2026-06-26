@@ -467,7 +467,7 @@ git commit -m "feat: add trusted host store"
 - Create: `wetrans/Security/HostKeyVerificationPolicy.swift`
 - Test: `wetransTests/Security/HostKeyVerificationPolicyTests.swift`
 
-- [ ] **Step 1: Write failing policy tests**
+- [x] **Step 1: Write failing policy tests**
 
 Create `wetransTests/Security/HostKeyVerificationPolicyTests.swift`:
 
@@ -526,7 +526,7 @@ final class HostKeyVerificationPolicyTests: XCTestCase {
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run:
 
@@ -536,7 +536,7 @@ swift test --filter HostKeyVerificationPolicyTests
 
 Expected: FAIL because `HostKeyVerificationPolicy` is missing.
 
-- [ ] **Step 3: Implement policy**
+- [x] **Step 3: Implement policy**
 
 Create `wetrans/Security/HostKeyVerificationPolicy.swift`:
 
@@ -566,7 +566,7 @@ public enum HostKeyVerificationPolicy {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run:
 
@@ -576,7 +576,7 @@ swift test --filter HostKeyVerificationPolicyTests
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add wetrans/Security/HostKeyVerificationPolicy.swift wetransTests/Security/HostKeyVerificationPolicyTests.swift
