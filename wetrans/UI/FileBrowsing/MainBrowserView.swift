@@ -41,7 +41,7 @@ public struct MainBrowserView: View {
                 )
             }
             .safeAreaInset(edge: .bottom) {
-                TransferQueuePlaceholder()
+                TransferQueueSummaryView(viewModel: viewModel.transferQueueViewModel)
             }
         }
         .task {
@@ -55,20 +55,5 @@ public struct MainBrowserView: View {
                 await viewModel.refreshRemote()
             }
         }
-    }
-}
-
-private struct TransferQueuePlaceholder: View {
-    var body: some View {
-        HStack {
-            Label("Transfer Queue", systemImage: "arrow.up.arrow.down")
-            Spacer()
-            Text("No tasks")
-                .foregroundStyle(.secondary)
-        }
-        .font(.callout)
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .background(.bar)
     }
 }
