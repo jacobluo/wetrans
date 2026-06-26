@@ -40,9 +40,62 @@ public struct TransferQueueSummary: Equatable, Sendable {
     }
 }
 
+public enum TransferQueueRowAction: Equatable, Sendable {
+    case cancel
+    case retry
+    case remove
+}
+
+public struct TransferQueueRowViewState: Identifiable, Equatable, Sendable {
+    public let id: UUID
+    public let fileName: String
+    public let hostName: String
+    public let directionText: String
+    public let progressText: String
+    public let bytesText: String
+    public let speedText: String
+    public let statusText: String
+    public let errorMessage: String?
+    public let primaryAction: TransferQueueRowAction?
+    public let canRemove: Bool
+    public let isFailed: Bool
+
+    public init(task: TransferTask) {
+        self.id = task.id
+        self.fileName = task.fileName
+        self.hostName = task.hostDisplayName
+        self.directionText = task.direction.displayText
+        self.progressText = "\(Int((task.progress * 100).rounded()).clamped(to: 0...100))%"
+        self.bytesText = Self.bytesText(transferred: task.transferredBytes, total: task.totalBytes)
+        self.speedText = task.speedBytesPerSecond.map { Self.byteText($0) + "/s" } ?? "-"
+        self.statusText = task.status.displayText
+        self.errorMessage = task.errorMessage
+        self.primaryAction = task.status.primaryAction
+        self.canRemove = task.status.isTerminal
+        self.isFailed = task.status == .failed
+    }
+
+    private static func bytesText(transferred: UInt64, total: UInt64?) -> String {
+        let transferredText = byteText(transferred)
+        guard let total else {
+            return transferredText
+        }
+        return "\(transferredText) / \(byteText(total))"
+    }
+
+    private static func byteText(_ bytes: UInt64) -> String {
+        let formatter = ByteCountFormatter()
+        formatter.allowedUnits = [.useBytes, .useKB, .useMB, .useGB]
+        formatter.countStyle = .file
+        return formatter.string(fromByteCount: Int64(bytes))
+    }
+}
+
 @MainActor
 public final class TransferQueueViewModel: ObservableObject {
     @Published public private(set) var summary: TransferQueueSummary = .empty
+    @Published public private(set) var rows: [TransferQueueRowViewState] = []
+    @Published public var isExpanded = false
 
     private let queue: TransferQueue
 
@@ -72,6 +125,100 @@ public final class TransferQueueViewModel: ObservableObject {
     }
 
     public func refresh() async {
-        summary = TransferQueueSummary(tasks: await queue.snapshot())
+        let tasks = await queue.snapshot()
+        summary = TransferQueueSummary(tasks: tasks)
+        rows = tasks.map(TransferQueueRowViewState.init)
+    }
+
+    public func toggleExpanded() {
+        isExpanded.toggle()
+    }
+
+    public func cancel(taskId: UUID) async {
+        await queue.cancel(taskId: taskId)
+        await refresh()
+    }
+
+    public func retry(taskId: UUID) async {
+        await queue.retry(taskId: taskId)
+        await refresh()
+    }
+
+    public func remove(taskId: UUID) async {
+        await queue.removeFinished(taskId: taskId)
+        await refresh()
+    }
+
+    public func clearSucceeded() async {
+        await queue.clearFinished(statuses: [.succeeded])
+        await refresh()
+    }
+
+    public func clearFailedAndCancelled() async {
+        await queue.clearFinished(statuses: [.failed, .cancelled])
+        await refresh()
+    }
+
+    public func clearFinished() async {
+        await queue.clearFinished()
+        await refresh()
+    }
+}
+
+private extension TransferDirection {
+    var displayText: String {
+        switch self {
+        case .upload:
+            return "Upload"
+        case .download:
+            return "Download"
+        }
+    }
+}
+
+private extension TransferStatus {
+    var displayText: String {
+        switch self {
+        case .pending:
+            return "Pending"
+        case .running:
+            return "Running"
+        case .succeeded:
+            return "Succeeded"
+        case .failed:
+            return "Failed"
+        case .cancelled:
+            return "Cancelled"
+        case .paused:
+            return "Paused"
+        }
+    }
+
+    var primaryAction: TransferQueueRowAction? {
+        switch self {
+        case .pending, .running:
+            return .cancel
+        case .failed, .cancelled:
+            return .retry
+        case .succeeded:
+            return .remove
+        case .paused:
+            return nil
+        }
+    }
+
+    var isTerminal: Bool {
+        switch self {
+        case .succeeded, .failed, .cancelled:
+            return true
+        case .pending, .running, .paused:
+            return false
+        }
+    }
+}
+
+private extension Int {
+    func clamped(to range: ClosedRange<Int>) -> Int {
+        Swift.min(Swift.max(self, range.lowerBound), range.upperBound)
     }
 }
