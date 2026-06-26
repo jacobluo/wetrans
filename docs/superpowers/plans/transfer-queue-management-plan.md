@@ -44,4 +44,4 @@
 
 - [x] Run `swift test`.
 - [x] Run `swift build`.
-- [ ] Commit, push, and open PR.
+- [x] Commit, push, and open PR.
