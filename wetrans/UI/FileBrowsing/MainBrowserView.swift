@@ -26,6 +26,37 @@ public struct MainBrowserView: View {
                             }
                         }
                     ),
+                    contextActions: { item in
+                        [
+                            FilePanelContextAction(
+                                id: "upload-\(item.id)",
+                                title: "Upload",
+                                systemImage: "arrow.up.circle",
+                                isEnabled: viewModel.selectedHost != nil && !item.isDirectory,
+                                perform: {
+                                    Task {
+                                        await viewModel.enqueueUpload(item)
+                                    }
+                                }
+                            ),
+                            FilePanelContextAction(
+                                id: "reveal-\(item.id)",
+                                title: "Show in Finder",
+                                systemImage: "magnifyingglass",
+                                isEnabled: true,
+                                perform: {
+                                    viewModel.revealLocalItemInFinder(item)
+                                }
+                            ),
+                            FilePanelContextAction(
+                                id: "refresh-local-\(item.id)",
+                                title: "Refresh",
+                                systemImage: "arrow.clockwise",
+                                isEnabled: true,
+                                perform: viewModel.refreshLocal
+                            )
+                        ]
+                    },
                     onRefresh: viewModel.refreshLocal,
                     onGoUp: viewModel.goUpLocal,
                     onSelect: viewModel.selectLocalItem,
@@ -44,6 +75,41 @@ public struct MainBrowserView: View {
                             }
                         }
                     ),
+                    contextActions: { item in
+                        [
+                            FilePanelContextAction(
+                                id: "download-\(item.id)",
+                                title: "Download",
+                                systemImage: "arrow.down.circle",
+                                isEnabled: viewModel.selectedHost != nil && !item.isDirectory,
+                                perform: {
+                                    Task {
+                                        await viewModel.enqueueDownload(item)
+                                    }
+                                }
+                            ),
+                            FilePanelContextAction(
+                                id: "copy-path-\(item.id)",
+                                title: "Copy Remote Path",
+                                systemImage: "doc.on.doc",
+                                isEnabled: true,
+                                perform: {
+                                    viewModel.copyRemotePath(item)
+                                }
+                            ),
+                            FilePanelContextAction(
+                                id: "refresh-remote-\(item.id)",
+                                title: "Refresh",
+                                systemImage: "arrow.clockwise",
+                                isEnabled: true,
+                                perform: {
+                                    Task {
+                                        await viewModel.refreshRemote()
+                                    }
+                                }
+                            )
+                        ]
+                    },
                     onRefresh: {
                         Task {
                             await viewModel.refreshRemote()

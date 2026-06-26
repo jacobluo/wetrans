@@ -14,9 +14,32 @@ public struct FilePanelAction {
     }
 }
 
+public struct FilePanelContextAction: Identifiable {
+    public let id: String
+    public let title: String
+    public let systemImage: String
+    public let isEnabled: Bool
+    public let perform: () -> Void
+
+    public init(
+        id: String,
+        title: String,
+        systemImage: String,
+        isEnabled: Bool,
+        perform: @escaping () -> Void
+    ) {
+        self.id = id
+        self.title = title
+        self.systemImage = systemImage
+        self.isEnabled = isEnabled
+        self.perform = perform
+    }
+}
+
 public struct FilePanelView: View {
     private let state: FilePanelState
     private let action: FilePanelAction?
+    private let contextActions: (FileItem) -> [FilePanelContextAction]
     private let onRefresh: () -> Void
     private let onGoUp: () -> Void
     private let onSelect: (FileItem) -> Void
@@ -25,6 +48,7 @@ public struct FilePanelView: View {
     public init(
         state: FilePanelState,
         action: FilePanelAction? = nil,
+        contextActions: @escaping (FileItem) -> [FilePanelContextAction] = { _ in [] },
         onRefresh: @escaping () -> Void,
         onGoUp: @escaping () -> Void,
         onSelect: @escaping (FileItem) -> Void = { _ in },
@@ -32,6 +56,7 @@ public struct FilePanelView: View {
     ) {
         self.state = state
         self.action = action
+        self.contextActions = contextActions
         self.onRefresh = onRefresh
         self.onGoUp = onGoUp
         self.onSelect = onSelect
@@ -118,6 +143,16 @@ public struct FilePanelView: View {
                 }
                 .onTapGesture(count: 2) {
                     onOpen(item)
+                }
+                .contextMenu {
+                    ForEach(contextActions(item)) { action in
+                        Button {
+                            action.perform()
+                        } label: {
+                            Label(action.title, systemImage: action.systemImage)
+                        }
+                        .disabled(!action.isEnabled)
+                    }
                 }
         }
         .listStyle(.inset)

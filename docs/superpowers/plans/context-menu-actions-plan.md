@@ -370,7 +370,7 @@ git commit -m "feat: add row scoped transfer actions"
 
 ## Task 3: SwiftUI Context Menus
 
-- [ ] **Step 1: Write failing render test**
+- [x] **Step 1: Write failing render test**
 
 Add to `wetransTests/UI/FilePanelViewTests.swift`:
 
@@ -407,7 +407,7 @@ func testFilePanelViewCanRenderContextActions() {
 }
 ```
 
-- [ ] **Step 2: Run render tests to verify failure**
+- [x] **Step 2: Run render tests to verify failure**
 
 Run:
 
@@ -417,7 +417,7 @@ swift test --filter FilePanelViewTests
 
 Expected: compile failure because `FilePanelContextAction` and `contextActions` do not exist.
 
-- [ ] **Step 3: Implement `FilePanelContextAction` and row menus**
+- [x] **Step 3: Implement `FilePanelContextAction` and row menus**
 
 Modify `wetrans/UI/FileBrowsing/FilePanelView.swift`:
 
@@ -458,7 +458,7 @@ In `fileList`, attach:
 }
 ```
 
-- [ ] **Step 4: Wire actions in `MainBrowserView`**
+- [x] **Step 4: Wire actions in `MainBrowserView`**
 
 For the local panel, pass:
 
@@ -530,7 +530,7 @@ contextActions: { item in
 }
 ```
 
-- [ ] **Step 5: Re-run render tests**
+- [x] **Step 5: Re-run render tests**
 
 Run:
 
@@ -540,7 +540,7 @@ swift test --filter FilePanelViewTests
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit context menu UI**
+- [x] **Step 6: Commit context menu UI**
 
 Run:
 
