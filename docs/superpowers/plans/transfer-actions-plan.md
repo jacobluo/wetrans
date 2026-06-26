@@ -21,27 +21,27 @@
 
 ## Task 1: Selection Helpers and Queue Injection
 
-- [ ] Write failing tests for selecting local/remote files and enqueuing upload/download tasks.
-- [ ] Run `swift test --filter MainBrowserViewModelTests`.
-- [ ] Add `TransferQueue` injection and panel selection methods.
-- [ ] Re-run `swift test --filter MainBrowserViewModelTests`.
+- [x] Write failing tests for selecting local/remote files and enqueuing upload/download tasks.
+- [x] Run `swift test --filter MainBrowserViewModelTests`.
+- [x] Add `TransferQueue` injection and panel selection methods.
+- [x] Re-run `swift test --filter MainBrowserViewModelTests`.
 
 ## Task 2: Upload/Download Actions
 
-- [ ] Write failing tests for upload/download task path mapping, directory filtering, no-host errors, and summary refresh.
-- [ ] Run `swift test --filter MainBrowserViewModelTests`.
-- [ ] Implement `enqueueUploadSelection()` and `enqueueDownloadSelection()`.
-- [ ] Re-run `swift test --filter MainBrowserViewModelTests`.
+- [x] Write failing tests for upload/download task path mapping, directory filtering, no-host errors, and summary refresh.
+- [x] Run `swift test --filter MainBrowserViewModelTests`.
+- [x] Implement `enqueueUploadSelection()` and `enqueueDownloadSelection()`.
+- [x] Re-run `swift test --filter MainBrowserViewModelTests`.
 
 ## Task 3: Browser UI Buttons
 
-- [ ] Write/update render tests for file panel action button.
-- [ ] Run `swift test --filter FilePanelViewTests`.
-- [ ] Add optional file panel action button and wire main browser actions.
-- [ ] Re-run `swift test --filter FilePanelViewTests`.
+- [x] Write/update render tests for file panel action button.
+- [x] Run `swift test --filter FilePanelViewTests`.
+- [x] Add optional file panel action button and wire main browser actions.
+- [x] Re-run `swift test --filter FilePanelViewTests`.
 
 ## Final Verification
 
-- [ ] Run `swift test`
-- [ ] Run `swift build`
-- [ ] Commit, push, and open PR.
+- [x] Run `swift test`
+- [x] Run `swift build`
+- [x] Commit, push, and open PR.

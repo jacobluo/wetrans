@@ -28,21 +28,21 @@
 - Create: `wetrans/TransferQueue/TransferEngine.swift`
 - Test: `wetransTests/TransferQueue/TransferQueueTests.swift`
 
-- [ ] **Step 1: Write failing tests for enqueue and progress**
+- [x] **Step 1: Write failing tests for enqueue and progress**
 
 Add tests that create a controllable engine, enqueue upload/download tasks, verify tasks start, and verify progress updates one task.
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `swift test --filter TransferQueueTests`
 
 Expected: compile failure because `TransferQueue`, `TransferEngine`, and `TransferProgress` do not exist.
 
-- [ ] **Step 3: Add minimal engine and queue types**
+- [x] **Step 3: Add minimal engine and queue types**
 
 Create `TransferProgress`, `TransferEngine`, and a `TransferQueue` actor with `enqueue`, `snapshot`, and basic run-to-success behavior.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `swift test --filter TransferQueueTests`
 
@@ -54,21 +54,21 @@ Expected: queue tests pass.
 - Modify: `wetrans/TransferQueue/TransferQueue.swift`
 - Test: `wetransTests/TransferQueue/TransferQueueTests.swift`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 Add tests for global limit, per-host limit, pending cancellation, running cancellation, failed task retry, and clearing terminal tasks.
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `swift test --filter TransferQueueTests`
 
 Expected: assertions fail because queue scheduling is not complete.
 
-- [ ] **Step 3: Implement scheduling behavior**
+- [x] **Step 3: Implement scheduling behavior**
 
 Track running Swift tasks by task id, enforce both concurrency limits, implement `cancel`, `retry`, and `clearFinished`.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `swift test --filter TransferQueueTests`
 
@@ -81,21 +81,21 @@ Expected: all transfer queue tests pass.
 - Modify: `wetrans/TransferQueue/TransferQueue.swift`
 - Test: `wetransTests/TransferQueue/TransferQueueTests.swift`
 
-- [ ] **Step 1: Write failing persistence tests**
+- [x] **Step 1: Write failing persistence tests**
 
 Add tests for startup normalization of previous `running` tasks and save-after-state-transition.
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `swift test --filter TransferQueueTests`
 
 Expected: compile or assertion failure because history store integration is absent.
 
-- [ ] **Step 3: Implement persistence**
+- [x] **Step 3: Implement persistence**
 
 Add `TransferHistoryStore`, `FileTransferHistoryStore`, queue initialization from stored tasks, and best-effort save calls after mutations.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `swift test --filter TransferQueueTests`
 
@@ -110,21 +110,21 @@ Expected: all transfer queue tests pass.
 - Modify: `wetrans/UI/FileBrowsing/MainBrowserViewModel.swift`
 - Test: `wetransTests/UI/TransferQueueViewModelTests.swift`
 
-- [ ] **Step 1: Write failing UI model tests**
+- [x] **Step 1: Write failing UI model tests**
 
 Add tests for empty summary, upload/download/running/failed counts, and refresh from queue snapshot.
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `swift test --filter TransferQueueViewModelTests`
 
 Expected: compile failure because the UI model does not exist.
 
-- [ ] **Step 3: Implement view model and summary view**
+- [x] **Step 3: Implement view model and summary view**
 
 Create `TransferQueueViewModel`, create the compact summary view, expose it from `MainBrowserViewModel`, and replace `TransferQueuePlaceholder`.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `swift test --filter TransferQueueViewModelTests`
 
@@ -132,8 +132,8 @@ Expected: UI model tests pass.
 
 ## Final Verification
 
-- [ ] Run `swift test`
-- [ ] Run `swift build`
-- [ ] Commit implementation
-- [ ] Push branch
-- [ ] Open PR
+- [x] Run `swift test`
+- [x] Run `swift build`
+- [x] Commit implementation
+- [x] Push branch
+- [x] Open PR

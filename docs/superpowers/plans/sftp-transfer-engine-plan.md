@@ -25,29 +25,29 @@
 
 ## Task 1: Remote Upload/Download Boundary
 
-- [ ] Write failing tests for `LibSSH2RemoteFileSystem.upload/download` delegation and disconnected errors.
-- [ ] Run `swift test --filter LibSSH2RemoteFileSystemTests` and confirm failure.
-- [ ] Add request models, protocol methods, fake client support, and adapter delegation.
-- [ ] Re-run `swift test --filter LibSSH2RemoteFileSystemTests`.
+- [x] Write failing tests for `LibSSH2RemoteFileSystem.upload/download` delegation and disconnected errors.
+- [x] Run `swift test --filter LibSSH2RemoteFileSystemTests` and confirm failure.
+- [x] Add request models, protocol methods, fake client support, and adapter delegation.
+- [x] Re-run `swift test --filter LibSSH2RemoteFileSystemTests`.
 
 ## Task 2: SFTPTransferEngine
 
-- [ ] Write failing tests for upload task mapping, download task mapping, progress forwarding, and disconnect-after-failure.
-- [ ] Run `swift test --filter SFTPTransferEngineTests` and confirm failure.
-- [ ] Implement `SFTPTransferEngine` with a host connection provider.
-- [ ] Re-run `swift test --filter SFTPTransferEngineTests`.
+- [x] Write failing tests for upload task mapping, download task mapping, progress forwarding, and disconnect-after-failure.
+- [x] Run `swift test --filter SFTPTransferEngineTests` and confirm failure.
+- [x] Implement `SFTPTransferEngine` with a host connection provider.
+- [x] Re-run `swift test --filter SFTPTransferEngineTests`.
 
 ## Task 3: libssh2 Read/Write Loops
 
-- [ ] Write failing unit tests for helper behavior where practical.
-- [ ] Add `libssh2_sftp_read` and `libssh2_sftp_write` symbols.
-- [ ] Implement upload: open local file, open remote file with create/truncate/write flags, write chunks, emit progress.
-- [ ] Implement download: open remote file for read, create parent directory, write chunks locally, emit progress.
-- [ ] Add/update opt-in integration test notes for real upload/download.
-- [ ] Run relevant remote file-system tests.
+- [x] Write failing unit tests for helper behavior where practical.
+- [x] Add `libssh2_sftp_read` and `libssh2_sftp_write` symbols.
+- [x] Implement upload: open local file, open remote file with create/truncate/write flags, write chunks, emit progress.
+- [x] Implement download: open remote file for read, create parent directory, write chunks locally, emit progress.
+- [x] Add/update opt-in integration test notes for real upload/download.
+- [x] Run relevant remote file-system tests.
 
 ## Final Verification
 
-- [ ] Run `swift test`
-- [ ] Run `swift build`
-- [ ] Commit, push, and open PR.
+- [x] Run `swift test`
+- [x] Run `swift build`
+- [x] Commit, push, and open PR.
