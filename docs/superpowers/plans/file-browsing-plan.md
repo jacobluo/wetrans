@@ -42,7 +42,7 @@ docs/superpowers/plans/file-browsing-plan.md
 - Create: `wetrans/UI/FileBrowsing/FilePanelState.swift`
 - Test: `wetransTests/UI/BrowserPathTests.swift`
 
-- [ ] **Step 1: Write failing path/state tests**
+- [x] **Step 1: Write failing path/state tests**
 
 Tests must cover:
 
@@ -55,7 +55,7 @@ XCTAssertEqual(BrowserPath.localParent(of: "/Users/me/Downloads"), "/Users/me")
 XCTAssertEqual(FilePanelState(title: "Local", path: "/tmp").loadingState, .idle)
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 swift test --filter BrowserPathTests
@@ -63,7 +63,7 @@ swift test --filter BrowserPathTests
 
 Expected: FAIL because types are missing.
 
-- [ ] **Step 3: Implement helpers and state**
+- [x] **Step 3: Implement helpers and state**
 
 Implement:
 
@@ -74,7 +74,7 @@ Implement:
 - `FilePanelLoadingState`
 - `FilePanelState`
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 ```bash
 swift test --filter BrowserPathTests
@@ -82,7 +82,7 @@ swift test --filter BrowserPathTests
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add wetrans/UI/FileBrowsing/BrowserPath.swift wetrans/UI/FileBrowsing/FilePanelState.swift wetransTests/UI/BrowserPathTests.swift docs/superpowers/plans/file-browsing-plan.md
