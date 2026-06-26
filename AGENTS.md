@@ -56,7 +56,7 @@ docs/<topic>.md
 - Before building or changing a UI surface, inspect the relevant ardot screen if one exists and match its layout, visual hierarchy, states, and copy unless the user explicitly asks to redesign.
 - Current MVP ardot prototype:
   - `cocraft://localhost/file/697398357828482?node_id=0%3A1`
-  - Covers the main three-pane browser, Connect Host flow, host-key/security states, empty states, and remote-listing error states.
+  - Covers the main three-pane browser and Connect Host / saved hosts management flow.
 - The current visual direction is macOS-native: `NSSplitView`-style structure, Finder-like source list, AppKit table-view density, restrained toolbar buttons, and system-style alerts/sheets.
 - If implementation constraints require deviating from the ardot design, record the reason in the relevant spec or implementation plan before continuing.
 - When a product or UI decision changes, update the ardot prototype or explicitly note that the implementation has intentionally moved ahead of the design.
