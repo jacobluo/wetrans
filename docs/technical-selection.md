@@ -1,6 +1,6 @@
 # wetrans Technical Selection
 
-Status: Draft for review
+Status: MVP technical baseline
 Source PRD: `docs/prd.md`
 
 ## 1. Purpose

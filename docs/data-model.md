@@ -1,6 +1,6 @@
 # wetrans Data Model
 
-Status: Draft for review
+Status: MVP data baseline
 Source PRD: `docs/prd.md`
 
 ## 1. Purpose

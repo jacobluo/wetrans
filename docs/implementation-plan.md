@@ -35,8 +35,8 @@
 | M0: SFTP Spike | Validate libssh2/libssh feasibility before UI investment | No, use `docs/technical-selection.md` |
 | M1: macOS Project Foundation | Buildable app/test skeleton | No |
 | M2: Domain Models and Persistence | Host, host key, transfer models persist safely | No |
-| M3: Host Management | Create, edit, favorite, delete saved hosts | Yes |
-| M4: SSH Config Host Generation | Select alias, run `ssh -G`, create normal host | Yes |
+| M3: Host Management | Create, edit, favorite, delete saved hosts | Yes, combined with M4 |
+| M4: SSH Config Host Generation | Select alias, run `ssh -G`, create normal host | Yes, combined with M3 |
 | M5: Credential and Host Key Security | Keychain secrets and app-managed host-key trust | Yes |
 | M6: Local and Remote Browsing | Three-pane app with local and remote file panels | Yes |
 | M7: Multi-File Transfer Queue | Bounded concurrent upload/download queue | Yes |
@@ -159,7 +159,7 @@ docs/
 - Host persists after app restart.
 - Deleting a host removes host metadata and triggers credential cleanup.
 
-**Focused spec:** Create `docs/superpowers/specs/host-management-spec.md` before implementation if UI flow details need refinement.
+**Focused spec:** Use `docs/superpowers/specs/host-onboarding-and-management-spec.md`, shared with M4.
 
 ### M4: SSH Config Host Generation
 
@@ -184,7 +184,7 @@ docs/
 - Saved generated host does not require SSH Config at runtime.
 - `originSSHConfigAlias` and `resolvedAt` are persisted as metadata.
 
-**Focused spec:** Create `docs/superpowers/specs/ssh-config-generation-spec.md` before implementation.
+**Focused spec:** Use `docs/superpowers/specs/host-onboarding-and-management-spec.md`, shared with M3.
 
 ### M5: Credential and Host Key Security
 
@@ -292,8 +292,7 @@ docs/
 Create focused specs only when starting the related milestone:
 
 ```text
-docs/superpowers/specs/host-management-spec.md
-docs/superpowers/specs/ssh-config-generation-spec.md
+docs/superpowers/specs/host-onboarding-and-management-spec.md
 docs/superpowers/specs/credential-and-host-key-spec.md
 docs/superpowers/specs/file-browsing-spec.md
 docs/superpowers/specs/transfer-queue-spec.md

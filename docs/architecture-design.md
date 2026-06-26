@@ -1,6 +1,6 @@
 # wetrans Architecture Design
 
-Status: Draft for review
+Status: MVP architecture baseline
 Source PRD: `docs/prd.md`
 
 ## 1. Purpose

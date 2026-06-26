@@ -3,7 +3,7 @@
 Version: 0.3
 Date: 2026-06-26
 Audience: Product and engineering
-Status: Draft for review
+Status: MVP baseline
 
 ## 1. Product Overview
 
