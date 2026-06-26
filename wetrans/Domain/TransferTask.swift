@@ -1,11 +1,11 @@
 import Foundation
 
-public enum TransferDirection: String, Codable, Equatable {
+public enum TransferDirection: String, Codable, Equatable, Sendable {
     case upload
     case download
 }
 
-public enum TransferStatus: String, Codable, Equatable {
+public enum TransferStatus: String, Codable, Equatable, Hashable, Sendable {
     case pending
     case running
     case succeeded
@@ -14,7 +14,7 @@ public enum TransferStatus: String, Codable, Equatable {
     case paused
 }
 
-public struct TransferTask: Identifiable, Codable, Equatable {
+public struct TransferTask: Identifiable, Codable, Equatable, Sendable {
     public let id: UUID
     public let hostId: UUID
     public let hostDisplayName: String
@@ -68,4 +68,3 @@ public struct TransferTask: Identifiable, Codable, Equatable {
         self.completedAt = completedAt
     }
 }
-
