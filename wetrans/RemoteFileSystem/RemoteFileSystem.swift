@@ -1,6 +1,6 @@
 import Foundation
 
-public struct RemoteSession: Identifiable, Equatable {
+public struct RemoteSession: Identifiable, Equatable, Sendable {
     public let id: UUID
     public let hostId: UUID
     public let displayName: String
@@ -23,7 +23,7 @@ public enum RemoteFileSystemError: Error, Equatable {
     case permissionDenied(String)
 }
 
-public protocol RemoteFileSystem {
+public protocol RemoteFileSystem: Sendable {
     func connect(_ spec: ConnectionSpec) async throws -> RemoteSession
     func disconnect(_ session: RemoteSession) async
     func listDirectory(_ path: String, in session: RemoteSession) async throws -> [FileItem]

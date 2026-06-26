@@ -1,6 +1,6 @@
 import Foundation
 
-public final class MockRemoteFileSystem: RemoteFileSystem {
+public final class MockRemoteFileSystem: RemoteFileSystem, @unchecked Sendable {
     public struct ListCall: Equatable {
         public let path: String
         public let session: RemoteSession
@@ -19,6 +19,8 @@ public final class MockRemoteFileSystem: RemoteFileSystem {
     public var listingsByPath: [String: [FileItem]]
     public var connectError: Error?
     public var listErrorsByPath: [String: Error]
+    public var uploadProgressEvents: [TransferProgress]
+    public var downloadProgressEvents: [TransferProgress]
     public var uploadError: Error?
     public var downloadError: Error?
     public private(set) var connectCalls: [ConnectionSpec] = []
@@ -27,9 +29,16 @@ public final class MockRemoteFileSystem: RemoteFileSystem {
     public private(set) var downloadCalls: [DownloadCall] = []
     public private(set) var disconnectedSessions: [RemoteSession] = []
 
-    public init(listingsByPath: [String: [FileItem]] = [:], listErrorsByPath: [String: Error] = [:]) {
+    public init(
+        listingsByPath: [String: [FileItem]] = [:],
+        listErrorsByPath: [String: Error] = [:],
+        uploadProgressEvents: [TransferProgress] = [],
+        downloadProgressEvents: [TransferProgress] = []
+    ) {
         self.listingsByPath = listingsByPath
         self.listErrorsByPath = listErrorsByPath
+        self.uploadProgressEvents = uploadProgressEvents
+        self.downloadProgressEvents = downloadProgressEvents
     }
 
     public func connect(_ spec: ConnectionSpec) async throws -> RemoteSession {
@@ -61,6 +70,9 @@ public final class MockRemoteFileSystem: RemoteFileSystem {
         if let uploadError {
             throw uploadError
         }
+        for event in uploadProgressEvents {
+            await progress(event)
+        }
     }
 
     public func download(
@@ -71,6 +83,9 @@ public final class MockRemoteFileSystem: RemoteFileSystem {
         downloadCalls.append(DownloadCall(request: request, session: session))
         if let downloadError {
             throw downloadError
+        }
+        for event in downloadProgressEvents {
+            await progress(event)
         }
     }
 }
