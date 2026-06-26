@@ -334,4 +334,4 @@ git commit -m "feat: refresh browser after transfer completion"
 
 - [x] Run `swift test`.
 - [x] Run `swift build`.
-- [ ] Commit, push, and open PR.
+- [x] Commit, push, and open PR.
