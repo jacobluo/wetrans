@@ -255,7 +255,7 @@ git commit -m "feat: add keychain credential store"
 - Create: `wetrans/Security/FileTrustedHostStore.swift`
 - Test: `wetransTests/Security/FileTrustedHostStoreTests.swift`
 
-- [ ] **Step 1: Write failing trusted-host store tests**
+- [x] **Step 1: Write failing trusted-host store tests**
 
 Create `wetransTests/Security/FileTrustedHostStoreTests.swift`:
 
@@ -356,7 +356,7 @@ final class FileTrustedHostStoreTests: XCTestCase {
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run:
 
@@ -366,7 +366,7 @@ swift test --filter FileTrustedHostStoreTests
 
 Expected: FAIL because `FileTrustedHostStore` is missing.
 
-- [ ] **Step 3: Implement trusted-host store**
+- [x] **Step 3: Implement trusted-host store**
 
 Create `wetrans/Security/TrustedHostStore.swift`:
 
@@ -443,7 +443,7 @@ public final class FileTrustedHostStore: TrustedHostStore {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run:
 
@@ -453,7 +453,7 @@ swift test --filter FileTrustedHostStoreTests
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add wetrans/Security/TrustedHostStore.swift wetrans/Security/FileTrustedHostStore.swift wetransTests/Security/FileTrustedHostStoreTests.swift
