@@ -97,7 +97,7 @@ public struct TransferQueueRowViewState: Identifiable, Equatable, Sendable {
 public final class TransferQueueViewModel: ObservableObject {
     @Published public private(set) var summary: TransferQueueSummary = .empty
     @Published public private(set) var rows: [TransferQueueRowViewState] = []
-    @Published public var isExpanded = false
+    @Published public var isExpanded = true
 
     private let queue: TransferQueue
 

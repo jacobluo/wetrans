@@ -16,7 +16,7 @@ public struct TransferQueueSummaryView: View {
                 collapsedBar
             }
         }
-        .background(.bar)
+        .background(.background)
         .task {
             await viewModel.refresh()
         }
@@ -62,7 +62,7 @@ public struct TransferQueueSummaryView: View {
             if viewModel.rows.isEmpty {
                 Text("No transfers yet")
                     .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, minHeight: 92)
+                    .frame(maxWidth: .infinity, minHeight: 86)
             } else {
                 ScrollView {
                     LazyVStack(spacing: 0) {
@@ -79,7 +79,7 @@ public struct TransferQueueSummaryView: View {
                         }
                     }
                 }
-                .frame(maxHeight: 180)
+                .frame(maxHeight: 108)
             }
 
             Divider()
@@ -96,7 +96,7 @@ public struct TransferQueueSummaryView: View {
 
     private var expandedHeader: some View {
         HStack(spacing: 10) {
-            Label("Transfer Queue", systemImage: "arrow.up.arrow.down")
+            Text("Transfer Queue")
                 .fontWeight(.semibold)
 
             if viewModel.summary.runningCount > 0 {
@@ -135,7 +135,7 @@ public struct TransferQueueSummaryView: View {
             .help("Collapse Transfer Queue")
         }
         .font(.callout)
-        .padding(.horizontal, 14)
+        .padding(.horizontal, 12)
         .padding(.vertical, 9)
     }
 
@@ -158,9 +158,9 @@ public struct TransferQueueSummaryView: View {
         }
         .font(.caption.weight(.medium))
         .foregroundStyle(.secondary)
-        .padding(.horizontal, 14)
+        .padding(.horizontal, 12)
         .padding(.vertical, 6)
-        .background(.quaternary.opacity(0.45))
+        .background(Color(red: 0.973, green: 0.98, blue: 0.988))
     }
 
     private func perform(_ action: TransferQueueRowAction, taskId: UUID) {
@@ -228,9 +228,9 @@ private struct TransferQueueTaskRow: View {
                     .frame(width: 116, alignment: .trailing)
             }
             .font(.callout)
-            .padding(.horizontal, 14)
+            .padding(.horizontal, 12)
             .padding(.vertical, 7)
-            .background(row.isFailed ? Color.red.opacity(0.08) : Color.clear)
+            .background(row.isFailed ? Color(red: 1, green: 0.969, blue: 0.91) : Color.clear)
 
             if let errorMessage = row.errorMessage, !errorMessage.isEmpty {
                 HStack(spacing: 8) {
@@ -250,13 +250,13 @@ private struct TransferQueueTaskRow: View {
                     Spacer(minLength: 0)
                 }
                 .font(.caption)
-                .padding(.horizontal, 14)
+                .padding(.horizontal, 12)
                 .padding(.bottom, 7)
-                .background(Color.red.opacity(0.08))
+                .background(Color(red: 1, green: 0.969, blue: 0.91))
             }
 
             Divider()
-                .padding(.leading, 14)
+                .padding(.leading, 12)
         }
     }
 
