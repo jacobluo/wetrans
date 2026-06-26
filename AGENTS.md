@@ -8,20 +8,20 @@ This repository keeps Superpowers workflow specs in the Superpowers specs direct
   - Superpowers brainstorming spec for the wetrans PRD.
   - Product scope, user flows, MVP/P1/P2 scope, data model, acceptance criteria.
 
-- `docs/2026-06-26-wetrans-architecture-design.md`
+- `docs/architecture-design.md`
   - Architecture design document.
   - Technical stack, module interfaces, data flow, persistence, SSH/SFTP choices, security model, testing approach.
   - Create this file when architecture design is finalized.
 
-- `docs/2026-06-26-wetrans-technical-selection.md`
+- `docs/technical-selection.md`
   - Technical selection document, if needed separately from architecture.
   - Compare concrete choices such as libssh2 vs libssh, Swift Package layout, persistence format, and distribution approach.
 
-- `docs/2026-06-26-wetrans-data-model.md`
+- `docs/data-model.md`
   - Data model design, if it grows beyond the PRD and architecture document.
   - Define persisted JSON schemas, Keychain keys, trusted host key records, transfer summaries, and migration rules.
 
-- `docs/2026-06-26-wetrans-implementation-plan.md`
+- `docs/implementation-plan.md`
   - Implementation plan.
   - Milestones, task breakdown, test strategy, verification steps.
   - Create this only after the architecture design is reviewed.
@@ -31,11 +31,13 @@ This repository keeps Superpowers workflow specs in the Superpowers specs direct
 - Put Superpowers workflow specs under `docs/superpowers/specs/`.
 - Put project design documents directly under `docs/`, including architecture design, technical selection, data model, and overall planning documents.
 - Do not move Superpowers specs out of `docs/superpowers/specs/` unless the user explicitly asks for a different location.
-- Keep document filenames date-prefixed and descriptive:
+- Use stable, descriptive filenames for project documents directly under `docs/`; do not date-prefix those files:
 
 ```text
-YYYY-MM-DD-wetrans-<topic>.md
+docs/<topic>.md
 ```
+
+- Superpowers specs may keep the workflow-generated date-prefixed names under `docs/superpowers/specs/`.
 
 ## Current Product Decisions
 
