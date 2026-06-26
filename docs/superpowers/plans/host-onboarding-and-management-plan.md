@@ -1008,7 +1008,7 @@ git commit -m "Add host sidebar grouping"
 - Create: `wetrans/Security/InMemoryCredentialStore.swift`
 - Test: `wetransTests/UI/ConnectHostViewModelTests.swift`
 
-- [ ] **Step 1: Write failing save-flow tests**
+- [x] **Step 1: Write failing save-flow tests**
 
 ```swift
 import XCTest
@@ -1083,7 +1083,7 @@ private extension HostDraft {
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run:
 
@@ -1093,7 +1093,7 @@ xcodebuild test -scheme wetrans -destination 'platform=macOS' -only-testing:wetr
 
 Expected: fails because `ConnectHostViewModel` and fakes are missing.
 
-- [ ] **Step 3: Implement view model and fake credential store**
+- [x] **Step 3: Implement view model and fake credential store**
 
 ```swift
 import Foundation
@@ -1157,7 +1157,7 @@ final class ConnectHostViewModel: ObservableObject {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run:
 
@@ -1167,7 +1167,7 @@ xcodebuild test -scheme wetrans -destination 'platform=macOS' -only-testing:wetr
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add wetrans/UI/HostManagement/ConnectHostViewModel.swift wetrans/Security/CredentialStore.swift wetrans/Security/InMemoryCredentialStore.swift wetransTests/UI/ConnectHostViewModelTests.swift
