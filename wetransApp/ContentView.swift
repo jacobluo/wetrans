@@ -2,21 +2,13 @@ import SwiftUI
 import wetrans
 
 struct ContentView: View {
+    @StateObject private var sidebarViewModel = HostSidebarViewModel()
+    @State private var isShowingConnectHost = false
+
     var body: some View {
         NavigationSplitView {
-            List {
-                Section("Favorites") {}
-                Section("Recent") {}
-                Section("My Hosts") {}
-            }
-            .listStyle(.sidebar)
-            .safeAreaInset(edge: .bottom) {
-                Button {
-                } label: {
-                    Label("Connect Host", systemImage: "plus")
-                }
-                .buttonStyle(.borderless)
-                .padding(12)
+            HostSidebarView(viewModel: sidebarViewModel) {
+                isShowingConnectHost = true
             }
         } detail: {
             HSplitView {
@@ -26,6 +18,9 @@ struct ContentView: View {
             .safeAreaInset(edge: .bottom) {
                 TransferQueuePlaceholder()
             }
+        }
+        .sheet(isPresented: $isShowingConnectHost) {
+            ConnectHostDialogView()
         }
     }
 }
@@ -71,4 +66,3 @@ private struct TransferQueuePlaceholder: View {
         .background(.bar)
     }
 }
-
