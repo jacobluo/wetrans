@@ -4,9 +4,17 @@ wetrans is a native macOS SSH/SFTP remote file manager for people who move files
 
 It keeps the daily workflow close to Finder: pick a saved host, browse local and remote directories side by side, then upload or download selected files through a visible transfer queue.
 
-![wetrans ardot prototype](docs/assets/wetrans-ardot-overview.webp)
+## Screenshots
 
-_Screenshot from the current ardot MVP prototype._
+### Main Browser
+
+![wetrans main browser ardot prototype](docs/assets/wetrans-ardot-main-browser.webp)
+
+### Connect Host
+
+![wetrans connect host ardot prototype](docs/assets/wetrans-ardot-connect-host.webp)
+
+_Screenshots from the current ardot MVP prototype._
 
 ## What It Does
 
