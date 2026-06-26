@@ -116,6 +116,21 @@ final class MainBrowserViewModelTests: XCTestCase {
         XCTAssertTrue(viewModel.remotePanel.errorMessage.contains("Host key requires confirmation"))
     }
 
+    func testRemoteLibSSH2RuntimeErrorShowsActionableMessage() async throws {
+        let host = SavedHost.fixture(lastRemotePath: "/project", lastLocalPath: "/Users/me/Downloads")
+        let remoteFileSystem = MockRemoteFileSystem()
+        remoteFileSystem.connectError = LibSSH2Error.libraryNotFound(["/missing/libssh2.dylib"])
+        let viewModel = makeViewModel(hosts: [host], remoteFileSystem: remoteFileSystem)
+
+        try viewModel.loadHosts()
+        viewModel.select(hostId: host.id)
+        await viewModel.refreshRemote()
+
+        XCTAssertTrue(viewModel.remotePanel.errorMessage.contains("libssh2"))
+        XCTAssertTrue(viewModel.remotePanel.errorMessage.contains("brew install libssh2"))
+        XCTAssertFalse(viewModel.remotePanel.errorMessage.contains("error 0"))
+    }
+
     func testUploadSelectionEnqueuesSelectedLocalFilesToCurrentRemotePath() async throws {
         let host = SavedHost.fixture(lastRemotePath: "/project", lastLocalPath: "/Users/me/Downloads")
         let localFile = FileItem(name: "config.yaml", path: "/Users/me/Downloads/config.yaml", isDirectory: false, size: 12)

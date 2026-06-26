@@ -51,6 +51,21 @@ final class HostSessionManagerTests: XCTestCase {
         XCTAssertEqual(remoteFileSystem.listCalls.map(\.path), ["/var/log"])
     }
 
+    func testNewHostWithoutRemotePathListsSFTPHomeDirectory() async throws {
+        let host = SavedHost.fixture()
+        let remoteFileSystem = MockRemoteFileSystem(listingsByPath: [".": []])
+        let manager = HostSessionManager(
+            remoteFileSystem: remoteFileSystem,
+            credentialStore: InMemoryCredentialStore(),
+            defaultLocalPath: { "/Users/me/Downloads" }
+        )
+
+        _ = try await manager.listRemoteDirectory(for: host)
+
+        XCTAssertEqual(manager.state(for: host).currentRemotePath, ".")
+        XCTAssertEqual(remoteFileSystem.listCalls.map(\.path), ["."])
+    }
+
     func testSwitchingHostsPreservesEachHostPath() {
         let dev = SavedHost.fixture(displayName: "dev", lastRemotePath: "/project")
         let prod = SavedHost.fixture(displayName: "prod", lastRemotePath: "/var/www")
@@ -103,4 +118,3 @@ private extension SavedHost {
         )
     }
 }
-

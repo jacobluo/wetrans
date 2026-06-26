@@ -19,6 +19,23 @@ public enum LibSSH2Error: Error, Equatable {
     case symbolProviderUnavailable
 }
 
+extension LibSSH2Error: LocalizedError {
+    public var errorDescription: String? {
+        switch self {
+        case .libraryNotFound:
+            return "libssh2 was not found. Install it with `brew install libssh2`, then restart wetrans."
+        case .missingSymbol(let name):
+            return "The installed libssh2 library is missing required symbol \(name)."
+        case .initializationFailed(let status):
+            return "libssh2 initialization failed with status \(status)."
+        case .operationUnsupported(let operation):
+            return "This libssh2 operation is not supported yet: \(operation)."
+        case .symbolProviderUnavailable:
+            return "libssh2 symbols are unavailable."
+        }
+    }
+}
+
 public protocol LoadedLibSSH2Library: AnyObject {
     var info: LibSSH2LibraryInfo { get }
     func initialize() throws

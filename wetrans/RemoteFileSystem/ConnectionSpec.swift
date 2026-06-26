@@ -60,8 +60,7 @@ public struct ConnectionSpec: Equatable {
             auth: auth,
             defaultRemotePath: host.lastRemotePath?.trimmedNilIfEmpty
                 ?? host.defaultRemotePath?.trimmedNilIfEmpty
-                ?? "~"
+                ?? "."
         )
     }
 }
-

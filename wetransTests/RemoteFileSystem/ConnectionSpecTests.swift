@@ -10,7 +10,7 @@ final class ConnectionSpecTests: XCTestCase {
         let spec = try ConnectionSpec.make(host: host, credentialStore: credentials)
 
         XCTAssertEqual(spec.auth, .password("secret"))
-        XCTAssertEqual(spec.defaultRemotePath, "~")
+        XCTAssertEqual(spec.defaultRemotePath, ".")
     }
 
     func testPasswordHostAllowsMissingPassword() throws {
@@ -39,14 +39,14 @@ final class ConnectionSpecTests: XCTestCase {
         }
     }
 
-    func testRemotePathDefaultsToLastThenDefaultThenTilde() throws {
+    func testRemotePathDefaultsToLastThenDefaultThenSFTPHome() throws {
         let lastPathHost = SavedHost.fixture(authType: .password, lastRemotePath: "/last", defaultRemotePath: "/default")
         let defaultPathHost = SavedHost.fixture(authType: .password, defaultRemotePath: "/default")
         let fallbackHost = SavedHost.fixture(authType: .password)
 
         XCTAssertEqual(try ConnectionSpec.make(host: lastPathHost, credentialStore: InMemoryCredentialStore()).defaultRemotePath, "/last")
         XCTAssertEqual(try ConnectionSpec.make(host: defaultPathHost, credentialStore: InMemoryCredentialStore()).defaultRemotePath, "/default")
-        XCTAssertEqual(try ConnectionSpec.make(host: fallbackHost, credentialStore: InMemoryCredentialStore()).defaultRemotePath, "~")
+        XCTAssertEqual(try ConnectionSpec.make(host: fallbackHost, credentialStore: InMemoryCredentialStore()).defaultRemotePath, ".")
     }
 }
 
@@ -72,4 +72,3 @@ private extension SavedHost {
         )
     }
 }
-

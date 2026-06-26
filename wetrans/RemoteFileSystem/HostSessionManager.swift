@@ -83,7 +83,7 @@ public final class HostSessionManager: @unchecked Sendable {
             isConnected: false,
             currentRemotePath: host.lastRemotePath?.trimmedNilIfEmpty
                 ?? host.defaultRemotePath?.trimmedNilIfEmpty
-                ?? "~",
+                ?? ".",
             currentLocalPath: host.lastLocalPath?.trimmedNilIfEmpty
                 ?? defaultLocalPath()
         )
