@@ -237,7 +237,7 @@ git commit -m "feat: add host session manager"
 
 - Verify all files changed by this plan.
 
-- [ ] **Step 1: Run all tests**
+- [x] **Step 1: Run all tests**
 
 ```bash
 swift test
@@ -245,7 +245,7 @@ swift test
 
 Expected: PASS.
 
-- [ ] **Step 2: Run build**
+- [x] **Step 2: Run build**
 
 ```bash
 swift build
@@ -253,7 +253,7 @@ swift build
 
 Expected: PASS.
 
-- [ ] **Step 3: Confirm no recursive remote scanning was introduced**
+- [x] **Step 3: Confirm no recursive remote scanning was introduced**
 
 ```bash
 rg -n 'recursive|enumerator|subpaths|contentsOfDirectory' wetrans/RemoteFileSystem wetrans/FileSystem
@@ -261,7 +261,7 @@ rg -n 'recursive|enumerator|subpaths|contentsOfDirectory' wetrans/RemoteFileSyst
 
 Expected: `contentsOfDirectory` appears only in `FileManagerLocalFileSystem`; no recursive remote traversal exists.
 
-- [ ] **Step 4: Mark plan complete and commit**
+- [x] **Step 4: Mark plan complete and commit**
 
 ```bash
 git add docs/superpowers/plans/remote-filesystem-foundation-plan.md
