@@ -279,7 +279,7 @@ git commit -m "docs: document sftp connect listing verification"
 
 ## Task 5: Final Verification
 
-- [ ] **Step 1: Run all tests**
+- [x] **Step 1: Run all tests**
 
 ```bash
 swift test
@@ -287,7 +287,7 @@ swift test
 
 Expected: PASS.
 
-- [ ] **Step 2: Run build**
+- [x] **Step 2: Run build**
 
 ```bash
 swift build
@@ -295,7 +295,7 @@ swift build
 
 Expected: PASS.
 
-- [ ] **Step 3: Review changed files**
+- [x] **Step 3: Review changed files**
 
 ```bash
 git diff --stat main..HEAD
@@ -304,7 +304,7 @@ git status --short
 
 Expected: changed files match this plan and working tree is clean.
 
-- [ ] **Step 4: Mark plan complete and commit if needed**
+- [x] **Step 4: Mark plan complete and commit if needed**
 
 ```bash
 git add docs/superpowers/plans/sftp-connect-and-listing-plan.md
