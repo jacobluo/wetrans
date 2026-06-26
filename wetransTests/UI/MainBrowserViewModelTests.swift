@@ -114,6 +114,46 @@ final class MainBrowserViewModelTests: XCTestCase {
 
         XCTAssertEqual(viewModel.remotePanel.path, "/project")
         XCTAssertTrue(viewModel.remotePanel.errorMessage.contains("Host key requires confirmation"))
+        XCTAssertEqual(viewModel.pendingHostKeyTrust, candidate)
+        XCTAssertTrue(viewModel.pendingHostKeyTrustMessage.contains(candidate.fingerprintSHA256))
+    }
+
+    func testTrustPendingHostKeySavesTrustAndRetriesRemoteListing() async throws {
+        let host = SavedHost.fixture(lastRemotePath: "/project", lastLocalPath: "/Users/me/Downloads")
+        let candidate = TrustedHostKey(
+            hostId: host.id,
+            hostname: host.hostname,
+            port: host.port,
+            keyType: "ssh-ed25519",
+            fingerprintSHA256: "SHA256:candidate",
+            firstTrustedAt: Date(timeIntervalSince1970: 1_700_000_000),
+            lastVerifiedAt: Date(timeIntervalSince1970: 1_700_000_000)
+        )
+        let remoteItems = [
+            FileItem(name: "app.log", path: "/project/app.log", isDirectory: false)
+        ]
+        let remoteFileSystem = MockRemoteFileSystem(
+            listingsByPath: ["/project": remoteItems],
+            listErrorsByPath: ["/project": RemoteFileSystemError.hostKeyRequiresTrust(candidate)]
+        )
+        let trustedHostStore = FakeTrustedHostStore()
+        let viewModel = makeViewModel(
+            hosts: [host],
+            remoteFileSystem: remoteFileSystem,
+            trustedHostStore: trustedHostStore
+        )
+
+        try viewModel.loadHosts()
+        viewModel.select(hostId: host.id)
+        await viewModel.refreshRemote()
+
+        remoteFileSystem.listErrorsByPath = [:]
+        await viewModel.trustPendingHostKeyAndRefresh()
+
+        XCTAssertEqual(trustedHostStore.trustedKeys, [candidate])
+        XCTAssertNil(viewModel.pendingHostKeyTrust)
+        XCTAssertEqual(viewModel.remotePanel.loadingState, .loaded(remoteItems))
+        XCTAssertEqual(remoteFileSystem.listCalls.map(\.path), ["/project", "/project"])
     }
 
     func testRemoteLibSSH2RuntimeErrorShowsActionableMessage() async throws {
@@ -379,6 +419,7 @@ final class MainBrowserViewModelTests: XCTestCase {
         hosts: [SavedHost] = [],
         localFileSystem: LocalFileSystem = FakeLocalFileSystem(),
         remoteFileSystem: MockRemoteFileSystem = MockRemoteFileSystem(),
+        trustedHostStore: TrustedHostStore = FakeTrustedHostStore(),
         transferQueue: TransferQueue = TransferQueue(engine: RecordingTransferEngine()),
         fileRevealer: FileRevealer = RecordingFileRevealer(),
         pasteboardWriter: PasteboardWriting = RecordingPasteboardWriter()
@@ -387,6 +428,7 @@ final class MainBrowserViewModelTests: XCTestCase {
             hostCatalog: FakeHostCatalog(hosts: hosts),
             localFileSystem: localFileSystem,
             remoteFileSystem: remoteFileSystem,
+            trustedHostStore: trustedHostStore,
             transferQueue: transferQueue,
             fileRevealer: fileRevealer,
             pasteboardWriter: pasteboardWriter
@@ -397,6 +439,7 @@ final class MainBrowserViewModelTests: XCTestCase {
         hostCatalog: HostCatalog,
         localFileSystem: LocalFileSystem = FakeLocalFileSystem(),
         remoteFileSystem: MockRemoteFileSystem = MockRemoteFileSystem(),
+        trustedHostStore: TrustedHostStore = FakeTrustedHostStore(),
         transferQueue: TransferQueue = TransferQueue(engine: RecordingTransferEngine()),
         fileRevealer: FileRevealer = RecordingFileRevealer(),
         pasteboardWriter: PasteboardWriting = RecordingPasteboardWriter()
@@ -409,6 +452,7 @@ final class MainBrowserViewModelTests: XCTestCase {
         return MainBrowserViewModel(
             hostCatalog: hostCatalog,
             hostSessionManager: sessionManager,
+            trustedHostStore: trustedHostStore,
             localFileSystem: localFileSystem,
             transferQueue: transferQueue,
             fileRevealer: fileRevealer,
@@ -504,6 +548,26 @@ private final class FakeHostCatalog: HostCatalog {
     }
 
     func setFavorite(hostId: UUID, isFavorite: Bool) throws {}
+}
+
+private final class FakeTrustedHostStore: TrustedHostStore {
+    private(set) var trustedKeys: [TrustedHostKey] = []
+
+    func lookup(hostId: UUID, hostname: String, port: Int) throws -> TrustedHostKey? {
+        trustedKeys.first {
+            $0.hostId == hostId && $0.hostname == hostname && $0.port == port
+        }
+    }
+
+    func trust(_ key: TrustedHostKey) throws {
+        trustedKeys.append(key)
+    }
+
+    func recordVerification(hostId: UUID, hostname: String, port: Int, at date: Date) throws {}
+
+    func deleteKeys(hostId: UUID) throws {
+        trustedKeys.removeAll { $0.hostId == hostId }
+    }
 }
 
 private extension SavedHost {

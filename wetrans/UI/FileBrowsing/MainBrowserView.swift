@@ -47,6 +47,28 @@ public struct MainBrowserView: View {
                 await viewModel.refreshRemote()
             }
         }
+        .alert(
+            "Confirm Host Key",
+            isPresented: Binding(
+                get: { viewModel.pendingHostKeyTrust != nil },
+                set: { isPresented in
+                    if !isPresented {
+                        viewModel.cancelPendingHostKeyTrust()
+                    }
+                }
+            )
+        ) {
+            Button("Trust and Continue") {
+                Task {
+                    await viewModel.trustPendingHostKeyAndRefresh()
+                }
+            }
+            Button("Cancel", role: .cancel) {
+                viewModel.cancelPendingHostKeyTrust()
+            }
+        } message: {
+            Text(viewModel.pendingHostKeyTrustMessage)
+        }
     }
 
     private var localPanel: some View {
