@@ -281,6 +281,26 @@ final class LibSSH2RemoteFileSystemIntegrationTests: XCTestCase {
             session = try await adapter.connect(spec)
         }
         _ = try await adapter.listDirectory(listPath, in: session)
+
+        if let transferDirectory = environment["WETRANS_SFTP_TRANSFER_DIR"], !transferDirectory.isEmpty {
+            let payload = Data("wetrans integration \(UUID().uuidString)".utf8)
+            let fileName = "wetrans-\(UUID().uuidString).txt"
+            let uploadURL = temporaryDirectory().appendingPathComponent(fileName)
+            let downloadURL = temporaryDirectory().appendingPathComponent(fileName)
+            try payload.write(to: uploadURL)
+            let remotePath = LibSSH2Path.join(directory: transferDirectory, name: fileName)
+
+            try await adapter.upload(
+                UploadRequest(localPath: uploadURL.path, remotePath: remotePath),
+                in: session
+            ) { _ in }
+            try await adapter.download(
+                DownloadRequest(remotePath: remotePath, localPath: downloadURL.path),
+                in: session
+            ) { _ in }
+
+            XCTAssertEqual(try Data(contentsOf: downloadURL), payload)
+        }
         await adapter.disconnect(session)
     }
 

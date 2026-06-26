@@ -116,7 +116,7 @@ public final class LibSSH2DynamicClient: LibSSH2Client {
         }
 
         let handle = path.withCString { pathPointer in
-            symbols.sftpOpenDirEx(sftp, pathPointer, UInt32(strlen(pathPointer)), 0, 0, LibSSH2Constants.sftpOpenDirectory)
+            symbols.sftpOpenEx(sftp, pathPointer, UInt32(strlen(pathPointer)), 0, 0, LibSSH2Constants.sftpOpenDirectory)
         }
         guard let handle else {
             throw mapSFTPPathOpenError(path: path)
@@ -176,14 +176,141 @@ public final class LibSSH2DynamicClient: LibSSH2Client {
         _ request: UploadRequest,
         progress: @escaping @Sendable (TransferProgress) async -> Void
     ) async throws {
-        throw RemoteFileSystemError.connectionFailed("SFTP upload is not implemented.")
+        guard let symbols, let sftp else {
+            throw RemoteFileSystemError.disconnected
+        }
+
+        let localURL = URL(fileURLWithPath: request.localPath)
+        let attributes = try FileManager.default.attributesOfItem(atPath: localURL.path)
+        guard attributes[.type] as? FileAttributeType == .typeRegular else {
+            throw RemoteFileSystemError.connectionFailed("Local path is not a regular file: \(request.localPath)")
+        }
+        let totalBytes = (attributes[.size] as? NSNumber)?.uint64Value
+        let localHandle = try FileHandle(forReadingFrom: localURL)
+        defer {
+            try? localHandle.close()
+        }
+
+        let remoteHandle = request.remotePath.withCString { pathPointer in
+            symbols.sftpOpenEx(
+                sftp,
+                pathPointer,
+                UInt32(strlen(pathPointer)),
+                LibSSH2TransferOpenMode.uploadFlags,
+                LibSSH2TransferOpenMode.fileMode,
+                LibSSH2TransferOpenMode.openFileType
+            )
+        }
+        guard let remoteHandle else {
+            throw mapSFTPFileOpenError(path: request.remotePath, operation: "open remote file for upload")
+        }
+        defer {
+            _ = symbols.sftpCloseHandle(remoteHandle)
+        }
+
+        let startedAt = Date()
+        var transferredBytes: UInt64 = 0
+        while true {
+            try Task.checkCancellation()
+            let data = try localHandle.read(upToCount: LibSSH2TransferOpenMode.chunkSize) ?? Data()
+            if data.isEmpty {
+                break
+            }
+
+            try data.withUnsafeBytes { rawBuffer in
+                guard let baseAddress = rawBuffer.baseAddress else {
+                    return
+                }
+                var writtenTotal = 0
+                while writtenTotal < data.count {
+                    let pointer = baseAddress
+                        .advanced(by: writtenTotal)
+                        .assumingMemoryBound(to: CChar.self)
+                    let written = symbols.sftpWrite(remoteHandle, pointer, data.count - writtenTotal)
+                    guard written >= 0 else {
+                        throw RemoteFileSystemError.connectionFailed(
+                            lastErrorMessage(fallback: "Unable to write remote file \(request.remotePath)")
+                        )
+                    }
+                    writtenTotal += written
+                }
+            }
+
+            transferredBytes += UInt64(data.count)
+            await progress(
+                TransferProgress(
+                    transferredBytes: transferredBytes,
+                    totalBytes: totalBytes,
+                    speedBytesPerSecond: Self.speed(transferredBytes: transferredBytes, startedAt: startedAt)
+                )
+            )
+        }
     }
 
     public func download(
         _ request: DownloadRequest,
         progress: @escaping @Sendable (TransferProgress) async -> Void
     ) async throws {
-        throw RemoteFileSystemError.connectionFailed("SFTP download is not implemented.")
+        guard let symbols, let sftp else {
+            throw RemoteFileSystemError.disconnected
+        }
+
+        let remoteHandle = request.remotePath.withCString { pathPointer in
+            symbols.sftpOpenEx(
+                sftp,
+                pathPointer,
+                UInt32(strlen(pathPointer)),
+                LibSSH2TransferOpenMode.downloadFlags,
+                0,
+                LibSSH2TransferOpenMode.openFileType
+            )
+        }
+        guard let remoteHandle else {
+            throw mapSFTPFileOpenError(path: request.remotePath, operation: "open remote file for download")
+        }
+        defer {
+            _ = symbols.sftpCloseHandle(remoteHandle)
+        }
+
+        let localURL = URL(fileURLWithPath: request.localPath)
+        try FileManager.default.createDirectory(
+            at: localURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        guard FileManager.default.createFile(atPath: localURL.path, contents: nil) else {
+            throw RemoteFileSystemError.connectionFailed("Unable to create local file: \(request.localPath)")
+        }
+        let localHandle = try FileHandle(forWritingTo: localURL)
+        defer {
+            try? localHandle.close()
+        }
+
+        let startedAt = Date()
+        var transferredBytes: UInt64 = 0
+        var buffer = [CChar](repeating: 0, count: LibSSH2TransferOpenMode.chunkSize)
+        while true {
+            try Task.checkCancellation()
+            let count = symbols.sftpRead(remoteHandle, &buffer, buffer.count)
+            if count == 0 {
+                break
+            }
+            guard count > 0 else {
+                throw RemoteFileSystemError.connectionFailed(
+                    lastErrorMessage(fallback: "Unable to read remote file \(request.remotePath)")
+                )
+            }
+
+            let data = Data(buffer.prefix(count).map { UInt8(bitPattern: $0) })
+            try localHandle.write(contentsOf: data)
+            transferredBytes += UInt64(count)
+            await progress(
+                TransferProgress(
+                    transferredBytes: transferredBytes,
+                    totalBytes: nil,
+                    speedBytesPerSecond: Self.speed(transferredBytes: transferredBytes, startedAt: startedAt)
+                )
+            )
+        }
     }
 
     public func disconnect() {
@@ -233,6 +360,27 @@ public final class LibSSH2DynamicClient: LibSSH2Client {
         default:
             return RemoteFileSystemError.connectionFailed(lastErrorMessage(fallback: "Unable to open SFTP directory \(path)"))
         }
+    }
+
+    private func mapSFTPFileOpenError(path: String, operation: String) -> Error {
+        guard let symbols, let sftp else {
+            return RemoteFileSystemError.disconnected
+        }
+
+        switch symbols.sftpLastError(sftp) {
+        case LibSSH2Constants.sftpPermissionDenied:
+            return RemoteFileSystemError.permissionDenied(path)
+        default:
+            return RemoteFileSystemError.connectionFailed(lastErrorMessage(fallback: "Unable to \(operation): \(path)"))
+        }
+    }
+
+    private static func speed(transferredBytes: UInt64, startedAt: Date) -> UInt64? {
+        let elapsed = Date().timeIntervalSince(startedAt)
+        guard elapsed > 0 else {
+            return nil
+        }
+        return UInt64(Double(transferredBytes) / elapsed)
     }
 
     private static func hostKeyTypeName(_ type: Int32) -> String {
@@ -304,6 +452,14 @@ private struct LibSSH2Constants {
     static let attrAccessModifyTime: UInt64 = 0x0000_0008
 }
 
+public enum LibSSH2TransferOpenMode {
+    public static let downloadFlags: UInt64 = 0x0000_0001
+    public static let uploadFlags: UInt64 = 0x0000_0002 | 0x0000_0008 | 0x0000_0010
+    public static let fileMode: Int64 = 0o100644
+    public static let openFileType: Int32 = 0
+    public static let chunkSize = 32 * 1024
+}
+
 private struct LibSSH2SFTPAttributes {
     var flags: UInt64 = 0
     var filesize: UInt64 = 0
@@ -363,7 +519,7 @@ private struct LibSSH2Symbols {
         Int32
     ) -> Int32
     typealias SFTPInit = @convention(c) (OpaquePointer) -> OpaquePointer?
-    typealias SFTPOpenDirEx = @convention(c) (
+    typealias SFTPOpenEx = @convention(c) (
         OpaquePointer,
         UnsafePointer<CChar>,
         UInt32,
@@ -380,6 +536,16 @@ private struct LibSSH2Symbols {
         UnsafeMutableRawPointer?
     ) -> Int
     typealias SFTPCloseHandle = @convention(c) (OpaquePointer) -> Int32
+    typealias SFTPRead = @convention(c) (
+        OpaquePointer,
+        UnsafeMutablePointer<CChar>,
+        Int
+    ) -> Int
+    typealias SFTPWrite = @convention(c) (
+        OpaquePointer,
+        UnsafePointer<CChar>,
+        Int
+    ) -> Int
     typealias SFTPShutdown = @convention(c) (OpaquePointer) -> Int32
     typealias SFTPLastError = @convention(c) (OpaquePointer) -> UInt64
     typealias SessionDisconnectEx = @convention(c) (
@@ -398,9 +564,11 @@ private struct LibSSH2Symbols {
     let userauthPublicKeyFromFileEx: UserAuthPublicKeyFromFileEx
     let sessionLastError: SessionLastError
     let sftpInit: SFTPInit
-    let sftpOpenDirEx: SFTPOpenDirEx
+    let sftpOpenEx: SFTPOpenEx
     let sftpReadDirEx: SFTPReadDirEx
     let sftpCloseHandle: SFTPCloseHandle
+    let sftpRead: SFTPRead
+    let sftpWrite: SFTPWrite
     let sftpShutdown: SFTPShutdown
     let sftpLastError: SFTPLastError
     let sessionDisconnectEx: SessionDisconnectEx
@@ -419,9 +587,11 @@ private struct LibSSH2Symbols {
         )
         sessionLastError = try Self.load("libssh2_session_last_error", from: provider, as: SessionLastError.self)
         sftpInit = try Self.load("libssh2_sftp_init", from: provider, as: SFTPInit.self)
-        sftpOpenDirEx = try Self.load("libssh2_sftp_open_ex", from: provider, as: SFTPOpenDirEx.self)
+        sftpOpenEx = try Self.load("libssh2_sftp_open_ex", from: provider, as: SFTPOpenEx.self)
         sftpReadDirEx = try Self.load("libssh2_sftp_readdir_ex", from: provider, as: SFTPReadDirEx.self)
         sftpCloseHandle = try Self.load("libssh2_sftp_close_handle", from: provider, as: SFTPCloseHandle.self)
+        sftpRead = try Self.load("libssh2_sftp_read", from: provider, as: SFTPRead.self)
+        sftpWrite = try Self.load("libssh2_sftp_write", from: provider, as: SFTPWrite.self)
         sftpShutdown = try Self.load("libssh2_sftp_shutdown", from: provider, as: SFTPShutdown.self)
         sftpLastError = try Self.load("libssh2_sftp_last_error", from: provider, as: SFTPLastError.self)
         sessionDisconnectEx = try Self.load("libssh2_session_disconnect_ex", from: provider, as: SessionDisconnectEx.self)

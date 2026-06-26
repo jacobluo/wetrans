@@ -20,4 +20,11 @@ final class LibSSH2DynamicClientTests: XCTestCase {
         XCTAssertTrue(LibSSH2Path.isSymlink(permissions: 0o120777))
         XCTAssertFalse(LibSSH2Path.isSymlink(permissions: 0o100644))
     }
+
+    func testTransferOpenModesUseSFTPFileConstants() {
+        XCTAssertEqual(LibSSH2TransferOpenMode.uploadFlags, 0x0000_0002 | 0x0000_0008 | 0x0000_0010)
+        XCTAssertEqual(LibSSH2TransferOpenMode.downloadFlags, 0x0000_0001)
+        XCTAssertEqual(LibSSH2TransferOpenMode.fileMode, 0o100644)
+        XCTAssertEqual(LibSSH2TransferOpenMode.openFileType, 0)
+    }
 }
