@@ -29,4 +29,22 @@ final class BrowserPathTests: XCTestCase {
         XCTAssertEqual(state.loadingState, .idle)
         XCTAssertEqual(state.selectedItemIds, [])
     }
+
+    func testLoadedFilePanelStatesCompareByListingFingerprint() {
+        let items = [
+            FileItem(name: "a.txt", path: "/tmp/a.txt", isDirectory: false)
+        ]
+        let first = FilePanelState(
+            title: "Local",
+            path: "/tmp",
+            loadingState: .loaded(items)
+        )
+        let second = FilePanelState(
+            title: "Local",
+            path: "/tmp",
+            loadingState: .loaded(items)
+        )
+
+        XCTAssertEqual(first, second)
+    }
 }

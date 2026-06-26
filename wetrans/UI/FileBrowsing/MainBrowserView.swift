@@ -136,7 +136,7 @@ public struct MainBrowserView: View {
             try? viewModel.loadHosts()
             viewModel.refreshLocal()
         }
-        .onReceive(viewModel.sidebarViewModel.$selectedHostId.removeDuplicates()) { hostId in
+        .onReceive(viewModel.sidebarViewModel.$selectedHostId.dropFirst().removeDuplicates()) { hostId in
             viewModel.select(hostId: hostId)
             viewModel.refreshLocal()
             Task {

@@ -1,11 +1,44 @@
 import Foundation
 
+public struct FilePanelListing: Equatable, Sendable {
+    public let fingerprint: Int
+    public let items: [FileItem]
+
+    public init(items: [FileItem], fingerprint: Int? = nil) {
+        self.items = items
+        self.fingerprint = fingerprint ?? Self.makeFingerprint(for: items)
+    }
+
+    public static func == (lhs: FilePanelListing, rhs: FilePanelListing) -> Bool {
+        lhs.fingerprint == rhs.fingerprint
+    }
+
+    private static func makeFingerprint(for items: [FileItem]) -> Int {
+        var hasher = Hasher()
+        hasher.combine(items.count)
+        for item in items {
+            hasher.combine(item.id)
+            hasher.combine(item.name)
+            hasher.combine(item.isDirectory)
+            hasher.combine(item.isSymlink)
+            hasher.combine(item.size)
+            hasher.combine(item.modifiedAt)
+            hasher.combine(item.permissions)
+        }
+        return hasher.finalize()
+    }
+}
+
 public enum FilePanelLoadingState: Equatable {
     case idle
     case loading
-    case loaded([FileItem])
+    case listing(FilePanelListing)
     case empty
     case failed(String)
+
+    public static func loaded(_ items: [FileItem]) -> FilePanelLoadingState {
+        .listing(FilePanelListing(items: items))
+    }
 }
 
 public struct FilePanelState: Equatable {
@@ -34,10 +67,10 @@ public struct FilePanelState: Equatable {
     }
 
     public var loadedItems: [FileItem] {
-        guard case .loaded(let items) = loadingState else {
+        guard case .listing(let listing) = loadingState else {
             return []
         }
-        return items
+        return listing.items
     }
 
     public var selectedItems: [FileItem] {
