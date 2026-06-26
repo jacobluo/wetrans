@@ -88,7 +88,9 @@ public final class MainBrowserViewModel: ObservableObject {
     public func select(hostId: UUID?) {
         guard let hostId, let host = hosts.first(where: { $0.id == hostId }) else {
             selectedHost = nil
-            sidebarViewModel.selectedHostId = nil
+            if sidebarViewModel.selectedHostId != nil {
+                sidebarViewModel.selectedHostId = nil
+            }
             remotePanel = FilePanelState(
                 title: "Remote",
                 path: "",
@@ -98,7 +100,9 @@ public final class MainBrowserViewModel: ObservableObject {
         }
 
         selectedHost = host
-        sidebarViewModel.select(host: host)
+        if sidebarViewModel.selectedHostId != host.id {
+            sidebarViewModel.select(host: host)
+        }
 
         let state = hostSessionManager.state(for: host)
         localPanel = FilePanelState(title: "Local", path: state.currentLocalPath)

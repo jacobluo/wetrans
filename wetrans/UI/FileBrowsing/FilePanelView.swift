@@ -128,16 +128,30 @@ public struct FilePanelView: View {
                 systemImage: "exclamationmark.triangle",
                 description: Text(message)
             )
-        case .loaded(let items):
-            fileList(items)
+        case .listing(let listing):
+            FilePanelListView(
+                listing: listing,
+                selectedItemIds: state.selectedItemIds,
+                contextActions: contextActions,
+                onSelect: onSelect,
+                onOpen: onOpen
+            )
         }
     }
+}
 
-    private func fileList(_ items: [FileItem]) -> some View {
-        List(items) { item in
+private struct FilePanelListView: View {
+    let listing: FilePanelListing
+    let selectedItemIds: Set<String>
+    let contextActions: (FileItem) -> [FilePanelContextAction]
+    let onSelect: (FileItem) -> Void
+    let onOpen: (FileItem) -> Void
+
+    var body: some View {
+        List(listing.items) { item in
             FileItemRow(item: item)
                 .contentShape(Rectangle())
-                .listRowBackground(state.selectedItemIds.contains(item.id) ? Color.accentColor.opacity(0.16) : Color.clear)
+                .listRowBackground(selectedItemIds.contains(item.id) ? Color.accentColor.opacity(0.16) : Color.clear)
                 .onTapGesture {
                     onSelect(item)
                 }
