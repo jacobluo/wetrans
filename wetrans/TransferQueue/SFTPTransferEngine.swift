@@ -16,6 +16,33 @@ public protocol TransferConnectionProvider: Sendable {
     func disconnect(_ session: RemoteSession) async
 }
 
+public final class HostCatalogTransferConnectionProvider: TransferConnectionProvider, @unchecked Sendable {
+    private let hostCatalog: HostCatalog
+    private let credentialStore: CredentialStore
+    private let remoteFileSystem: RemoteFileSystem
+
+    public init(
+        hostCatalog: HostCatalog,
+        credentialStore: CredentialStore,
+        remoteFileSystem: RemoteFileSystem
+    ) {
+        self.hostCatalog = hostCatalog
+        self.credentialStore = credentialStore
+        self.remoteFileSystem = remoteFileSystem
+    }
+
+    public func connect(hostId: UUID) async throws -> RemoteSession {
+        guard let host = try hostCatalog.load().first(where: { $0.id == hostId }) else {
+            throw SFTPTransferEngineError.hostNotFound(hostId)
+        }
+        return try await remoteFileSystem.connect(ConnectionSpec.make(host: host, credentialStore: credentialStore))
+    }
+
+    public func disconnect(_ session: RemoteSession) async {
+        await remoteFileSystem.disconnect(session)
+    }
+}
+
 public struct SFTPTransferEngine: TransferEngine {
     private let connectionProvider: TransferConnectionProvider
     private let remoteFileSystem: RemoteFileSystem

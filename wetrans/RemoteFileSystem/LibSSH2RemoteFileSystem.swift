@@ -1,6 +1,6 @@
 import Foundation
 
-public final class LibSSH2RemoteFileSystem: RemoteFileSystem {
+public final class LibSSH2RemoteFileSystem: RemoteFileSystem, @unchecked Sendable {
     private let runtime: LibSSH2RuntimeManaging
     private let trustedHostStore: TrustedHostStore
     private let clientFactory: LibSSH2ClientFactory

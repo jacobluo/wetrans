@@ -80,6 +80,25 @@ final class SFTPTransferEngineTests: XCTestCase {
             XCTAssertEqual(error as? SFTPTransferEngineError, .hostNotFound(hostId))
         }
     }
+
+    func testHostCatalogConnectionProviderBuildsConnectionSpecAndDisconnects() async throws {
+        let host = SavedHost.fixture()
+        let remoteFileSystem = MockRemoteFileSystem()
+        let credentialStore = InMemoryCredentialStore()
+        try credentialStore.savePassword("secret", hostId: host.id)
+        let provider = HostCatalogTransferConnectionProvider(
+            hostCatalog: StaticHostCatalog(hosts: [host]),
+            credentialStore: credentialStore,
+            remoteFileSystem: remoteFileSystem
+        )
+
+        let session = try await provider.connect(hostId: host.id)
+        await provider.disconnect(session)
+
+        XCTAssertEqual(remoteFileSystem.connectCalls.map(\.hostId), [host.id])
+        XCTAssertEqual(remoteFileSystem.connectCalls.map(\.auth), [.password("secret")])
+        XCTAssertEqual(remoteFileSystem.disconnectedSessions, [session])
+    }
 }
 
 private final class FakeTransferConnectionProvider: TransferConnectionProvider, @unchecked Sendable {
@@ -116,6 +135,24 @@ private actor ProgressRecorder {
     func append(_ progress: TransferProgress) {
         recordedEvents.append(progress)
     }
+}
+
+private final class StaticHostCatalog: HostCatalog {
+    let hosts: [SavedHost]
+
+    init(hosts: [SavedHost]) {
+        self.hosts = hosts
+    }
+
+    func load() throws -> [SavedHost] {
+        hosts
+    }
+
+    func save(_ host: SavedHost) throws {}
+    func delete(hostId: UUID) throws {}
+    func markConnected(hostId: UUID, at date: Date) throws {}
+    func updatePaths(hostId: UUID, local: String?, remote: String?) throws {}
+    func setFavorite(hostId: UUID, isFavorite: Bool) throws {}
 }
 
 private func makeTask(
