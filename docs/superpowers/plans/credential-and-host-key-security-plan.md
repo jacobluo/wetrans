@@ -589,7 +589,7 @@ git commit -m "feat: add host key verification policy"
 
 - Verify all files changed by this plan.
 
-- [ ] **Step 1: Run all tests**
+- [x] **Step 1: Run all tests**
 
 Run:
 
@@ -599,7 +599,7 @@ swift test
 
 Expected: PASS.
 
-- [ ] **Step 2: Run build**
+- [x] **Step 2: Run build**
 
 Run:
 
@@ -609,7 +609,7 @@ swift build
 
 Expected: PASS.
 
-- [ ] **Step 3: Scan for accidental secret fixtures**
+- [x] **Step 3: Scan for accidental secret fixtures**
 
 Run:
 
@@ -619,7 +619,7 @@ rg -n 'password|passphrase|secret|phrase' wetrans docs/superpowers/specs/credent
 
 Expected: matches only type names, service names, test placeholder values, and spec language. No real credentials.
 
-- [ ] **Step 4: Mark plan complete and commit**
+- [x] **Step 4: Mark plan complete and commit**
 
 ```bash
 git status --short
