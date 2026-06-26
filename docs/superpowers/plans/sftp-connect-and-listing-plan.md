@@ -41,7 +41,7 @@ docs/technical-selection.md
 - Create: `wetrans/RemoteFileSystem/LibSSH2Client.swift`
 - Modify: `wetransTests/RemoteFileSystem/LibSSH2RemoteFileSystemTests.swift`
 
-- [ ] **Step 1: Write failing adapter tests**
+- [x] **Step 1: Write failing adapter tests**
 
 Tests must cover:
 
@@ -73,7 +73,7 @@ await adapter.disconnect(session)
 XCTAssertEqual(factory.clients[0].disconnectCallCount, 1)
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 swift test --filter LibSSH2RemoteFileSystemTests
@@ -81,7 +81,7 @@ swift test --filter LibSSH2RemoteFileSystemTests
 
 Expected: FAIL because host-key errors and client factory types are missing.
 
-- [ ] **Step 3: Implement adapter boundary**
+- [x] **Step 3: Implement adapter boundary**
 
 Implement:
 
@@ -109,7 +109,7 @@ Update `LibSSH2RemoteFileSystem`:
 - Delegate listing by session id.
 - Disconnect and remove clients.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 ```bash
 swift test --filter LibSSH2RemoteFileSystemTests
@@ -117,7 +117,7 @@ swift test --filter LibSSH2RemoteFileSystemTests
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add wetrans/RemoteFileSystem/RemoteFileSystem.swift wetrans/RemoteFileSystem/LibSSH2RemoteFileSystem.swift wetrans/RemoteFileSystem/LibSSH2Client.swift wetransTests/RemoteFileSystem/LibSSH2RemoteFileSystemTests.swift docs/superpowers/plans/sftp-connect-and-listing-plan.md

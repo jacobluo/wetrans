@@ -1,6 +1,6 @@
 import Foundation
 
-public struct TrustedHostKey: Identifiable, Codable, Equatable {
+public struct TrustedHostKey: Identifiable, Codable, Equatable, Sendable {
     public let id: UUID
     public let hostId: UUID
     public var hostname: String
@@ -30,4 +30,3 @@ public struct TrustedHostKey: Identifiable, Codable, Equatable {
         self.lastVerifiedAt = lastVerifiedAt
     }
 }
-
