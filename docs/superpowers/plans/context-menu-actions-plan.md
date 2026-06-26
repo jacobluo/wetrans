@@ -184,7 +184,7 @@ git commit -m "feat: add file action support adapters"
 
 ## Task 2: Row-Scoped Upload and Download
 
-- [ ] **Step 1: Write failing row action tests**
+- [x] **Step 1: Write failing row action tests**
 
 Add to `wetransTests/UI/MainBrowserViewModelTests.swift`:
 
@@ -263,7 +263,7 @@ func testContextDownloadRejectsDirectory() async throws {
 }
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run:
 
@@ -273,7 +273,7 @@ swift test --filter MainBrowserViewModelTests
 
 Expected: compile failure because `enqueueUpload(_:)` and `enqueueDownload(_:)` do not exist.
 
-- [ ] **Step 3: Implement row-scoped task methods**
+- [x] **Step 3: Implement row-scoped task methods**
 
 Add to `MainBrowserViewModel`:
 
@@ -349,7 +349,7 @@ private func enqueueDownloadTasks(_ tasks: [TransferTask]) async {
 
 Update `enqueueUploadSelection()` and `enqueueDownloadSelection()` to build arrays and call the helpers.
 
-- [ ] **Step 4: Re-run tests**
+- [x] **Step 4: Re-run tests**
 
 Run:
 
@@ -359,7 +359,7 @@ swift test --filter MainBrowserViewModelTests
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit row action behavior**
+- [x] **Step 5: Commit row action behavior**
 
 Run:
 
