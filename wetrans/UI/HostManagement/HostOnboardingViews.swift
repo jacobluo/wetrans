@@ -148,29 +148,140 @@ private struct HostSidebarRow: View {
     }
 }
 
+public struct SavedHostDetailRow: Equatable, Sendable {
+    public var label: String
+    public var value: String
+
+    public init(label: String, value: String) {
+        self.label = label
+        self.value = value
+    }
+}
+
+public struct SavedHostsManagementState: Equatable, Sendable {
+    public var hosts: [SavedHost]
+    public var selectedHostId: UUID?
+    public var searchText: String
+
+    public init(hosts: [SavedHost] = [], selectedHostId: UUID? = nil, searchText: String = "") {
+        self.hosts = hosts
+        self.selectedHostId = selectedHostId
+        self.searchText = searchText
+    }
+
+    public var filteredHosts: [SavedHost] {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else {
+            return hosts
+        }
+        return hosts.filter { host in
+            host.displayName.localizedCaseInsensitiveContains(query) ||
+                host.hostname.localizedCaseInsensitiveContains(query) ||
+                host.username.localizedCaseInsensitiveContains(query)
+        }
+    }
+
+    public var selectedHost: SavedHost? {
+        guard let selectedHostId else {
+            return nil
+        }
+        return hosts.first { $0.id == selectedHostId }
+    }
+
+    public mutating func ensureValidSelection() {
+        if let selectedHostId, hosts.contains(where: { $0.id == selectedHostId }) {
+            return
+        }
+        selectedHostId = hosts.first?.id
+    }
+
+    public func detailRows(for host: SavedHost) -> [SavedHostDetailRow] {
+        [
+            SavedHostDetailRow(label: "Display name", value: host.displayName),
+            SavedHostDetailRow(label: "Host / IP", value: host.hostname),
+            SavedHostDetailRow(label: "Username", value: host.username),
+            SavedHostDetailRow(label: "Port", value: String(host.port)),
+            SavedHostDetailRow(label: "Auth type", value: host.authType == .sshKey ? "SSH key" : "Password"),
+            SavedHostDetailRow(label: "Identity file", value: host.identityFile?.trimmedNilIfEmpty ?? "-"),
+            SavedHostDetailRow(label: "Default remote path", value: host.defaultRemotePath?.trimmedNilIfEmpty ?? "-"),
+            SavedHostDetailRow(label: "Last remote path", value: host.lastRemotePath?.trimmedNilIfEmpty ?? "-"),
+            SavedHostDetailRow(label: "Source", value: sourceDescription(for: host)),
+            SavedHostDetailRow(label: "Note", value: host.note?.trimmedNilIfEmpty ?? "-")
+        ]
+    }
+
+    public func statusText(for host: SavedHost) -> String {
+        [
+            host.isFavorite ? "Favorite" : nil,
+            host.lastConnectedAt == nil ? "Not connected" : "Connected",
+            "Secrets stored in Keychain"
+        ]
+        .compactMap { $0 }
+        .joined(separator: " • ")
+    }
+
+    private func sourceDescription(for host: SavedHost) -> String {
+        switch host.source {
+        case .manual:
+            return "Manual saved host"
+        case .sshConfigGenerated:
+            if let alias = host.originSSHConfigAlias?.trimmedNilIfEmpty {
+                return "SSH Config alias \(alias) -> saved host"
+            }
+            return "SSH Config generated -> saved host"
+        }
+    }
+}
+
+public enum ConnectHostLayout {
+    public static let headerSpacing: CGFloat = 4
+    public static let contentSpacing: CGFloat = 12
+    public static let optionCardSpacing: CGFloat = 12
+    public static let optionCardHeight: CGFloat = 118
+    public static let sheetPadding: CGFloat = 20
+}
+
 public struct ConnectHostDialogView: View {
+    @Binding private var savedHostsState: SavedHostsManagementState
+    @Binding private var editingHost: SavedHost?
     private let onManualAdd: () -> Void
     private let onSelectSSHConfig: () -> Void
+    private let onDeleteHost: (SavedHost) -> Void
+    private let onToggleFavorite: (SavedHost) -> Void
+    private let onSaveHost: (SavedHost) -> Void
+    private let managementErrorMessage: String?
 
     public init(
+        savedHostsState: Binding<SavedHostsManagementState> = .constant(SavedHostsManagementState()),
+        editingHost: Binding<SavedHost?> = .constant(nil),
+        managementErrorMessage: String? = nil,
         onManualAdd: @escaping () -> Void = {},
-        onSelectSSHConfig: @escaping () -> Void = {}
+        onSelectSSHConfig: @escaping () -> Void = {},
+        onDeleteHost: @escaping (SavedHost) -> Void = { _ in },
+        onToggleFavorite: @escaping (SavedHost) -> Void = { _ in },
+        onSaveHost: @escaping (SavedHost) -> Void = { _ in }
     ) {
+        self._savedHostsState = savedHostsState
+        self._editingHost = editingHost
+        self.managementErrorMessage = managementErrorMessage
         self.onManualAdd = onManualAdd
         self.onSelectSSHConfig = onSelectSSHConfig
+        self.onDeleteHost = onDeleteHost
+        self.onToggleFavorite = onToggleFavorite
+        self.onSaveHost = onSaveHost
     }
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            VStack(alignment: .leading, spacing: 5) {
+        VStack(alignment: .leading, spacing: ConnectHostLayout.contentSpacing) {
+            VStack(alignment: .leading, spacing: ConnectHostLayout.headerSpacing) {
                 Text("Connect Host")
-                    .font(.system(size: 20, weight: .bold))
+                    .font(.system(size: 18, weight: .bold))
                 Text("Create a saved host manually or generate one from ~/.ssh/config. SSH Config is used only as a source.")
-                    .font(.system(size: 12))
+                    .font(.system(size: 11))
                     .foregroundStyle(.secondary)
             }
 
-            HStack(spacing: 14) {
+            HStack(spacing: ConnectHostLayout.optionCardSpacing) {
                 ConnectHostOptionCard(
                     title: "Manual Add",
                     description: "Enter server address, username, port, auth method, default path, and note.",
@@ -193,9 +304,18 @@ public struct ConnectHostDialogView: View {
                 )
                 .accessibilityIdentifier("Select from SSH Config")
             }
+
+            SavedHostsManagementPanel(
+                state: $savedHostsState,
+                editingHost: $editingHost,
+                errorMessage: managementErrorMessage,
+                onDeleteHost: onDeleteHost,
+                onToggleFavorite: onToggleFavorite,
+                onSaveHost: onSaveHost
+            )
         }
-        .padding(24)
-        .frame(width: 720)
+        .padding(ConnectHostLayout.sheetPadding)
+        .frame(width: 760)
         .background(Color(red: 0.973, green: 0.98, blue: 0.988))
     }
 }
@@ -221,6 +341,9 @@ public struct ConnectHostSheetView: View {
     @State private var isLoadingAliases = false
     @State private var isResolvingAlias = false
     @State private var errorMessage: String?
+    @State private var hostManagementErrorMessage: String?
+    @State private var savedHostsState = SavedHostsManagementState()
+    @State private var editingHost: SavedHost?
 
     public init(
         catalog: HostCatalog,
@@ -241,8 +364,14 @@ public struct ConnectHostSheetView: View {
             switch route {
             case .choices:
                 ConnectHostDialogView(
+                    savedHostsState: $savedHostsState,
+                    editingHost: $editingHost,
+                    managementErrorMessage: hostManagementErrorMessage,
                     onManualAdd: showManualAdd,
-                    onSelectSSHConfig: showSSHConfigAliases
+                    onSelectSSHConfig: showSSHConfigAliases,
+                    onDeleteHost: deleteSavedHost,
+                    onToggleFavorite: toggleFavorite,
+                    onSaveHost: saveEditedHost
                 )
             case .manual:
                 HostDraftEditorView(
@@ -277,7 +406,8 @@ public struct ConnectHostSheetView: View {
                 )
             }
         }
-        .frame(width: 720)
+        .frame(width: 760)
+        .onAppear(perform: loadSavedHosts)
     }
 
     private var filteredAliases: [SSHConfigAlias] {
@@ -352,12 +482,56 @@ public struct ConnectHostSheetView: View {
                 )
                 try await viewModel.saveDraft()
                 if let savedHost = viewModel.savedHost {
+                    loadSavedHosts()
                     onSaved(savedHost)
                 }
             } catch {
                 errorMessage = readableMessage(for: error)
             }
             isResolvingAlias = false
+        }
+    }
+
+    private func loadSavedHosts() {
+        do {
+            savedHostsState.hosts = try catalog.load()
+            savedHostsState.ensureValidSelection()
+            hostManagementErrorMessage = nil
+        } catch {
+            hostManagementErrorMessage = readableMessage(for: error)
+        }
+    }
+
+    private func deleteSavedHost(_ host: SavedHost) {
+        do {
+            try catalog.delete(hostId: host.id)
+            try credentialStore.deleteCredentials(hostId: host.id)
+            if savedHostsState.selectedHostId == host.id {
+                savedHostsState.selectedHostId = nil
+            }
+            editingHost = nil
+            loadSavedHosts()
+        } catch {
+            hostManagementErrorMessage = readableMessage(for: error)
+        }
+    }
+
+    private func toggleFavorite(_ host: SavedHost) {
+        do {
+            try catalog.setFavorite(hostId: host.id, isFavorite: !host.isFavorite)
+            loadSavedHosts()
+        } catch {
+            hostManagementErrorMessage = readableMessage(for: error)
+        }
+    }
+
+    private func saveEditedHost(_ host: SavedHost) {
+        do {
+            try catalog.save(host)
+            editingHost = nil
+            loadSavedHosts()
+        } catch {
+            hostManagementErrorMessage = readableMessage(for: error)
         }
     }
 
@@ -369,6 +543,304 @@ public struct ConnectHostSheetView: View {
             port: 22,
             username: NSUserName(),
             authType: .password
+        )
+    }
+}
+
+private struct SavedHostsManagementPanel: View {
+    @Binding var state: SavedHostsManagementState
+    @Binding var editingHost: SavedHost?
+    let errorMessage: String?
+    let onDeleteHost: (SavedHost) -> Void
+    let onToggleFavorite: (SavedHost) -> Void
+    let onSaveHost: (SavedHost) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .center) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Saved Hosts")
+                        .font(.system(size: 15, weight: .semibold))
+                    Text("Existing saved hosts. SSH Config aliases appear only after saving.")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                TextField("Search saved hosts", text: $state.searchText)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 210)
+                    .accessibilityIdentifier("Search Saved Hosts")
+            }
+
+            HStack(spacing: 0) {
+                savedHostList
+                    .frame(width: 205)
+
+                Divider()
+
+                savedHostDetail
+                    .frame(maxWidth: .infinity, minHeight: 250, alignment: .topLeading)
+            }
+            .frame(minHeight: 250)
+            .background(.white)
+            .overlay {
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .stroke(Color(nsColor: .separatorColor).opacity(0.7), lineWidth: 1)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+
+            if let errorMessage {
+                Text(errorMessage)
+                    .font(.system(size: 11))
+                    .foregroundStyle(.red)
+            }
+        }
+        .accessibilityIdentifier("Saved Hosts Management")
+    }
+
+    private var savedHostList: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Hosts")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+
+            if state.filteredHosts.isEmpty {
+                Text(state.hosts.isEmpty ? "No saved hosts" : "No matching hosts")
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .padding(10)
+            } else {
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 3) {
+                        ForEach(state.filteredHosts) { host in
+                            Button {
+                                state.selectedHostId = host.id
+                                editingHost = nil
+                            } label: {
+                                Text(host.isFavorite ? "★ \(host.displayName)" : host.displayName)
+                                    .font(.system(size: 12, weight: state.selectedHostId == host.id ? .semibold : .regular))
+                                    .lineLimit(1)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.horizontal, 9)
+                                    .padding(.vertical, 6)
+                                    .background(state.selectedHostId == host.id ? Color(red: 0.843, green: 0.91, blue: 1) : Color.clear)
+                                    .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityIdentifier("Saved Host Row \(host.displayName)")
+                        }
+                    }
+                    .padding(.horizontal, 6)
+                    .padding(.bottom, 8)
+                }
+            }
+        }
+        .background(Color(red: 0.968, green: 0.976, blue: 0.988))
+    }
+
+    @ViewBuilder
+    private var savedHostDetail: some View {
+        if let editingHost {
+            SavedHostInlineEditorView(
+                host: Binding(
+                    get: { editingHost },
+                    set: { self.editingHost = $0 }
+                ),
+                onCancel: { self.editingHost = nil },
+                onSave: {
+                    if let editingHost = self.editingHost {
+                        onSaveHost(editingHost)
+                    }
+                }
+            )
+        } else if let selectedHost = state.selectedHost {
+            SavedHostDetailView(
+                host: selectedHost,
+                rows: state.detailRows(for: selectedHost),
+                statusText: state.statusText(for: selectedHost),
+                onEdit: { editingHost = selectedHost },
+                onDelete: { onDeleteHost(selectedHost) },
+                onToggleFavorite: { onToggleFavorite(selectedHost) }
+            )
+        } else {
+            ContentUnavailableView(
+                "No saved host selected",
+                systemImage: "server.rack",
+                description: Text("Choose a saved host to review or edit it.")
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+}
+
+private struct SavedHostDetailView: View {
+    let host: SavedHost
+    let rows: [SavedHostDetailRow]
+    let statusText: String
+    let onEdit: () -> Void
+    let onDelete: () -> Void
+    let onToggleFavorite: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(host.displayName)
+                        .font(.system(size: 17, weight: .semibold))
+                    Text(subtitle)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Button(host.isFavorite ? "Unfavorite" : "Favorite", action: onToggleFavorite)
+                    .controlSize(.small)
+                    .accessibilityIdentifier("Saved Host Favorite")
+                Button("Edit", action: onEdit)
+                    .controlSize(.small)
+                    .accessibilityIdentifier("Saved Host Edit")
+                Button("Delete", role: .destructive, action: onDelete)
+                    .controlSize(.small)
+                    .accessibilityIdentifier("Saved Host Delete")
+            }
+
+            Text(statusText)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(Color(red: 0.114, green: 0.306, blue: 0.847))
+                .padding(.horizontal, 9)
+                .padding(.vertical, 5)
+                .background(Color(red: 0.918, green: 0.949, blue: 1))
+                .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+
+            VStack(spacing: 0) {
+                ForEach(rows, id: \.label) { row in
+                    HStack(alignment: .firstTextBaseline, spacing: 10) {
+                        Text(row.label)
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 126, alignment: .leading)
+                        Text(row.value)
+                            .font(.system(size: 11))
+                            .foregroundStyle(.primary)
+                            .lineLimit(2)
+                            .truncationMode(.middle)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .padding(.vertical, 6)
+                    if row.label != rows.last?.label {
+                        Divider()
+                    }
+                }
+            }
+        }
+        .padding(14)
+    }
+
+    private var subtitle: String {
+        switch host.source {
+        case .manual:
+            return "Manual saved host"
+        case .sshConfigGenerated:
+            return "SSH Config generated host"
+        }
+    }
+}
+
+private struct SavedHostInlineEditorView: View {
+    @Binding var host: SavedHost
+    let onCancel: () -> Void
+    let onSave: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Edit \(host.displayName)")
+                        .font(.system(size: 17, weight: .semibold))
+                    Text("Secrets stay in Keychain and are not shown here.")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Button("Cancel", action: onCancel)
+                    .controlSize(.small)
+                Button("Save", action: onSave)
+                    .controlSize(.small)
+                    .keyboardShortcut(.defaultAction)
+                    .accessibilityIdentifier("Saved Host Save")
+            }
+
+            LabeledContent("Display name") {
+                TextField("dev", text: $host.displayName)
+                    .textFieldStyle(.roundedBorder)
+            }
+            LabeledContent("Host / IP") {
+                TextField("example.com", text: $host.hostname)
+                    .textFieldStyle(.roundedBorder)
+            }
+            LabeledContent("Username") {
+                TextField("ubuntu", text: $host.username)
+                    .textFieldStyle(.roundedBorder)
+            }
+            LabeledContent("Port") {
+                TextField("22", text: portBinding)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 120)
+            }
+            LabeledContent("Authentication") {
+                Picker("Authentication", selection: authSelectionBinding) {
+                    Text("Password").tag(AuthType.password.rawValue)
+                    Text("SSH Key").tag(AuthType.sshKey.rawValue)
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .frame(width: 220)
+            }
+            if host.authType == .sshKey {
+                LabeledContent("Identity file") {
+                    TextField("~/.ssh/id_ed25519", text: optionalTextBinding(\.identityFile))
+                        .textFieldStyle(.roundedBorder)
+                }
+            }
+            LabeledContent("Default remote path") {
+                TextField("/home/user", text: optionalTextBinding(\.defaultRemotePath))
+                    .textFieldStyle(.roundedBorder)
+            }
+            LabeledContent("Note") {
+                TextField("Note", text: optionalTextBinding(\.note), axis: .vertical)
+                    .textFieldStyle(.roundedBorder)
+                    .lineLimit(2, reservesSpace: true)
+            }
+        }
+        .padding(14)
+    }
+
+    private var portBinding: Binding<String> {
+        Binding(
+            get: { String(host.port) },
+            set: { host.port = Int($0) ?? 0 }
+        )
+    }
+
+    private var authSelectionBinding: Binding<String> {
+        Binding(
+            get: { host.authType.rawValue },
+            set: { host.authType = AuthType(rawValue: $0) ?? .password }
+        )
+    }
+
+    private func optionalTextBinding(_ keyPath: WritableKeyPath<SavedHost, String?>) -> Binding<String> {
+        Binding(
+            get: { host[keyPath: keyPath] ?? "" },
+            set: { host[keyPath: keyPath] = $0 }
         )
     }
 }
@@ -644,24 +1116,23 @@ private struct ConnectHostOptionCard: View {
     let action: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
             Label(title, systemImage: systemImage)
-                .font(.system(size: 15, weight: .bold))
+                .font(.system(size: 14, weight: .bold))
                 .foregroundStyle(.primary)
             Text(description)
-                .font(.system(size: 12))
+                .font(.system(size: 11))
                 .foregroundStyle(isProminent ? Color(red: 0.114, green: 0.306, blue: 0.847) : .secondary)
                 .fixedSize(horizontal: false, vertical: true)
-
-            Spacer(minLength: 8)
 
             Button(buttonTitle, action: action)
                 .buttonStyle(.bordered)
                 .controlSize(.small)
                 .accessibilityIdentifier(buttonAccessibilityIdentifier)
         }
-        .frame(maxWidth: .infinity, minHeight: 104, alignment: .topLeading)
-        .padding(16)
+        .padding(12)
+        .frame(height: ConnectHostLayout.optionCardHeight, alignment: .topLeading)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
         .background(cardBackground)
         .overlay {
             RoundedRectangle(cornerRadius: 7, style: .continuous)

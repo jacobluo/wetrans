@@ -1,5 +1,10 @@
 import Foundation
 
+public enum FilePanelSelectionIntent: Equatable, Sendable {
+    case replace
+    case extend
+}
+
 public struct FilePanelListing: Equatable, Sendable {
     public let fingerprint: Int
     public let items: [FileItem]

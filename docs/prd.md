@@ -108,6 +108,8 @@ Right: remote file panel
 Bottom: global transfer queue
 ```
 
+The main browsing window does not include an app-level horizontal toolbar above the three-pane workbench. Primary global navigation stays in the host sidebar, and file actions live inside the relevant file panel.
+
 The goal is to feel familiar to users who understand Finder or dual-pane file managers.
 
 ### 2.6 Transfer Queue Is Global
@@ -269,6 +271,8 @@ Host switching does not cancel either task
 └──────────────────────────────────────────────────────────────┘
 ```
 
+There is no additional top app toolbar above this workbench in the MVP layout.
+
 ### 5.2 Host Sidebar
 
 The left sidebar shows only hosts the user has saved or connected to.
@@ -300,7 +304,7 @@ Shows saved hosts. This includes manual hosts and SSH Config-generated hosts bec
 
 ### 5.3 Connect Host Dialog
 
-The dialog has two entry points:
+The Connect Host screen has two entry points at the top:
 
 ```text
 Manual Add
@@ -309,6 +313,15 @@ Enter host, username, port, authentication, default path, and note.
 Select from SSH Config
 Choose an alias from ~/.ssh/config, resolve it with ssh -G, then save it as a normal host.
 ```
+
+Below those entry points, the same screen shows the existing saved-host management area:
+
+- Search saved hosts.
+- Select a saved host from a name-only list.
+- Review host details, including source, default path, last path, auth type, and note.
+- Edit non-secret host metadata.
+- Favorite or unfavorite.
+- Delete a saved host and clean related credentials.
 
 ## 6. Host Creation and Management
 

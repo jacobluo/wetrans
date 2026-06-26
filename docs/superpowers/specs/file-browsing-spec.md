@@ -25,6 +25,8 @@ Right: Remote File Panel
 Bottom: Transfer Queue Placeholder
 ```
 
+The current ardot prototype removes the app-level top horizontal bar from the main browser. The sidebar is the persistent global navigation surface, while refresh, go up, upload, and download actions remain scoped to the relevant file panel.
+
 The first browsing implementation should feel like an operational tool, not a landing page:
 
 - Dense lists.

@@ -4,6 +4,10 @@ import XCTest
 
 @MainActor
 final class FilePanelViewTests: XCTestCase {
+    func testFilePanelRowsUseImmediateSelectionControl() {
+        XCTAssertTrue(FilePanelInteractionPolicy.usesImmediateSelectionControl)
+    }
+
     func testFilePanelViewCanRenderLoadedState() {
         let state = FilePanelState(
             title: "Local",
@@ -17,7 +21,7 @@ final class FilePanelViewTests: XCTestCase {
             state: state,
             onRefresh: {},
             onGoUp: {},
-            onSelect: { _ in },
+            onSelect: { _, _ in },
             onOpen: { _ in }
         )
 
@@ -39,7 +43,7 @@ final class FilePanelViewTests: XCTestCase {
             action: FilePanelAction(title: "Download", systemImage: "arrow.down.circle", isEnabled: true, perform: {}),
             onRefresh: {},
             onGoUp: {},
-            onSelect: { _ in },
+            onSelect: { _, _ in },
             onOpen: { _ in }
         )
 
@@ -70,7 +74,7 @@ final class FilePanelViewTests: XCTestCase {
             },
             onRefresh: {},
             onGoUp: {},
-            onSelect: { _ in },
+            onSelect: { _, _ in },
             onOpen: { _ in }
         )
 

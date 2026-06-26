@@ -2,6 +2,8 @@ import AppKit
 import ApplicationServices
 import Foundation
 
+let connectHostEntryIdentifier = "Connect Host"
+
 enum E2EError: Error, CustomStringConvertible {
     case appNotRunning(String)
     case accessibilityNotTrusted
@@ -212,14 +214,14 @@ func optionalEnv(_ key: String, default defaultValue: String) -> String {
 }
 
 func smoke(driver: AccessibilityDriver) throws {
-    _ = try driver.waitForElement(identifier: "Connect Host Toolbar")
+    _ = try driver.waitForElement(identifier: connectHostEntryIdentifier)
     _ = try driver.waitForElement(identifier: "Local File Panel")
     _ = try driver.waitForElement(identifier: "Remote File Panel")
     _ = try driver.waitForElement(identifier: "Transfer Queue")
 }
 
 func addManualHost(driver: AccessibilityDriver) throws {
-    try driver.click(identifier: "Connect Host Toolbar")
+    try driver.click(identifier: connectHostEntryIdentifier)
     try driver.click(identifier: "Manual Add Start")
     try driver.setText(identifier: "Manual Host Display Name", value: try env("WETRANS_E2E_MANUAL_DISPLAY_NAME"))
     try driver.setText(identifier: "Manual Host Hostname", value: try env("WETRANS_E2E_MANUAL_HOST"))
@@ -241,7 +243,7 @@ func addManualHost(driver: AccessibilityDriver) throws {
 
 func addSSHConfigHost(driver: AccessibilityDriver) throws {
     let alias = try env("WETRANS_E2E_SSH_ALIAS")
-    try driver.click(identifier: "Connect Host Toolbar")
+    try driver.click(identifier: connectHostEntryIdentifier)
     try driver.click(identifier: "SSH Config Browse Aliases")
     try driver.setText(identifier: "SSH Config Search", value: alias)
     try driver.click(identifier: "SSH Config Alias \(alias)", timeout: 12)

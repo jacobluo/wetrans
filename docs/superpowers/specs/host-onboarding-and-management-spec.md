@@ -154,7 +154,7 @@ Context menu actions:
 
 ### 5.3 Connect Host Dialog
 
-The first screen shows two choices:
+The first screen shows two choices at the top:
 
 ```text
 Manual Add
@@ -163,6 +163,14 @@ Enter server address, username, port, and authentication.
 Select from SSH Config
 Choose an alias from ~/.ssh/config and generate a host.
 ```
+
+The lower half of this first screen shows the saved-host management area from the current ardot prototype:
+
+- Saved Hosts title and search field.
+- Name-only saved-host list.
+- Detail pane for the selected host.
+- Edit, delete, save, and favorite/unfavorite actions.
+- Explicit source text that SSH Config entries become saved hosts and are not runtime references.
 
 Selecting either choice opens the corresponding form flow.
 

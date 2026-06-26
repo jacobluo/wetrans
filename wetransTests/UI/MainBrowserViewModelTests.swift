@@ -3,6 +3,40 @@ import XCTest
 
 @MainActor
 final class MainBrowserViewModelTests: XCTestCase {
+    func testSingleClickLocalSelectionReplacesPreviousSelection() {
+        let first = FileItem(name: "a.txt", path: "/Users/me/Downloads/a.txt", isDirectory: false)
+        let second = FileItem(name: "b.txt", path: "/Users/me/Downloads/b.txt", isDirectory: false)
+        let viewModel = makeViewModel()
+
+        viewModel.selectLocalItem(first)
+        viewModel.selectLocalItem(second)
+
+        XCTAssertEqual(viewModel.localPanel.selectedItemIds, [second.id])
+    }
+
+    func testShiftLocalSelectionExtendsAndTogglesSelection() {
+        let first = FileItem(name: "a.txt", path: "/Users/me/Downloads/a.txt", isDirectory: false)
+        let second = FileItem(name: "b.txt", path: "/Users/me/Downloads/b.txt", isDirectory: false)
+        let viewModel = makeViewModel()
+
+        viewModel.selectLocalItem(first)
+        viewModel.selectLocalItem(second, intent: .extend)
+        viewModel.selectLocalItem(first, intent: .extend)
+
+        XCTAssertEqual(viewModel.localPanel.selectedItemIds, [second.id])
+    }
+
+    func testSingleClickRemoteSelectionReplacesPreviousSelection() {
+        let first = FileItem(name: "a.log", path: "/var/log/a.log", isDirectory: false)
+        let second = FileItem(name: "b.log", path: "/var/log/b.log", isDirectory: false)
+        let viewModel = makeViewModel()
+
+        viewModel.selectRemoteItem(first)
+        viewModel.selectRemoteItem(second)
+
+        XCTAssertEqual(viewModel.remotePanel.selectedItemIds, [second.id])
+    }
+
     func testLoadHostsAndSelectRestoresPanelPaths() throws {
         let host = SavedHost.fixture(lastRemotePath: "/project", lastLocalPath: "/Users/me/Downloads")
         let viewModel = makeViewModel(hosts: [host])
@@ -216,7 +250,7 @@ final class MainBrowserViewModelTests: XCTestCase {
             viewModel.localPanel.loadingState == .loaded([localFile, localDirectory])
         }
         viewModel.selectLocalItem(localFile)
-        viewModel.selectLocalItem(localDirectory)
+        viewModel.selectLocalItem(localDirectory, intent: .extend)
         await viewModel.enqueueUploadSelection()
 
         let tasks = await transferQueue.snapshot()
@@ -228,6 +262,41 @@ final class MainBrowserViewModelTests: XCTestCase {
         XCTAssertEqual(tasks[0].remotePath, "/project/config.yaml")
         XCTAssertEqual(tasks[0].fileName, "config.yaml")
         XCTAssertEqual(tasks[0].totalBytes, 12)
+    }
+
+    func testUploadSelectionEnqueuesAllSelectedLocalFiles() async throws {
+        let host = SavedHost.fixture(lastRemotePath: "/project", lastLocalPath: "/Users/me/Downloads")
+        let firstFile = FileItem(name: "config.yaml", path: "/Users/me/Downloads/config.yaml", isDirectory: false, size: 12)
+        let secondFile = FileItem(name: "notes.txt", path: "/Users/me/Downloads/notes.txt", isDirectory: false, size: 34)
+        let transferQueue = TransferQueue(engine: RecordingTransferEngine())
+        let viewModel = makeViewModel(
+            hosts: [host],
+            localFileSystem: FakeLocalFileSystem(listingsByPath: ["/Users/me/Downloads": [firstFile, secondFile]]),
+            remoteFileSystem: MockRemoteFileSystem(listingsByPath: ["/project": []]),
+            transferQueue: transferQueue
+        )
+
+        try viewModel.loadHosts()
+        viewModel.select(hostId: host.id)
+        viewModel.refreshLocal()
+        await viewModel.refreshRemote()
+        try await waitUntil {
+            viewModel.localPanel.loadingState == .loaded([firstFile, secondFile])
+        }
+        viewModel.selectLocalItem(firstFile)
+        viewModel.selectLocalItem(secondFile, intent: .extend)
+        await viewModel.enqueueUploadSelection()
+
+        let tasks = await transferQueue.snapshot()
+        XCTAssertEqual(tasks.map(\.localPath), [
+            "/Users/me/Downloads/config.yaml",
+            "/Users/me/Downloads/notes.txt"
+        ])
+        XCTAssertEqual(tasks.map(\.remotePath), [
+            "/project/config.yaml",
+            "/project/notes.txt"
+        ])
+        XCTAssertEqual(tasks.map(\.totalBytes), [12, 34])
     }
 
     func testDownloadSelectionEnqueuesSelectedRemoteFilesToCurrentLocalPath() async throws {
@@ -289,6 +358,40 @@ final class MainBrowserViewModelTests: XCTestCase {
         XCTAssertEqual(tasks[0].totalBytes, 12)
     }
 
+    func testContextUploadUsesAllSelectedLocalFilesWhenClickedFileIsSelected() async throws {
+        let host = SavedHost.fixture(lastRemotePath: "/project", lastLocalPath: "/Users/me/Downloads")
+        let firstFile = FileItem(name: "config.yaml", path: "/Users/me/Downloads/config.yaml", isDirectory: false, size: 12)
+        let secondFile = FileItem(name: "notes.txt", path: "/Users/me/Downloads/notes.txt", isDirectory: false, size: 34)
+        let transferQueue = TransferQueue(engine: RecordingTransferEngine())
+        let viewModel = makeViewModel(
+            hosts: [host],
+            localFileSystem: FakeLocalFileSystem(listingsByPath: ["/Users/me/Downloads": [firstFile, secondFile]]),
+            remoteFileSystem: MockRemoteFileSystem(listingsByPath: ["/project": []]),
+            transferQueue: transferQueue
+        )
+
+        try viewModel.loadHosts()
+        viewModel.select(hostId: host.id)
+        viewModel.refreshLocal()
+        await viewModel.refreshRemote()
+        try await waitUntil {
+            viewModel.localPanel.loadingState == .loaded([firstFile, secondFile])
+        }
+        viewModel.selectLocalItem(firstFile)
+        viewModel.selectLocalItem(secondFile, intent: .extend)
+        await viewModel.enqueueUpload(secondFile)
+
+        let tasks = await transferQueue.snapshot()
+        XCTAssertEqual(tasks.map(\.localPath), [
+            "/Users/me/Downloads/config.yaml",
+            "/Users/me/Downloads/notes.txt"
+        ])
+        XCTAssertEqual(tasks.map(\.remotePath), [
+            "/project/config.yaml",
+            "/project/notes.txt"
+        ])
+    }
+
     func testContextDownloadEnqueuesOnlyClickedRemoteFile() async throws {
         let host = SavedHost.fixture(lastRemotePath: "/var/log", lastLocalPath: "/Users/me/Downloads")
         let clicked = FileItem(name: "app.log", path: "/var/log/app.log", isDirectory: false, size: 42)
@@ -309,6 +412,37 @@ final class MainBrowserViewModelTests: XCTestCase {
         XCTAssertEqual(tasks[0].remotePath, "/var/log/app.log")
         XCTAssertEqual(tasks[0].localPath, "/Users/me/Downloads/app.log")
         XCTAssertEqual(tasks[0].totalBytes, 42)
+    }
+
+    func testContextDownloadUsesAllSelectedRemoteFilesWhenClickedFileIsSelected() async throws {
+        let host = SavedHost.fixture(lastRemotePath: "/var/log", lastLocalPath: "/Users/me/Downloads")
+        let firstFile = FileItem(name: "app.log", path: "/var/log/app.log", isDirectory: false, size: 42)
+        let secondFile = FileItem(name: "error.log", path: "/var/log/error.log", isDirectory: false, size: 56)
+        let transferQueue = TransferQueue(engine: RecordingTransferEngine())
+        let viewModel = makeViewModel(
+            hosts: [host],
+            localFileSystem: FakeLocalFileSystem(listingsByPath: ["/Users/me/Downloads": []]),
+            remoteFileSystem: MockRemoteFileSystem(listingsByPath: ["/var/log": [firstFile, secondFile]]),
+            transferQueue: transferQueue
+        )
+
+        try viewModel.loadHosts()
+        viewModel.select(hostId: host.id)
+        viewModel.refreshLocal()
+        await viewModel.refreshRemote()
+        viewModel.selectRemoteItem(firstFile)
+        viewModel.selectRemoteItem(secondFile, intent: .extend)
+        await viewModel.enqueueDownload(secondFile)
+
+        let tasks = await transferQueue.snapshot()
+        XCTAssertEqual(tasks.map(\.remotePath), [
+            "/var/log/app.log",
+            "/var/log/error.log"
+        ])
+        XCTAssertEqual(tasks.map(\.localPath), [
+            "/Users/me/Downloads/app.log",
+            "/Users/me/Downloads/error.log"
+        ])
     }
 
     func testContextUploadRejectsDirectory() async throws {

@@ -3,6 +3,59 @@ import XCTest
 
 @MainActor
 final class ConnectHostViewModelTests: XCTestCase {
+    func testConnectHostEntryAreaUsesCompactCardHeight() {
+        XCTAssertLessThanOrEqual(ConnectHostLayout.optionCardHeight, 124)
+        XCTAssertLessThanOrEqual(ConnectHostLayout.headerSpacing, 10)
+    }
+
+    func testSavedHostsManagementStateSelectsFirstHostAndFiltersByHostMetadata() {
+        let dev = SavedHost(
+            source: .sshConfigGenerated,
+            displayName: "dev",
+            hostname: "192.0.2.10",
+            username: "ubuntu",
+            authType: .sshKey,
+            identityFile: "~/.ssh/id_ed25519",
+            originSSHConfigAlias: "dev"
+        )
+        let prod = SavedHost(
+            source: .manual,
+            displayName: "prod",
+            hostname: "prod.example.com",
+            username: "deploy",
+            authType: .password
+        )
+        var state = SavedHostsManagementState(hosts: [dev, prod])
+
+        state.ensureValidSelection()
+
+        XCTAssertEqual(state.selectedHost?.displayName, "dev")
+        state.searchText = "deploy"
+        XCTAssertEqual(state.filteredHosts.map(\.displayName), ["prod"])
+    }
+
+    func testSavedHostsManagementStateDescribesSavedHostWithoutSecrets() {
+        let host = SavedHost(
+            source: .sshConfigGenerated,
+            displayName: "dev",
+            hostname: "192.0.2.10",
+            username: "ubuntu",
+            authType: .sshKey,
+            identityFile: "~/.ssh/id_ed25519",
+            isFavorite: true,
+            lastRemotePath: "/home/ubuntu/project",
+            defaultRemotePath: "/home/ubuntu",
+            originSSHConfigAlias: "dev",
+            note: "Development server"
+        )
+        let state = SavedHostsManagementState(hosts: [host])
+
+        let detail = state.detailRows(for: host)
+
+        XCTAssertTrue(detail.contains(.init(label: "Source", value: "SSH Config alias dev -> saved host")))
+        XCTAssertFalse(detail.map(\.value).contains("secret"))
+    }
+
     func testSavingManualDraftSavesHostAndPasswordThroughCredentialStore() async throws {
         let catalog = InMemoryHostCatalog()
         let credentials = InMemoryCredentialStore()
@@ -73,4 +126,3 @@ private final class InMemoryHostCatalog: HostCatalog {
         hosts[index].isFavorite = isFavorite
     }
 }
-

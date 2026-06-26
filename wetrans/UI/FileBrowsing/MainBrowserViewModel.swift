@@ -247,12 +247,12 @@ public final class MainBrowserViewModel: ObservableObject {
         await refreshRemote()
     }
 
-    public func selectLocalItem(_ item: FileItem) {
-        toggleSelection(item.id, in: &localPanel)
+    public func selectLocalItem(_ item: FileItem, intent: FilePanelSelectionIntent = .replace) {
+        select(item.id, intent: intent, in: &localPanel)
     }
 
-    public func selectRemoteItem(_ item: FileItem) {
-        toggleSelection(item.id, in: &remotePanel)
+    public func selectRemoteItem(_ item: FileItem, intent: FilePanelSelectionIntent = .replace) {
+        select(item.id, intent: intent, in: &remotePanel)
     }
 
     public func revealLocalItemInFinder(_ item: FileItem) {
@@ -268,22 +268,27 @@ public final class MainBrowserViewModel: ObservableObject {
             localPanel.loadingState = .failed("Select a host before uploading files.")
             return
         }
-        guard !item.isDirectory else {
+
+        let items = contextTransferItems(for: item, in: localPanel)
+        let tasks = items
+            .filter { !$0.isDirectory }
+            .map { selectedItem in
+                TransferTask(
+                    hostId: host.id,
+                    hostDisplayName: host.displayName,
+                    direction: .upload,
+                    localPath: selectedItem.path,
+                    remotePath: BrowserPath.remoteJoin(directory: remotePanel.path, name: selectedItem.name),
+                    fileName: selectedItem.name,
+                    totalBytes: selectedItem.size
+                )
+            }
+        guard !tasks.isEmpty else {
             localPanel.loadingState = .failed("Select a file to upload.")
             return
         }
 
-        await enqueueUploadTasks([
-            TransferTask(
-                hostId: host.id,
-                hostDisplayName: host.displayName,
-                direction: .upload,
-                localPath: item.path,
-                remotePath: BrowserPath.remoteJoin(directory: remotePanel.path, name: item.name),
-                fileName: item.name,
-                totalBytes: item.size
-            )
-        ])
+        await enqueueUploadTasks(tasks)
     }
 
     public func enqueueDownload(_ item: FileItem) async {
@@ -291,22 +296,27 @@ public final class MainBrowserViewModel: ObservableObject {
             remotePanel.loadingState = .failed("Select a host before downloading files.")
             return
         }
-        guard !item.isDirectory else {
+
+        let items = contextTransferItems(for: item, in: remotePanel)
+        let tasks = items
+            .filter { !$0.isDirectory }
+            .map { selectedItem in
+                TransferTask(
+                    hostId: host.id,
+                    hostDisplayName: host.displayName,
+                    direction: .download,
+                    localPath: BrowserPath.localJoin(directory: localPanel.path, name: selectedItem.name),
+                    remotePath: selectedItem.path,
+                    fileName: selectedItem.name,
+                    totalBytes: selectedItem.size
+                )
+            }
+        guard !tasks.isEmpty else {
             remotePanel.loadingState = .failed("Select a file to download.")
             return
         }
 
-        await enqueueDownloadTasks([
-            TransferTask(
-                hostId: host.id,
-                hostDisplayName: host.displayName,
-                direction: .download,
-                localPath: BrowserPath.localJoin(directory: localPanel.path, name: item.name),
-                remotePath: item.path,
-                fileName: item.name,
-                totalBytes: item.size
-            )
-        ])
+        await enqueueDownloadTasks(tasks)
     }
 
     public func enqueueUploadSelection() async {
@@ -375,6 +385,13 @@ public final class MainBrowserViewModel: ObservableObject {
         await transferQueueViewModel.refresh()
     }
 
+    private func contextTransferItems(for item: FileItem, in panel: FilePanelState) -> [FileItem] {
+        guard panel.selectedItemIds.contains(item.id) else {
+            return [item]
+        }
+        return panel.selectedItems
+    }
+
     private func updateLocalPath(_ path: String) {
         localPanel.path = path
         if let host = selectedHost {
@@ -426,11 +443,16 @@ public final class MainBrowserViewModel: ObservableObject {
         }
     }
 
-    private func toggleSelection(_ itemId: String, in panel: inout FilePanelState) {
-        if panel.selectedItemIds.contains(itemId) {
-            panel.selectedItemIds.remove(itemId)
-        } else {
-            panel.selectedItemIds.insert(itemId)
+    private func select(_ itemId: String, intent: FilePanelSelectionIntent, in panel: inout FilePanelState) {
+        switch intent {
+        case .replace:
+            panel.selectedItemIds = [itemId]
+        case .extend:
+            if panel.selectedItemIds.contains(itemId) {
+                panel.selectedItemIds.remove(itemId)
+            } else {
+                panel.selectedItemIds.insert(itemId)
+            }
         }
     }
 

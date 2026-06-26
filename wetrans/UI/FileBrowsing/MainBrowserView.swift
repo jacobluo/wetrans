@@ -10,30 +10,26 @@ public struct MainBrowserView: View {
     }
 
     public var body: some View {
-        VStack(spacing: 0) {
-            WetransTopBar(onConnectHost: onConnectHost)
+        HStack(spacing: 0) {
+            HostSidebarView(viewModel: viewModel.sidebarViewModel, onConnectHost: onConnectHost)
+                .frame(width: 236)
 
-            HStack(spacing: 0) {
-                HostSidebarView(viewModel: viewModel.sidebarViewModel, onConnectHost: onConnectHost)
-                    .frame(width: 236)
-
-                VStack(spacing: 8) {
-                    HSplitView {
-                        localPanel
-                        remotePanel
-                    }
-                    .frame(minHeight: 360)
-
-                    TransferQueueSummaryView(viewModel: viewModel.transferQueueViewModel)
-                        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-                        .overlay {
-                            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                .stroke(Color(nsColor: .separatorColor).opacity(0.65), lineWidth: 1)
-                        }
+            VStack(spacing: 8) {
+                HSplitView {
+                    localPanel
+                    remotePanel
                 }
-                .padding(10)
-                .background(Color(nsColor: .windowBackgroundColor))
+                .frame(minHeight: 360)
+
+                TransferQueueSummaryView(viewModel: viewModel.transferQueueViewModel)
+                    .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .stroke(Color(nsColor: .separatorColor).opacity(0.65), lineWidth: 1)
+                    }
             }
+            .padding(10)
+            .background(Color(nsColor: .windowBackgroundColor))
         }
         .background(Color(nsColor: .windowBackgroundColor))
         .task {
@@ -115,7 +111,9 @@ public struct MainBrowserView: View {
             },
             onRefresh: viewModel.refreshLocal,
             onGoUp: viewModel.goUpLocal,
-            onSelect: viewModel.selectLocalItem,
+            onSelect: { item, intent in
+                viewModel.selectLocalItem(item, intent: intent)
+            },
             onOpen: viewModel.openLocalItem
         )
     }
@@ -178,47 +176,14 @@ public struct MainBrowserView: View {
                     await viewModel.goUpRemote()
                 }
             },
-            onSelect: viewModel.selectRemoteItem,
+            onSelect: { item, intent in
+                viewModel.selectRemoteItem(item, intent: intent)
+            },
             onOpen: { item in
                 Task {
                     await viewModel.openRemoteItem(item)
                 }
             }
         )
-    }
-}
-
-private struct WetransTopBar: View {
-    let onConnectHost: () -> Void
-
-    var body: some View {
-        HStack(spacing: 14) {
-            Text("wetrans")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(.primary)
-
-            Spacer()
-
-            Button(action: onConnectHost) {
-                Text("Connect Host")
-                    .font(.system(size: 12, weight: .medium))
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-            .accessibilityIdentifier("Connect Host Toolbar")
-
-            Button {} label: {
-                Image(systemName: "ellipsis")
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-            .help("More")
-        }
-        .padding(.horizontal, 18)
-        .frame(height: 52)
-        .background(.bar)
-        .overlay(alignment: .bottom) {
-            Divider()
-        }
     }
 }

@@ -37,6 +37,8 @@ SwiftUI owns the application shell:
 - Settings screens.
 - Top-level state binding.
 
+The MVP main window shell should not add an app-level top horizontal toolbar above the three-pane browser. Persistent global navigation belongs in the host sidebar; file operations belong to file-panel controls or context menus.
+
 AppKit owns dense file-manager surfaces:
 
 - Local file table.
@@ -95,6 +97,10 @@ AppKit File Panels
 Host Creation
   -> SSHConfigScanner
   -> SSHConfigResolver
+  -> HostCatalog
+  -> CredentialStore
+
+Host Management UI
   -> HostCatalog
   -> CredentialStore
 

@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 public struct FilePanelAction {
@@ -36,13 +37,25 @@ public struct FilePanelContextAction: Identifiable {
     }
 }
 
+public enum FilePanelInteractionPolicy {
+    public static let usesImmediateSelectionControl = true
+
+    @MainActor
+    public static func currentSelectionIntent() -> FilePanelSelectionIntent {
+        guard NSApp.currentEvent?.modifierFlags.contains(.shift) == true else {
+            return .replace
+        }
+        return .extend
+    }
+}
+
 public struct FilePanelView: View {
     private let state: FilePanelState
     private let action: FilePanelAction?
     private let contextActions: (FileItem) -> [FilePanelContextAction]
     private let onRefresh: () -> Void
     private let onGoUp: () -> Void
-    private let onSelect: (FileItem) -> Void
+    private let onSelect: (FileItem, FilePanelSelectionIntent) -> Void
     private let onOpen: (FileItem) -> Void
 
     public init(
@@ -51,7 +64,7 @@ public struct FilePanelView: View {
         contextActions: @escaping (FileItem) -> [FilePanelContextAction] = { _ in [] },
         onRefresh: @escaping () -> Void,
         onGoUp: @escaping () -> Void,
-        onSelect: @escaping (FileItem) -> Void = { _ in },
+        onSelect: @escaping (FileItem, FilePanelSelectionIntent) -> Void = { _, _ in },
         onOpen: @escaping (FileItem) -> Void
     ) {
         self.state = state
@@ -205,7 +218,7 @@ private struct FilePanelListView: View {
     let listing: FilePanelListing
     let selectedItemIds: Set<String>
     let contextActions: (FileItem) -> [FilePanelContextAction]
-    let onSelect: (FileItem) -> Void
+    let onSelect: (FileItem, FilePanelSelectionIntent) -> Void
     let onOpen: (FileItem) -> Void
 
     var body: some View {
@@ -214,24 +227,28 @@ private struct FilePanelListView: View {
             ScrollView {
                 LazyVStack(spacing: 0) {
                     ForEach(listing.items) { item in
-                        FileItemRow(panelTitle: panelTitle, item: item, isSelected: selectedItemIds.contains(item.id))
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                onSelect(item)
-                            }
-                            .onTapGesture(count: 2) {
+                        Button {
+                            onSelect(item, FilePanelInteractionPolicy.currentSelectionIntent())
+                        } label: {
+                            FileItemRow(panelTitle: panelTitle, item: item, isSelected: selectedItemIds.contains(item.id))
+                        }
+                        .buttonStyle(.plain)
+                        .contentShape(Rectangle())
+                        .simultaneousGesture(
+                            TapGesture(count: 2).onEnded {
                                 onOpen(item)
                             }
-                            .contextMenu {
-                                ForEach(contextActions(item)) { action in
-                                    Button {
-                                        action.perform()
-                                    } label: {
-                                        Label(action.title, systemImage: action.systemImage)
-                                    }
-                                    .disabled(!action.isEnabled)
+                        )
+                        .contextMenu {
+                            ForEach(contextActions(item)) { action in
+                                Button {
+                                    action.perform()
+                                } label: {
+                                    Label(action.title, systemImage: action.systemImage)
                                 }
+                                .disabled(!action.isEnabled)
                             }
+                        }
                     }
                 }
                 .padding(.vertical, 3)
