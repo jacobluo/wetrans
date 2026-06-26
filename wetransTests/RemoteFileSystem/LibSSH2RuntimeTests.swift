@@ -49,6 +49,24 @@ final class LibSSH2RuntimeTests: XCTestCase {
             XCTAssertEqual(error as? LibSSH2Error, .libraryNotFound(["/missing/libssh2.dylib"]))
         }
     }
+
+    func testSymbolProviderReturnsLoadedLibrarySymbols() throws {
+        let presentSymbol = UnsafeMutableRawPointer(bitPattern: 0x1)!
+        let loadedLibrary = FakeLoadedLibSSH2Library(
+            info: LibSSH2LibraryInfo(path: "/fake/libssh2.dylib", version: nil),
+            symbols: ["present": presentSymbol]
+        )
+        let runtime = LibSSH2Runtime(
+            loader: FakeLibSSH2Loader(loadedLibrary: loadedLibrary),
+            candidatePaths: ["/fake/libssh2.dylib"]
+        )
+
+        _ = try runtime.initialize()
+        let provider = try runtime.symbolProvider()
+
+        XCTAssertEqual(provider.symbol(named: "present"), presentSymbol)
+        XCTAssertNil(provider.symbol(named: "missing"))
+    }
 }
 
 final class LibSSH2RuntimeRealProbeTests: XCTestCase {
@@ -90,13 +108,15 @@ private final class FakeLibSSH2Loader: LibSSH2LibraryLoading {
     }
 }
 
-private final class FakeLoadedLibSSH2Library: LoadedLibSSH2Library {
+private final class FakeLoadedLibSSH2Library: LibSSH2SymbolProviding {
     let info: LibSSH2LibraryInfo
+    let symbols: [String: UnsafeMutableRawPointer]
     private(set) var initializeCount = 0
     private(set) var shutdownCount = 0
 
-    init(info: LibSSH2LibraryInfo) {
+    init(info: LibSSH2LibraryInfo, symbols: [String: UnsafeMutableRawPointer] = [:]) {
         self.info = info
+        self.symbols = symbols
     }
 
     func initialize() throws {
@@ -105,5 +125,9 @@ private final class FakeLoadedLibSSH2Library: LoadedLibSSH2Library {
 
     func shutdown() {
         shutdownCount += 1
+    }
+
+    func symbol(named name: String) -> UnsafeMutableRawPointer? {
+        symbols[name]
     }
 }
