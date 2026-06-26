@@ -225,7 +225,7 @@ git commit -m "feat: add file panel views"
 - Modify: `wetransApp/ContentView.swift`
 - Test: `wetransTests/UI/FilePanelViewTests.swift`
 
-- [ ] **Step 1: Write failing composition compile test**
+- [x] **Step 1: Write failing composition compile test**
 
 Add:
 
@@ -235,7 +235,7 @@ let view = MainBrowserView(viewModel: viewModel, onConnectHost: {})
 XCTAssertNotNil(view)
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 swift test --filter FilePanelViewTests
@@ -243,7 +243,7 @@ swift test --filter FilePanelViewTests
 
 Expected: FAIL because `MainBrowserView` is missing.
 
-- [ ] **Step 3: Implement main composition**
+- [x] **Step 3: Implement main composition**
 
 Implement:
 
@@ -252,7 +252,7 @@ Implement:
 - `.task` load hosts on launch.
 - `.onChange` bridge sidebar selection to `viewModel.select(hostId:)`.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 ```bash
 swift test --filter FilePanelViewTests
@@ -260,7 +260,7 @@ swift test --filter FilePanelViewTests
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add wetrans/UI/FileBrowsing/MainBrowserView.swift wetransApp/ContentView.swift wetransTests/UI/FilePanelViewTests.swift docs/superpowers/plans/file-browsing-plan.md

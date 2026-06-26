@@ -22,4 +22,13 @@ final class FilePanelViewTests: XCTestCase {
 
         XCTAssertNotNil(String(describing: type(of: view.body)))
     }
+
+    func testMainBrowserViewCanRender() {
+        let view = MainBrowserView(
+            viewModel: MainBrowserViewModel(),
+            onConnectHost: {}
+        )
+
+        XCTAssertNotNil(String(describing: type(of: view.body)))
+    }
 }
