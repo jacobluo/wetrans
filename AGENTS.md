@@ -2,6 +2,14 @@
 
 This repository keeps Superpowers workflow specs in the Superpowers specs directory and keeps long-lived project design documents directly under `docs/`.
 
+## Rule Sources
+
+Before coding, read and follow these detailed rules:
+
+- `.codebuddy/rules/workflow.mdc`
+- `.codebuddy/rules/testing.mdc`
+- `.codebuddy/rules/security.mdc`
+
 ## Documentation Layout
 
 - `docs/prd.md`

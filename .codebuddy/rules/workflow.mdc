@@ -1,0 +1,56 @@
+---
+description: Spec-driven development record, TDD workflow, and commit discipline.
+alwaysApply: true
+enabled: true
+provider:
+---
+
+# 开发记录与执行纪律
+
+> Canonical detailed rule: this file. Codex and Claude reach it through `AGENTS.md`.
+
+## 开发记录
+
+- 每个有意义的产品或架构变更都必须有 spec，放在 `docs/superpowers/specs`。
+- 每个多步骤实现都必须有 plan，放在 `docs/superpowers/plans/<feature-name>-plan.md`。
+- Plan 必须可执行：写清文件、命令、预期测试结果和小粒度 checkbox。
+- 完成任务时同步勾选 plan checkbox，不要让已完成任务保持未勾选。
+- 如果实现偏离 plan，先更新 plan 或补充原因说明，再继续。
+- 保留已有 spec 和 plan 作为历史记录，除非用户明确要求合并或删除。
+
+## Superpowers 与 Build macOS Apps 配合规则
+
+- Superpowers 负责需求推进工作流：PRD、focused spec、implementation plan、TDD 执行、完成前验证和 code review 节奏。
+- Build macOS Apps 负责 macOS 原生工程判断：SwiftUI/AppKit 结构、Xcode 构建运行、Keychain/entitlements、窗口行为、测试排查、打包与 notarization。
+- 开始新功能时，先用 Superpowers 明确 spec 和 plan；进入具体 macOS 实现点时，再调用 Build macOS Apps 对应能力。
+- 执行 `docs/superpowers/plans/*-plan.md` 时，默认用 Superpowers 管任务生命周期；遇到 SwiftUI/AppKit、Xcode、签名、测试或打包问题时，引入 Build macOS Apps。
+- 不要把 Build macOS Apps 当作替代 spec/plan 的入口；它用于提升 macOS 实现质量，而不是跳过需求拆解。
+- 不要把 Superpowers 当作 macOS 技术细节的唯一依据；涉及原生 UI、系统权限、Keychain、sandbox、签名和分发时，应参考 Build macOS Apps。
+- 对 wetrans，默认组合是：Superpowers 管 `docs/` 和 `docs/superpowers/` 下的设计与执行记录，Build macOS Apps 管 Swift/macOS 代码落地与验证。
+
+常见映射：
+
+- PRD、spec、plan：使用 Superpowers。
+- SwiftUI 侧栏、弹窗、列表：使用 Build macOS Apps 的 SwiftUI 相关能力。
+- AppKit 三栏、表格、拖拽、右键菜单：使用 Build macOS Apps 的 AppKit interop 能力。
+- Xcode build/test/run 和测试失败排查：使用 Build macOS Apps 的 build/debug/test 能力。
+- Keychain、sandbox、entitlements、签名、notarization：使用 Build macOS Apps 的安全和发布相关能力。
+
+## TDD 流程
+
+每个 spec 默认按 TDD 实现：
+
+1. 先读相关 spec 和 plan。
+2. 写或更新一个失败测试，表达目标行为。
+3. 运行聚焦测试，确认因预期原因失败。
+4. 做最小生产实现。
+5. 再跑聚焦测试，确认通过。
+6. 完成前跑更广的验证。
+7. 按 plan 的一个 coherent task 提交。
+
+## 提交纪律
+
+- 每个 coherent task 后提交一次。
+- 优先使用 `feat: ...`、`fix: ...`、`test: ...`、`docs: ...` 等提交信息。
+- 提交前必须尊重 `.githooks/pre-commit`。
+- 不要为了通过检查而删除、跳过或弱化测试。
