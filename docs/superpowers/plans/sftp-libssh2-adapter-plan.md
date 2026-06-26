@@ -155,7 +155,7 @@ git commit -m "feat: add libssh2 remote filesystem skeleton"
 
 - Modify: `docs/technical-selection.md`
 
-- [ ] **Step 1: Update technical selection**
+- [x] **Step 1: Update technical selection**
 
 Add to SFTP Library section:
 
@@ -165,7 +165,7 @@ Add to SFTP Library section:
 The first implementation step uses a dynamic libssh2 probe instead of hard-linking the app to a Homebrew path. This keeps normal SwiftPM tests portable while allowing development machines to opt into a real probe through `WETRANS_LIBSSH2_DYLIB` or common Homebrew candidate paths.
 ```
 
-- [ ] **Step 2: Review diff**
+- [x] **Step 2: Review diff**
 
 ```bash
 git diff -- docs/technical-selection.md
@@ -173,7 +173,7 @@ git diff -- docs/technical-selection.md
 
 Expected: only the dynamic probe note is added.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add docs/technical-selection.md docs/superpowers/plans/sftp-libssh2-adapter-plan.md

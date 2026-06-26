@@ -123,6 +123,12 @@ Cons:
 
 Recommendation: spike first.
 
+### Spike Step: Dynamic libssh2 Probe
+
+The first implementation step uses a dynamic libssh2 probe instead of hard-linking the app to a Homebrew path. This keeps normal SwiftPM tests portable while allowing development machines to opt into a real probe through `WETRANS_LIBSSH2_DYLIB` or common Homebrew candidate paths.
+
+This spike does not yet prove real SSH authentication or SFTP directory listing; those remain the next adapter slice.
+
 ### Option B: libssh
 
 Pros:
