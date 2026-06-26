@@ -695,7 +695,7 @@ git commit -m "Add SSH config alias scanner"
 - Create: `wetrans/SSHConfig/ProcessSSHConfigResolver.swift`
 - Test: `wetransTests/SSHConfig/SSHConfigResolverTests.swift`
 
-- [ ] **Step 1: Write failing resolver parser tests**
+- [x] **Step 1: Write failing resolver parser tests**
 
 ```swift
 import XCTest
@@ -745,7 +745,7 @@ final class SSHConfigResolverTests: XCTestCase {
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run:
 
@@ -755,7 +755,7 @@ xcodebuild test -scheme wetrans -destination 'platform=macOS' -only-testing:wetr
 
 Expected: fails because resolver types are missing.
 
-- [ ] **Step 3: Implement parser and draft mapping**
+- [x] **Step 3: Implement parser and draft mapping**
 
 ```swift
 import Foundation
@@ -855,7 +855,7 @@ final class ProcessSSHConfigResolver: SSHConfigResolver {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run:
 
@@ -865,7 +865,7 @@ xcodebuild test -scheme wetrans -destination 'platform=macOS' -only-testing:wetr
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add wetrans/SSHConfig/ResolvedSSHConfig.swift wetrans/SSHConfig/SSHConfigResolver.swift wetrans/SSHConfig/ProcessSSHConfigResolver.swift wetransTests/SSHConfig/SSHConfigResolverTests.swift
