@@ -1,4 +1,10 @@
 import Foundation
+import Security
+
+public enum CredentialStoreError: Error, Equatable {
+    case unexpectedStatus(operation: String, status: OSStatus)
+    case invalidStoredData
+}
 
 public protocol CredentialStore {
     func savePassword(_ password: String, hostId: UUID) throws
@@ -7,4 +13,3 @@ public protocol CredentialStore {
     func loadKeyPassphrase(hostId: UUID) throws -> String?
     func deleteCredentials(hostId: UUID) throws
 }
-

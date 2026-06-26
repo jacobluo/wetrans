@@ -39,7 +39,7 @@ wetransTests/Security/HostKeyVerificationPolicyTests.swift
 - Create: `wetrans/Security/KeychainCredentialStore.swift`
 - Test: `wetransTests/Security/KeychainCredentialStoreTests.swift`
 
-- [ ] **Step 1: Write failing Keychain tests**
+- [x] **Step 1: Write failing Keychain tests**
 
 Create `wetransTests/Security/KeychainCredentialStoreTests.swift`:
 
@@ -102,7 +102,7 @@ final class KeychainCredentialStoreTests: XCTestCase {
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run:
 
@@ -112,7 +112,7 @@ swift test --filter KeychainCredentialStoreTests
 
 Expected: FAIL because `KeychainCredentialStore` is missing.
 
-- [ ] **Step 3: Implement KeychainCredentialStore**
+- [x] **Step 3: Implement KeychainCredentialStore**
 
 Create `wetrans/Security/KeychainCredentialStore.swift`:
 
@@ -230,7 +230,7 @@ public protocol CredentialStore {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run:
 
@@ -240,7 +240,7 @@ swift test --filter KeychainCredentialStoreTests
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add wetrans/Security/CredentialStore.swift wetrans/Security/KeychainCredentialStore.swift wetransTests/Security/KeychainCredentialStoreTests.swift
