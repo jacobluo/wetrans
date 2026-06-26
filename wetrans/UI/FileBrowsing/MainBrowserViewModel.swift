@@ -20,6 +20,7 @@ public final class MainBrowserViewModel: ObservableObject {
     private let fileRevealer: FileRevealer
     private let pasteboardWriter: PasteboardWriting
     private let defaultLocalPath: () -> String
+    private var localRefreshTask: Task<Void, Never>?
     private var transferQueueEventsTask: Task<Void, Never>?
 
     public convenience init() {
@@ -85,6 +86,7 @@ public final class MainBrowserViewModel: ObservableObject {
     }
 
     deinit {
+        localRefreshTask?.cancel()
         transferQueueEventsTask?.cancel()
     }
 
@@ -118,12 +120,33 @@ public final class MainBrowserViewModel: ObservableObject {
     }
 
     public func refreshLocal() {
+        let path = localPanel.path
         localPanel.loadingState = .loading
-        do {
-            let items = try localFileSystem.listDirectory(localPanel.path)
-            localPanel.loadingState = items.isEmpty ? .empty : .loaded(items)
-        } catch {
-            localPanel.loadingState = .failed(Self.message(forLocalError: error))
+        localRefreshTask?.cancel()
+
+        let localFileSystem = localFileSystem
+        localRefreshTask = Task { [weak self] in
+            let result = await Task.detached(priority: .userInitiated) {
+                Result {
+                    try localFileSystem.listDirectory(path)
+                }
+            }.value
+
+            guard !Task.isCancelled else {
+                return
+            }
+
+            await MainActor.run {
+                guard let self, self.localPanel.path == path else {
+                    return
+                }
+                switch result {
+                case .success(let items):
+                    self.localPanel.loadingState = items.isEmpty ? .empty : .loaded(items)
+                case .failure(let error):
+                    self.localPanel.loadingState = .failed(Self.message(forLocalError: error))
+                }
+            }
         }
     }
 

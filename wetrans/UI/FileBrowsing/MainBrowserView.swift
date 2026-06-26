@@ -36,7 +36,6 @@ public struct MainBrowserView: View {
             }
         }
         .background(Color(nsColor: .windowBackgroundColor))
-        .accessibilityIdentifier("Wetrans Main Browser")
         .task {
             try? viewModel.loadHosts()
             viewModel.refreshLocal()

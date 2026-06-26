@@ -17,7 +17,7 @@ final class MainBrowserViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.remotePanel.title, "dev")
     }
 
-    func testRefreshLocalListsCurrentLocalPath() throws {
+    func testRefreshLocalListsCurrentLocalPath() async throws {
         let host = SavedHost.fixture(lastRemotePath: "/project", lastLocalPath: "/Users/me/Downloads")
         let localItems = [
             FileItem(name: "folder", path: "/Users/me/Downloads/folder", isDirectory: true)
@@ -29,11 +29,33 @@ final class MainBrowserViewModelTests: XCTestCase {
         viewModel.select(hostId: host.id)
         viewModel.refreshLocal()
 
+        try await waitUntil {
+            viewModel.localPanel.loadingState == .loaded(localItems)
+        }
         XCTAssertEqual(viewModel.localPanel.loadingState, .loaded(localItems))
         XCTAssertEqual(localFileSystem.listCalls, ["/Users/me/Downloads"])
     }
 
-    func testOpenLocalDirectoryUpdatesPathAndRefreshes() throws {
+    func testRefreshLocalReturnsBeforeSlowFileSystemListingCompletes() async throws {
+        let localItems = [
+            FileItem(name: "config.yaml", path: "/Users/me/Downloads/config.yaml", isDirectory: false)
+        ]
+        let localFileSystem = SlowLocalFileSystem(items: localItems, delay: 0.2)
+        let viewModel = makeViewModel(localFileSystem: localFileSystem)
+
+        let startedAt = Date()
+        viewModel.refreshLocal()
+        let elapsed = Date().timeIntervalSince(startedAt)
+
+        XCTAssertLessThan(elapsed, 0.05)
+        XCTAssertEqual(viewModel.localPanel.loadingState, .loading)
+        try await waitUntil {
+            viewModel.localPanel.loadingState == .loaded(localItems)
+        }
+        XCTAssertEqual(localFileSystem.listCalls, ["/Users/me/Downloads"])
+    }
+
+    func testOpenLocalDirectoryUpdatesPathAndRefreshes() async throws {
         let host = SavedHost.fixture(lastRemotePath: "/project", lastLocalPath: "/Users/me/Downloads")
         let folder = FileItem(name: "folder", path: "/Users/me/Downloads/folder", isDirectory: true)
         let nestedItems = [
@@ -50,6 +72,9 @@ final class MainBrowserViewModelTests: XCTestCase {
         viewModel.select(hostId: host.id)
         viewModel.openLocalItem(folder)
 
+        try await waitUntil {
+            viewModel.localPanel.loadingState == .loaded(nestedItems)
+        }
         XCTAssertEqual(viewModel.localPanel.path, "/Users/me/Downloads/folder")
         XCTAssertEqual(viewModel.localPanel.loadingState, .loaded(nestedItems))
         XCTAssertEqual(catalog.updatePathCalls.last?.local, "/Users/me/Downloads/folder")
@@ -187,6 +212,9 @@ final class MainBrowserViewModelTests: XCTestCase {
         viewModel.select(hostId: host.id)
         viewModel.refreshLocal()
         await viewModel.refreshRemote()
+        try await waitUntil {
+            viewModel.localPanel.loadingState == .loaded([localFile, localDirectory])
+        }
         viewModel.selectLocalItem(localFile)
         viewModel.selectLocalItem(localDirectory)
         await viewModel.enqueueUploadSelection()
@@ -217,6 +245,9 @@ final class MainBrowserViewModelTests: XCTestCase {
         viewModel.select(hostId: host.id)
         viewModel.refreshLocal()
         await viewModel.refreshRemote()
+        try await waitUntil {
+            viewModel.localPanel.loadingState == .empty
+        }
         viewModel.selectRemoteItem(remoteFile)
         await viewModel.enqueueDownloadSelection()
 
@@ -245,6 +276,9 @@ final class MainBrowserViewModelTests: XCTestCase {
         viewModel.select(hostId: host.id)
         viewModel.refreshLocal()
         await viewModel.refreshRemote()
+        try await waitUntil {
+            viewModel.localPanel.loadingState == .loaded([clicked, other])
+        }
         viewModel.selectLocalItem(other)
         await viewModel.enqueueUpload(clicked)
 
@@ -323,6 +357,9 @@ final class MainBrowserViewModelTests: XCTestCase {
         viewModel.select(hostId: host.id)
         viewModel.refreshLocal()
         await viewModel.refreshRemote()
+        try await waitUntil {
+            viewModel.localPanel.loadingState == .loaded([localFile])
+        }
         viewModel.selectLocalItem(localFile)
         await viewModel.enqueueUploadSelection()
 
@@ -500,10 +537,17 @@ private func waitUntil(
     XCTFail("Timed out waiting for condition")
 }
 
-private final class FakeLocalFileSystem: LocalFileSystem {
+private final class FakeLocalFileSystem: LocalFileSystem, @unchecked Sendable {
     var listingsByPath: [String: [FileItem]]
     var errorsByPath: [String: Error]
-    private(set) var listCalls: [String] = []
+    private let lock = NSLock()
+    private var lockedListCalls: [String] = []
+
+    var listCalls: [String] {
+        lock.withLock {
+            lockedListCalls
+        }
+    }
 
     init(listingsByPath: [String: [FileItem]] = [:], errorsByPath: [String: Error] = [:]) {
         self.listingsByPath = listingsByPath
@@ -511,11 +555,39 @@ private final class FakeLocalFileSystem: LocalFileSystem {
     }
 
     func listDirectory(_ path: String) throws -> [FileItem] {
-        listCalls.append(path)
+        lock.withLock {
+            lockedListCalls.append(path)
+        }
         if let error = errorsByPath[path] {
             throw error
         }
         return listingsByPath[path] ?? []
+    }
+}
+
+private final class SlowLocalFileSystem: LocalFileSystem, @unchecked Sendable {
+    private let items: [FileItem]
+    private let delay: TimeInterval
+    private let lock = NSLock()
+    private var lockedListCalls: [String] = []
+
+    var listCalls: [String] {
+        lock.withLock {
+            lockedListCalls
+        }
+    }
+
+    init(items: [FileItem], delay: TimeInterval) {
+        self.items = items
+        self.delay = delay
+    }
+
+    func listDirectory(_ path: String) throws -> [FileItem] {
+        lock.withLock {
+            lockedListCalls.append(path)
+        }
+        Thread.sleep(forTimeInterval: delay)
+        return items
     }
 }
 

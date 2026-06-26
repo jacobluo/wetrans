@@ -20,13 +20,13 @@ public struct TransferQueueSummaryView: View {
         .task {
             await viewModel.refresh()
         }
-        .accessibilityIdentifier("Transfer Queue")
     }
 
     private var collapsedBar: some View {
         HStack(spacing: 12) {
             Label("Transfer Queue", systemImage: "arrow.up.arrow.down")
                 .fontWeight(.medium)
+                .accessibilityIdentifier("Transfer Queue")
 
             Text(viewModel.summaryText)
                 .foregroundStyle(.secondary)
@@ -101,6 +101,7 @@ public struct TransferQueueSummaryView: View {
         HStack(spacing: 10) {
             Text("Transfer Queue")
                 .fontWeight(.semibold)
+                .accessibilityIdentifier("Transfer Queue")
 
             if viewModel.summary.runningCount > 0 {
                 QueueBadge(text: "Running \(viewModel.summary.runningCount)", style: .running)

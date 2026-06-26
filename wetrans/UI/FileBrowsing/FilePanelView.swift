@@ -77,7 +77,6 @@ public struct FilePanelView: View {
             RoundedRectangle(cornerRadius: 6, style: .continuous)
                 .stroke(Color(nsColor: .separatorColor).opacity(0.7), lineWidth: 1)
         }
-        .accessibilityIdentifier("\(state.title) File Panel")
     }
 
     private var header: some View {
@@ -86,6 +85,7 @@ public struct FilePanelView: View {
                 Text(state.title)
                     .font(.system(size: 12, weight: .semibold))
                     .lineLimit(1)
+                    .accessibilityIdentifier("\(state.title) File Panel")
                 Text(state.path.isEmpty ? " " : state.path)
                     .font(.system(size: 10))
                     .foregroundStyle(.secondary)
