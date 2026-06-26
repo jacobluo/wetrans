@@ -174,6 +174,83 @@ final class MainBrowserViewModelTests: XCTestCase {
         XCTAssertEqual(tasks[0].totalBytes, 42)
     }
 
+    func testSuccessfulUploadRefreshesVisibleRemoteDirectory() async throws {
+        let host = SavedHost.fixture(lastRemotePath: "/project", lastLocalPath: "/Users/me/Downloads")
+        let localFile = FileItem(name: "config.yaml", path: "/Users/me/Downloads/config.yaml", isDirectory: false, size: 12)
+        let remoteFileSystem = MockRemoteFileSystem(listingsByPath: ["/project": []])
+        let transferQueue = TransferQueue(engine: RecordingTransferEngine())
+        let viewModel = makeViewModel(
+            hosts: [host],
+            localFileSystem: FakeLocalFileSystem(listingsByPath: ["/Users/me/Downloads": [localFile]]),
+            remoteFileSystem: remoteFileSystem,
+            transferQueue: transferQueue
+        )
+
+        try viewModel.loadHosts()
+        viewModel.select(hostId: host.id)
+        viewModel.refreshLocal()
+        await viewModel.refreshRemote()
+        viewModel.selectLocalItem(localFile)
+        await viewModel.enqueueUploadSelection()
+
+        try await waitUntil {
+            remoteFileSystem.listCalls.map(\.path).filter { $0 == "/project" }.count >= 2
+        }
+    }
+
+    func testSuccessfulDownloadRefreshesVisibleLocalDirectory() async throws {
+        let host = SavedHost.fixture(lastRemotePath: "/var/log", lastLocalPath: "/Users/me/Downloads")
+        let remoteFile = FileItem(name: "app.log", path: "/var/log/app.log", isDirectory: false, size: 42)
+        let localFileSystem = FakeLocalFileSystem(listingsByPath: ["/Users/me/Downloads": []])
+        let transferQueue = TransferQueue(engine: RecordingTransferEngine())
+        let viewModel = makeViewModel(
+            hosts: [host],
+            localFileSystem: localFileSystem,
+            remoteFileSystem: MockRemoteFileSystem(listingsByPath: ["/var/log": [remoteFile]]),
+            transferQueue: transferQueue
+        )
+
+        try viewModel.loadHosts()
+        viewModel.select(hostId: host.id)
+        viewModel.refreshLocal()
+        await viewModel.refreshRemote()
+        viewModel.selectRemoteItem(remoteFile)
+        await viewModel.enqueueDownloadSelection()
+
+        try await waitUntil {
+            localFileSystem.listCalls.filter { $0 == "/Users/me/Downloads" }.count >= 2
+        }
+    }
+
+    func testTransferForDifferentVisibleDirectoryDoesNotRefreshPanels() async throws {
+        let host = SavedHost.fixture(lastRemotePath: "/project", lastLocalPath: "/Users/me/Downloads")
+        let remoteFileSystem = MockRemoteFileSystem(listingsByPath: ["/project": []])
+        let transferQueue = TransferQueue(engine: RecordingTransferEngine())
+        let viewModel = makeViewModel(
+            hosts: [host],
+            remoteFileSystem: remoteFileSystem,
+            transferQueue: transferQueue
+        )
+
+        try viewModel.loadHosts()
+        viewModel.select(hostId: host.id)
+        await viewModel.refreshRemote()
+        await transferQueue.enqueue([
+            TransferTask(
+                hostId: host.id,
+                hostDisplayName: host.displayName,
+                direction: .upload,
+                localPath: "/Users/me/config.yaml",
+                remotePath: "/other/config.yaml",
+                fileName: "config.yaml",
+                totalBytes: 12
+            )
+        ])
+        try await Task.sleep(nanoseconds: 40_000_000)
+
+        XCTAssertEqual(remoteFileSystem.listCalls.map(\.path), ["/project"])
+    }
+
     func testUploadWithoutSelectedHostShowsError() async throws {
         let transferQueue = TransferQueue(engine: RecordingTransferEngine())
         let viewModel = makeViewModel(hosts: [], transferQueue: transferQueue)
@@ -225,6 +302,21 @@ private struct RecordingTransferEngine: TransferEngine {
         task: TransferTask,
         progress: @escaping @Sendable (TransferProgress) async -> Void
     ) async throws {}
+}
+
+@MainActor
+private func waitUntil(
+    timeout: TimeInterval = 2,
+    condition: @escaping @MainActor () async -> Bool
+) async throws {
+    let deadline = Date().addingTimeInterval(timeout)
+    while Date() < deadline {
+        if await condition() {
+            return
+        }
+        try await Task.sleep(nanoseconds: 10_000_000)
+    }
+    XCTFail("Timed out waiting for condition")
 }
 
 private final class FakeLocalFileSystem: LocalFileSystem {

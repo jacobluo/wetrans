@@ -146,7 +146,7 @@ git commit -m "feat: publish transfer completion events"
 
 ## Task 2: Browser Refresh on Completion
 
-- [ ] **Step 1: Write failing browser refresh tests**
+- [x] **Step 1: Write failing browser refresh tests**
 
 Add tests to `wetransTests/UI/MainBrowserViewModelTests.swift`:
 
@@ -244,7 +244,7 @@ private func waitUntil(
 }
 ```
 
-- [ ] **Step 2: Run browser tests to verify they fail**
+- [x] **Step 2: Run browser tests to verify they fail**
 
 Run:
 
@@ -254,7 +254,7 @@ swift test --filter MainBrowserViewModelTests
 
 Expected: upload/download refresh tests fail because `MainBrowserViewModel` does not observe queue completion events.
 
-- [ ] **Step 3: Observe queue events in `MainBrowserViewModel`**
+- [x] **Step 3: Observe queue events in `MainBrowserViewModel`**
 
 Add a property:
 
@@ -311,7 +311,7 @@ private func handleTransferQueueEvent(_ event: TransferQueueEvent) async {
 }
 ```
 
-- [ ] **Step 4: Re-run browser tests**
+- [x] **Step 4: Re-run browser tests**
 
 Run:
 
@@ -321,7 +321,7 @@ swift test --filter MainBrowserViewModelTests
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit browser refresh changes**
+- [x] **Step 5: Commit browser refresh changes**
 
 Run:
 

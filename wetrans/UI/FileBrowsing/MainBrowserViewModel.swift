@@ -16,6 +16,7 @@ public final class MainBrowserViewModel: ObservableObject {
     private let localFileSystem: LocalFileSystem
     private let transferQueue: TransferQueue
     private let defaultLocalPath: () -> String
+    private var transferQueueEventsTask: Task<Void, Never>?
 
     public convenience init() {
         let credentialStore = KeychainCredentialStore()
@@ -64,6 +65,11 @@ public final class MainBrowserViewModel: ObservableObject {
         self.defaultLocalPath = defaultLocalPath
         self.localPanel = FilePanelState(title: "Local", path: defaultLocalPath())
         self.remotePanel = FilePanelState(title: "Remote", path: "", loadingState: .idle)
+        startTransferQueueEventObservation()
+    }
+
+    deinit {
+        transferQueueEventsTask?.cancel()
     }
 
     public func loadHosts() throws {
@@ -245,6 +251,41 @@ public final class MainBrowserViewModel: ObservableObject {
         if let host = selectedHost {
             hostSessionManager.updateRemotePath(path, for: host)
             try? hostCatalog.updatePaths(hostId: host.id, local: nil, remote: path)
+        }
+    }
+
+    private func startTransferQueueEventObservation() {
+        transferQueueEventsTask?.cancel()
+        transferQueueEventsTask = Task { [weak self, transferQueue] in
+            let events = await transferQueue.events()
+            for await event in events {
+                await self?.handleTransferQueueEvent(event)
+            }
+        }
+    }
+
+    private func handleTransferQueueEvent(_ event: TransferQueueEvent) async {
+        await transferQueueViewModel.refresh()
+        guard event.task.status == .succeeded else {
+            return
+        }
+        guard selectedHost?.id == event.task.hostId else {
+            return
+        }
+
+        switch event.task.direction {
+        case .upload:
+            let destinationDirectory = BrowserPath.remoteParent(of: event.task.remotePath)
+            guard remotePanel.path == destinationDirectory else {
+                return
+            }
+            await refreshRemote()
+        case .download:
+            let destinationDirectory = BrowserPath.localParent(of: event.task.localPath)
+            guard localPanel.path == destinationDirectory else {
+                return
+            }
+            refreshLocal()
         }
     }
 
