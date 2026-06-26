@@ -64,6 +64,7 @@ final class TransferQueueViewModelTests: XCTestCase {
         XCTAssertEqual(rows[0].hostName, "dev")
         XCTAssertEqual(rows[0].directionText, "Upload")
         XCTAssertEqual(rows[0].progressText, "72%")
+        XCTAssertEqual(rows[0].progressValue, 0.72)
         XCTAssertEqual(rows[0].bytesText, "\(byteText(72)) / \(byteText(100))")
         XCTAssertEqual(rows[0].statusText, "Running")
         XCTAssertEqual(rows[0].primaryAction, .cancel)

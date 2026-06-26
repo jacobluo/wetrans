@@ -21,24 +21,24 @@
 
 ## Task 1: Queue Removal Primitive
 
-- [ ] Write failing tests for `removeFinished(taskId:)`.
-- [ ] Run `swift test --filter TransferQueueTests`.
-- [ ] Implement `removeFinished(taskId:)` so it removes succeeded/failed/cancelled only.
-- [ ] Re-run `swift test --filter TransferQueueTests`.
+- [x] Write failing tests for `removeFinished(taskId:)`.
+- [x] Run `swift test --filter TransferQueueTests`.
+- [x] Implement `removeFinished(taskId:)` so it removes succeeded/failed/cancelled only.
+- [x] Re-run `swift test --filter TransferQueueTests`.
 
 ## Task 2: Queue View Model Rows and Actions
 
-- [ ] Write failing tests for row formatting, expansion toggling, cancel, retry, remove, and clear actions.
-- [ ] Run `swift test --filter TransferQueueViewModelTests`.
-- [ ] Implement `TransferQueueRowViewState` and view model methods.
-- [ ] Re-run `swift test --filter TransferQueueViewModelTests`.
+- [x] Write failing tests for row formatting, expansion toggling, cancel, retry, remove, and clear actions.
+- [x] Run `swift test --filter TransferQueueViewModelTests`.
+- [x] Implement `TransferQueueRowViewState` and view model methods.
+- [x] Re-run `swift test --filter TransferQueueViewModelTests`.
 
 ## Task 3: Expanded Queue SwiftUI Panel
 
-- [ ] Update render tests for the expanded-capable queue view.
-- [ ] Run `swift test --filter FilePanelViewTests`.
-- [ ] Implement collapsed and expanded queue UI in `TransferQueueSummaryView`.
-- [ ] Re-run `swift test --filter FilePanelViewTests`.
+- [x] Update render tests for the expanded-capable queue view.
+- [x] Run `swift test --filter FilePanelViewTests`.
+- [x] Implement collapsed and expanded queue UI in `TransferQueueSummaryView`.
+- [x] Re-run `swift test --filter FilePanelViewTests`.
 
 ## Final Verification
 

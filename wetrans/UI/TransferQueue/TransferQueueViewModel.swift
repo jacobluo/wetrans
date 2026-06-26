@@ -51,6 +51,7 @@ public struct TransferQueueRowViewState: Identifiable, Equatable, Sendable {
     public let fileName: String
     public let hostName: String
     public let directionText: String
+    public let progressValue: Double
     public let progressText: String
     public let bytesText: String
     public let speedText: String
@@ -65,7 +66,8 @@ public struct TransferQueueRowViewState: Identifiable, Equatable, Sendable {
         self.fileName = task.fileName
         self.hostName = task.hostDisplayName
         self.directionText = task.direction.displayText
-        self.progressText = "\(Int((task.progress * 100).rounded()).clamped(to: 0...100))%"
+        self.progressValue = task.progress.clamped(to: 0...1)
+        self.progressText = "\(Int((progressValue * 100).rounded()).clamped(to: 0...100))%"
         self.bytesText = Self.bytesText(transferred: task.transferredBytes, total: task.totalBytes)
         self.speedText = task.speedBytesPerSecond.map { Self.byteText($0) + "/s" } ?? "-"
         self.statusText = task.status.displayText
@@ -219,6 +221,12 @@ private extension TransferStatus {
 
 private extension Int {
     func clamped(to range: ClosedRange<Int>) -> Int {
+        Swift.min(Swift.max(self, range.lowerBound), range.upperBound)
+    }
+}
+
+private extension Double {
+    func clamped(to range: ClosedRange<Double>) -> Double {
         Swift.min(Swift.max(self, range.lowerBound), range.upperBound)
     }
 }
