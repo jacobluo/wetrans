@@ -20,7 +20,7 @@
 
 ## Task 1: Transfer Queue Success Events
 
-- [ ] **Step 1: Write failing queue event tests**
+- [x] **Step 1: Write failing queue event tests**
 
 Add tests to `wetransTests/TransferQueue/TransferQueueTests.swift`:
 
@@ -65,7 +65,7 @@ func testDoesNotEmitEventWhenTaskFails() async throws {
 }
 ```
 
-- [ ] **Step 2: Run queue tests to verify they fail**
+- [x] **Step 2: Run queue tests to verify they fail**
 
 Run:
 
@@ -75,7 +75,7 @@ swift test --filter TransferQueueTests
 
 Expected: compile failure or test failure because `TransferQueueEvent` / `events()` does not exist.
 
-- [ ] **Step 3: Implement queue event stream**
+- [x] **Step 3: Implement queue event stream**
 
 Add `wetrans/TransferQueue/TransferQueueEvent.swift`:
 
@@ -125,7 +125,7 @@ emit(TransferQueueEvent(task: tasks[index]))
 
 Do not emit from `fail(taskId:)` or cancellation paths.
 
-- [ ] **Step 4: Re-run queue tests**
+- [x] **Step 4: Re-run queue tests**
 
 Run:
 
@@ -135,7 +135,7 @@ swift test --filter TransferQueueTests
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit queue event changes**
+- [x] **Step 5: Commit queue event changes**
 
 Run:
 

@@ -185,6 +185,45 @@ final class TransferQueueTests: XCTestCase {
         let savedSnapshots = await store.savedSnapshots
         XCTAssertEqual(savedSnapshots.last?.map(\.id), [succeeded.id, pending.id])
     }
+
+    func testEmitsEventWhenTaskSucceeds() async throws {
+        let task = makeTask(totalBytes: 10)
+        let queue = TransferQueue(engine: ScriptedTransferEngine(), historyStore: InMemoryTransferHistoryStore(), now: fixedNow)
+        let events = await queue.events()
+        let eventTask = Task<TransferTask?, Never> {
+            var iterator = events.makeAsyncIterator()
+            return await iterator.next()?.task
+        }
+
+        await queue.enqueue([task])
+
+        let emitted = try await waitForValue { await eventTask.value }
+        XCTAssertEqual(emitted?.id, task.id)
+        XCTAssertEqual(emitted?.status, .succeeded)
+        XCTAssertEqual(emitted?.progress, 1)
+        XCTAssertEqual(emitted?.completedAt, fixedNow())
+    }
+
+    func testDoesNotEmitEventWhenTaskFails() async throws {
+        let task = makeTask()
+        let queue = TransferQueue(
+            engine: ScriptedTransferEngine(behaviors: [task.id: .fail("disk full")]),
+            historyStore: InMemoryTransferHistoryStore(),
+            now: fixedNow
+        )
+        let events = await queue.events()
+        let eventTask = Task<TransferTask?, Never> {
+            var iterator = events.makeAsyncIterator()
+            return await iterator.next()?.task
+        }
+
+        await queue.enqueue([task])
+        try await Task.sleep(nanoseconds: 40_000_000)
+        eventTask.cancel()
+
+        let emitted = await eventTask.value
+        XCTAssertNil(emitted)
+    }
 }
 
 private enum EngineBehavior: Sendable {
@@ -320,4 +359,19 @@ private func waitUntil(
         try await Task.sleep(nanoseconds: 10_000_000)
     }
     XCTFail("Timed out waiting for condition")
+}
+
+private func waitForValue<T>(
+    timeout: TimeInterval = 2,
+    _ operation: @escaping () async -> T?
+) async throws -> T? {
+    let deadline = Date().addingTimeInterval(timeout)
+    while Date() < deadline {
+        if let value = await operation() {
+            return value
+        }
+        try await Task.sleep(nanoseconds: 10_000_000)
+    }
+    XCTFail("Timed out waiting for value")
+    return nil
 }
