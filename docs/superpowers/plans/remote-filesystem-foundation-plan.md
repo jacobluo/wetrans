@@ -40,7 +40,7 @@ wetransTests/RemoteFileSystem/HostSessionManagerTests.swift
 - Create: `wetrans/FileSystem/FileManagerLocalFileSystem.swift`
 - Test: `wetransTests/FileSystem/FileManagerLocalFileSystemTests.swift`
 
-- [ ] **Step 1: Write failing local file-system tests**
+- [x] **Step 1: Write failing local file-system tests**
 
 Create tests that:
 
@@ -51,7 +51,7 @@ XCTAssertEqual(items[1].size, 5)
 XCTAssertThrowsError(try fileSystem.listDirectory(fileURL.path))
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run:
 
@@ -61,7 +61,7 @@ swift test --filter FileManagerLocalFileSystemTests
 
 Expected: FAIL because local file-system types are missing.
 
-- [ ] **Step 3: Implement local file-system adapter**
+- [x] **Step 3: Implement local file-system adapter**
 
 Implement:
 
@@ -83,7 +83,7 @@ public final class FileManagerLocalFileSystem: LocalFileSystem {
 
 Sort directories first, then localized case-insensitive name.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run:
 
@@ -93,7 +93,7 @@ swift test --filter FileManagerLocalFileSystemTests
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add wetrans/FileSystem wetransTests/FileSystem docs/superpowers/plans/remote-filesystem-foundation-plan.md
