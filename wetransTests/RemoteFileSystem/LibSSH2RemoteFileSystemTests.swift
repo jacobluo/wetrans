@@ -164,6 +164,78 @@ final class LibSSH2RemoteFileSystemTests: XCTestCase {
     }
 }
 
+final class LibSSH2RemoteFileSystemIntegrationTests: XCTestCase {
+    func testRealSFTPConnectAndListWhenEnabled() async throws {
+        let environment = ProcessInfo.processInfo.environment
+        guard environment["WETRANS_RUN_SFTP_INTEGRATION"] == "1" else {
+            throw XCTSkip("Set WETRANS_RUN_SFTP_INTEGRATION=1 to run the real SFTP integration test.")
+        }
+        guard let hostname = environment["WETRANS_SFTP_HOST"], !hostname.isEmpty,
+              let portText = environment["WETRANS_SFTP_PORT"], let port = Int(portText),
+              let username = environment["WETRANS_SFTP_USER"], !username.isEmpty,
+              let listPath = environment["WETRANS_SFTP_LIST_PATH"], !listPath.isEmpty else {
+            throw XCTSkip("Set WETRANS_SFTP_HOST, WETRANS_SFTP_PORT, WETRANS_SFTP_USER, and WETRANS_SFTP_LIST_PATH.")
+        }
+
+        let auth: ConnectionAuth
+        if let password = environment["WETRANS_SFTP_PASSWORD"] {
+            auth = .password(password)
+        } else if let identityFile = environment["WETRANS_SFTP_IDENTITY_FILE"] {
+            auth = .sshKey(
+                identityFile: identityFile,
+                passphrase: environment["WETRANS_SFTP_KEY_PASSPHRASE"]
+            )
+        } else {
+            throw XCTSkip("Set WETRANS_SFTP_PASSWORD or WETRANS_SFTP_IDENTITY_FILE.")
+        }
+
+        let hostId = UUID()
+        let spec = ConnectionSpec(
+            hostId: hostId,
+            displayName: hostname,
+            hostname: hostname,
+            port: port,
+            username: username,
+            auth: auth,
+            defaultRemotePath: listPath
+        )
+        let trustedStore = FileTrustedHostStore(applicationSupportDirectory: temporaryDirectory())
+        if let fingerprint = environment["WETRANS_SFTP_HOST_FINGERPRINT"],
+           let keyType = environment["WETRANS_SFTP_HOST_KEY_TYPE"] {
+            let now = Date()
+            try trustedStore.trust(
+                TrustedHostKey(
+                    hostId: hostId,
+                    hostname: hostname,
+                    port: port,
+                    keyType: keyType,
+                    fingerprintSHA256: fingerprint,
+                    firstTrustedAt: now,
+                    lastVerifiedAt: now
+                )
+            )
+        }
+
+        let adapter = LibSSH2RemoteFileSystem(trustedHostStore: trustedStore)
+        let session: RemoteSession
+        do {
+            session = try await adapter.connect(spec)
+        } catch RemoteFileSystemError.hostKeyRequiresTrust(let candidate) {
+            try trustedStore.trust(candidate)
+            session = try await adapter.connect(spec)
+        }
+        _ = try await adapter.listDirectory(listPath, in: session)
+        await adapter.disconnect(session)
+    }
+
+    private func temporaryDirectory() -> URL {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("wetrans-sftp-integration-\(UUID().uuidString)", isDirectory: true)
+        try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        return url
+    }
+}
+
 private final class FakeLibSSH2Runtime: LibSSH2RuntimeManaging {
     private(set) var initializeCallCount = 0
     private(set) var shutdownCallCount = 0

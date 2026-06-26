@@ -243,7 +243,7 @@ git commit -m "feat: add dynamic libssh2 sftp client"
 - Modify: `wetransTests/RemoteFileSystem/LibSSH2RemoteFileSystemTests.swift`
 - Modify: `docs/technical-selection.md`
 
-- [ ] **Step 1: Add skipped-by-default integration test**
+- [x] **Step 1: Add skipped-by-default integration test**
 
 Add a test that skips unless:
 
@@ -257,11 +257,11 @@ WETRANS_SFTP_LIST_PATH
 
 The test should connect and list the configured path only when environment variables are present.
 
-- [ ] **Step 2: Update technical selection**
+- [x] **Step 2: Update technical selection**
 
 Document that this slice adds real connect/listing support behind opt-in integration tests, while upload/download remains future transfer queue work.
 
-- [ ] **Step 3: Run verification**
+- [x] **Step 3: Run verification**
 
 ```bash
 swift test
@@ -270,7 +270,7 @@ swift build
 
 Expected: PASS, with integration skipped unless explicitly enabled.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add wetransTests/RemoteFileSystem/LibSSH2RemoteFileSystemTests.swift docs/technical-selection.md docs/superpowers/plans/sftp-connect-and-listing-plan.md
