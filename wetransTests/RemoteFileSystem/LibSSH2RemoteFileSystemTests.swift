@@ -117,6 +117,62 @@ final class LibSSH2RemoteFileSystemTests: XCTestCase {
         }
     }
 
+    func testUploadDelegatesToConnectedClient() async throws {
+        let hostId = UUID()
+        let spec = makeSpec(hostId: hostId)
+        let candidate = makeTrustedKey(hostId: hostId, fingerprint: "SHA256:candidate")
+        let client = FakeLibSSH2Client(hostKey: candidate)
+        let adapter = LibSSH2RemoteFileSystem(
+            runtime: FakeLibSSH2Runtime(),
+            trustedHostStore: FakeTrustedHostStore(trustedKey: candidate),
+            clientFactory: FakeLibSSH2ClientFactory(client: client)
+        )
+        let session = try await adapter.connect(spec)
+        let request = UploadRequest(localPath: "/tmp/config.yaml", remotePath: "/etc/config.yaml")
+
+        try await adapter.upload(request, in: session) { _ in }
+
+        XCTAssertEqual(client.uploadCalls, [request])
+    }
+
+    func testDownloadDelegatesToConnectedClient() async throws {
+        let hostId = UUID()
+        let spec = makeSpec(hostId: hostId)
+        let candidate = makeTrustedKey(hostId: hostId, fingerprint: "SHA256:candidate")
+        let client = FakeLibSSH2Client(hostKey: candidate)
+        let adapter = LibSSH2RemoteFileSystem(
+            runtime: FakeLibSSH2Runtime(),
+            trustedHostStore: FakeTrustedHostStore(trustedKey: candidate),
+            clientFactory: FakeLibSSH2ClientFactory(client: client)
+        )
+        let session = try await adapter.connect(spec)
+        let request = DownloadRequest(remotePath: "/var/log/app.log", localPath: "/tmp/app.log")
+
+        try await adapter.download(request, in: session) { _ in }
+
+        XCTAssertEqual(client.downloadCalls, [request])
+    }
+
+    func testUploadAndDownloadThrowDisconnectedWithoutConnectedClient() async {
+        let adapter = LibSSH2RemoteFileSystem(
+            runtime: FakeLibSSH2Runtime(),
+            trustedHostStore: FakeTrustedHostStore(trustedKey: nil),
+            clientFactory: FakeLibSSH2ClientFactory(client: FakeLibSSH2Client(hostKey: makeTrustedKey()))
+        )
+        let session = RemoteSession(hostId: UUID(), displayName: "dev")
+
+        await XCTAssertThrowsErrorAsync(
+            try await adapter.upload(UploadRequest(localPath: "/tmp/a", remotePath: "/tmp/a"), in: session) { _ in }
+        ) { error in
+            XCTAssertEqual(error as? RemoteFileSystemError, .disconnected)
+        }
+        await XCTAssertThrowsErrorAsync(
+            try await adapter.download(DownloadRequest(remotePath: "/tmp/a", localPath: "/tmp/a"), in: session) { _ in }
+        ) { error in
+            XCTAssertEqual(error as? RemoteFileSystemError, .disconnected)
+        }
+    }
+
     func testDisconnectClosesClientAndShutsDownRuntimeWhenLastSessionCloses() async throws {
         let hostId = UUID()
         let spec = makeSpec(hostId: hostId)
@@ -273,6 +329,8 @@ private final class FakeLibSSH2Client: LibSSH2Client {
     private(set) var authenticateCalls: [ConnectionAuth] = []
     private(set) var openSFTPCallCount = 0
     private(set) var listDirectoryCalls: [String] = []
+    private(set) var uploadCalls: [UploadRequest] = []
+    private(set) var downloadCalls: [DownloadRequest] = []
     private(set) var disconnectCallCount = 0
 
     init(hostKey: TrustedHostKey, listingsByPath: [String: [FileItem]] = [:]) {
@@ -308,6 +366,20 @@ private final class FakeLibSSH2Client: LibSSH2Client {
     func listDirectory(_ path: String) throws -> [FileItem] {
         listDirectoryCalls.append(path)
         return listingsByPath[path] ?? []
+    }
+
+    func upload(
+        _ request: UploadRequest,
+        progress: @escaping @Sendable (TransferProgress) async -> Void
+    ) async throws {
+        uploadCalls.append(request)
+    }
+
+    func download(
+        _ request: DownloadRequest,
+        progress: @escaping @Sendable (TransferProgress) async -> Void
+    ) async throws {
+        downloadCalls.append(request)
     }
 
     func disconnect() {

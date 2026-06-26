@@ -172,6 +172,20 @@ public final class LibSSH2DynamicClient: LibSSH2Client {
         return items
     }
 
+    public func upload(
+        _ request: UploadRequest,
+        progress: @escaping @Sendable (TransferProgress) async -> Void
+    ) async throws {
+        throw RemoteFileSystemError.connectionFailed("SFTP upload is not implemented.")
+    }
+
+    public func download(
+        _ request: DownloadRequest,
+        progress: @escaping @Sendable (TransferProgress) async -> Void
+    ) async throws {
+        throw RemoteFileSystemError.connectionFailed("SFTP download is not implemented.")
+    }
+
     public func disconnect() {
         if let symbols {
             if let sftp {

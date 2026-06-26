@@ -27,4 +27,14 @@ public protocol RemoteFileSystem {
     func connect(_ spec: ConnectionSpec) async throws -> RemoteSession
     func disconnect(_ session: RemoteSession) async
     func listDirectory(_ path: String, in session: RemoteSession) async throws -> [FileItem]
+    func upload(
+        _ request: UploadRequest,
+        in session: RemoteSession,
+        progress: @escaping @Sendable (TransferProgress) async -> Void
+    ) async throws
+    func download(
+        _ request: DownloadRequest,
+        in session: RemoteSession,
+        progress: @escaping @Sendable (TransferProgress) async -> Void
+    ) async throws
 }
