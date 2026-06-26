@@ -25,12 +25,14 @@ This repository keeps Superpowers workflow specs in the Superpowers specs direct
   - Implementation plan.
   - Milestones, task breakdown, test strategy, verification steps.
   - Create this only after the architecture design is reviewed.
+  - This is the canonical implementation plan location. Do not create a root-level `PLAN.md` unless the user explicitly asks for a temporary scratch checklist.
 
 ## Directory Rules
 
 - Put Superpowers workflow specs under `docs/superpowers/specs/`.
 - Put project design documents directly under `docs/`, including architecture design, technical selection, data model, and overall planning documents.
 - Do not move Superpowers specs out of `docs/superpowers/specs/` unless the user explicitly asks for a different location.
+- Use `docs/implementation-plan.md` for the canonical implementation plan. Avoid root-level `PLAN.md` for project planning.
 - Use stable, descriptive filenames for project documents directly under `docs/`; do not date-prefix those files:
 
 ```text
