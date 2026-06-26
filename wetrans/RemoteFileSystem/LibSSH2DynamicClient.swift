@@ -78,15 +78,28 @@ public final class LibSSH2DynamicClient: LibSSH2Client {
                 }
             }
         case .sshKey(let identityFile, let passphrase):
+            let authFiles = LibSSH2PublicKeyAuthFiles(identityFile: identityFile)
             status = username.withCString { usernamePointer in
-                identityFile.withCString { identityPointer in
+                authFiles.privateKeyFile.withCString { privateKeyPointer in
                     (passphrase ?? "").withCString { passphrasePointer in
-                        symbols.userauthPublicKeyFromFileEx(
+                        if let publicKeyFile = authFiles.publicKeyFile {
+                            return publicKeyFile.withCString { publicKeyPointer in
+                                symbols.userauthPublicKeyFromFileEx(
+                                    session,
+                                    usernamePointer,
+                                    UInt32(strlen(usernamePointer)),
+                                    publicKeyPointer,
+                                    privateKeyPointer,
+                                    passphrasePointer
+                                )
+                            }
+                        }
+                        return symbols.userauthPublicKeyFromFileEx(
                             session,
                             usernamePointer,
                             UInt32(strlen(usernamePointer)),
-                            identityPointer,
-                            identityPointer,
+                            nil,
+                            privateKeyPointer,
                             passphrasePointer
                         )
                     }
@@ -439,6 +452,16 @@ public final class LibSSH2DynamicClient: LibSSH2Client {
         }
 
         throw RemoteFileSystemError.connectionFailed(String(cString: strerror(lastErrno)))
+    }
+}
+
+struct LibSSH2PublicKeyAuthFiles: Equatable {
+    let publicKeyFile: String?
+    let privateKeyFile: String
+
+    init(identityFile: String) {
+        self.publicKeyFile = nil
+        self.privateKeyFile = identityFile
     }
 }
 

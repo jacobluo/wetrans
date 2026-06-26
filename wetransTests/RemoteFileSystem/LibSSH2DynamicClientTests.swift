@@ -27,4 +27,11 @@ final class LibSSH2DynamicClientTests: XCTestCase {
         XCTAssertEqual(LibSSH2TransferOpenMode.fileMode, 0o100644)
         XCTAssertEqual(LibSSH2TransferOpenMode.openFileType, 0)
     }
+
+    func testPublicKeyAuthUsesPrivateKeyWithoutSeparatePublicKeyFile() {
+        let files = LibSSH2PublicKeyAuthFiles(identityFile: "/Users/me/.ssh/id_ed25519")
+
+        XCTAssertNil(files.publicKeyFile)
+        XCTAssertEqual(files.privateKeyFile, "/Users/me/.ssh/id_ed25519")
+    }
 }
