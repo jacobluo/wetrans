@@ -131,7 +131,7 @@ git commit -m "feat: add sftp adapter session boundary"
 - Create: `wetrans/RemoteFileSystem/LibSSH2Path.swift`
 - Create: `wetransTests/RemoteFileSystem/LibSSH2DynamicClientTests.swift`
 
-- [ ] **Step 1: Write failing path and metadata tests**
+- [x] **Step 1: Write failing path and metadata tests**
 
 Tests must cover:
 
@@ -145,7 +145,7 @@ XCTAssertTrue(LibSSH2Path.isDirectory(permissions: 0o040755))
 XCTAssertFalse(LibSSH2Path.isDirectory(permissions: 0o100644))
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 swift test --filter LibSSH2DynamicClientTests
@@ -153,7 +153,7 @@ swift test --filter LibSSH2DynamicClientTests
 
 Expected: FAIL because `LibSSH2Path` is missing.
 
-- [ ] **Step 3: Implement mapping helpers**
+- [x] **Step 3: Implement mapping helpers**
 
 Implement `LibSSH2Path`:
 
@@ -162,7 +162,7 @@ Implement `LibSSH2Path`:
 - `isSymlink(permissions:)`
 - `permissionsText(from:)`
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 ```bash
 swift test --filter LibSSH2DynamicClientTests
@@ -170,7 +170,7 @@ swift test --filter LibSSH2DynamicClientTests
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add wetrans/RemoteFileSystem/LibSSH2Path.swift wetransTests/RemoteFileSystem/LibSSH2DynamicClientTests.swift docs/superpowers/plans/sftp-connect-and-listing-plan.md
