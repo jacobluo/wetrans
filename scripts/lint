@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+
+swift package dump-package >/dev/null
+
+if [[ -f .swift-format || -f swift-format.json || -f .swiftformat ]]; then
+  if ! command -v swift-format >/dev/null 2>&1; then
+    echo "Swift format config exists, but swift-format is not installed." >&2
+    exit 1
+  fi
+  find wetrans wetransApp wetransTests -name '*.swift' -print0 | xargs -0 swift-format lint --strict
+else
+  echo "No Swift format config found; skipped Swift formatting lint."
+fi

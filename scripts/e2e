@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cat <<'EOF'
+wetrans has no committed macOS UI/E2E test target yet.
+
+Use this placeholder to keep the verification contract explicit. Add an
+XCTest UI test target or a packaged-app smoke test here when the project gains
+a committed Xcode project/app bundle workflow.
+EOF
