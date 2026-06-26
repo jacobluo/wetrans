@@ -26,6 +26,7 @@ public struct TransferQueueSummaryView: View {
         HStack(spacing: 12) {
             Label("Transfer Queue", systemImage: "arrow.up.arrow.down")
                 .fontWeight(.medium)
+                .accessibilityIdentifier("Transfer Queue")
 
             Text(viewModel.summaryText)
                 .foregroundStyle(.secondary)
@@ -47,6 +48,7 @@ public struct TransferQueueSummaryView: View {
             }
             .buttonStyle(.borderless)
             .help("Expand Transfer Queue")
+            .accessibilityIdentifier("Transfer Queue Expand")
         }
         .font(.callout)
         .padding(.horizontal, 14)
@@ -76,6 +78,7 @@ public struct TransferQueueSummaryView: View {
                                     copyError(message)
                                 }
                             )
+                            .accessibilityIdentifier("Transfer Row \(row.fileName)")
                         }
                     }
                 }
@@ -98,6 +101,7 @@ public struct TransferQueueSummaryView: View {
         HStack(spacing: 10) {
             Text("Transfer Queue")
                 .fontWeight(.semibold)
+                .accessibilityIdentifier("Transfer Queue")
 
             if viewModel.summary.runningCount > 0 {
                 QueueBadge(text: "Running \(viewModel.summary.runningCount)", style: .running)
@@ -125,6 +129,7 @@ public struct TransferQueueSummaryView: View {
             }
             .menuStyle(.borderlessButton)
             .help("Clear finished transfers")
+            .accessibilityIdentifier("Transfer Queue Clear")
 
             Button {
                 viewModel.toggleExpanded()
@@ -133,6 +138,7 @@ public struct TransferQueueSummaryView: View {
             }
             .buttonStyle(.borderless)
             .help("Collapse Transfer Queue")
+            .accessibilityIdentifier("Transfer Queue Collapse")
         }
         .font(.callout)
         .padding(.horizontal, 12)

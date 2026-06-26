@@ -1,6 +1,6 @@
 import Foundation
 
-public final class FileManagerLocalFileSystem: LocalFileSystem {
+public final class FileManagerLocalFileSystem: LocalFileSystem, @unchecked Sendable {
     private let fileManager: FileManager
 
     public init(fileManager: FileManager = .default) {
@@ -54,4 +54,3 @@ public final class FileManagerLocalFileSystem: LocalFileSystem {
         )
     }
 }
-

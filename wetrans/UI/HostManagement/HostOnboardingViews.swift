@@ -125,6 +125,10 @@ private struct HostSidebarRow: View {
         .padding(.vertical, 7)
         .background(isSelected ? Color(red: 0.843, green: 0.91, blue: 1) : Color.clear)
         .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("Host Row \(host.displayName)")
+        .accessibilityLabel(host.displayName)
+        .accessibilityAddTraits(.isButton)
     }
 
     private var title: String {
@@ -171,6 +175,7 @@ public struct ConnectHostDialogView: View {
                     title: "Manual Add",
                     description: "Enter server address, username, port, auth method, default path, and note.",
                     buttonTitle: "Start manual",
+                    buttonAccessibilityIdentifier: "Manual Add Start",
                     systemImage: "keyboard",
                     isProminent: false,
                     action: onManualAdd
@@ -181,6 +186,7 @@ public struct ConnectHostDialogView: View {
                     title: "Select from SSH Config",
                     description: "Search plain Host aliases, resolve with ssh -G, then save as a normal host.",
                     buttonTitle: "Browse aliases",
+                    buttonAccessibilityIdentifier: "SSH Config Browse Aliases",
                     systemImage: "terminal",
                     isProminent: true,
                     action: onSelectSSHConfig
@@ -384,49 +390,60 @@ private struct HostDraftEditorView: View {
                 LabeledContent("Display name") {
                     TextField("dev", text: $draft.displayName)
                         .textFieldStyle(.roundedBorder)
+                        .accessibilityIdentifier("\(accessibilityPrefix) Display Name")
                 }
                 LabeledContent("Host / IP") {
                     TextField("example.com", text: $draft.hostname)
                         .textFieldStyle(.roundedBorder)
+                        .accessibilityIdentifier("\(accessibilityPrefix) Hostname")
                 }
                 LabeledContent("Port") {
                     TextField("22", text: portBinding)
                         .textFieldStyle(.roundedBorder)
                         .frame(width: 120)
+                        .accessibilityIdentifier("\(accessibilityPrefix) Port")
                 }
                 LabeledContent("Username") {
                     TextField(NSUserName(), text: $draft.username)
                         .textFieldStyle(.roundedBorder)
+                        .accessibilityIdentifier("\(accessibilityPrefix) Username")
                 }
                 LabeledContent("Authentication") {
                     Picker("Authentication", selection: authSelectionBinding) {
                         Text("Password").tag(AuthType.password.rawValue)
+                            .accessibilityIdentifier("\(accessibilityPrefix) Auth Password")
                         Text("SSH Key").tag(AuthType.sshKey.rawValue)
+                            .accessibilityIdentifier("\(accessibilityPrefix) Auth SSH Key")
                     }
                     .pickerStyle(.segmented)
                     .labelsHidden()
                     .frame(width: 220)
+                    .accessibilityIdentifier("\(accessibilityPrefix) Authentication")
                 }
 
                 if draft.authType == .sshKey {
                     LabeledContent("Identity file") {
                         TextField("~/.ssh/id_ed25519", text: optionalTextBinding(\.identityFile))
                             .textFieldStyle(.roundedBorder)
+                            .accessibilityIdentifier("\(accessibilityPrefix) Identity File")
                     }
                     LabeledContent("Key passphrase") {
                         SecureField("Stored in Keychain", text: optionalTextBinding(\.keyPassphrase))
                             .textFieldStyle(.roundedBorder)
+                            .accessibilityIdentifier("\(accessibilityPrefix) Key Passphrase")
                     }
                 } else {
                     LabeledContent("Password") {
                         SecureField("Stored in Keychain", text: optionalTextBinding(\.password))
                             .textFieldStyle(.roundedBorder)
+                            .accessibilityIdentifier("\(accessibilityPrefix) Password")
                     }
                 }
 
                 LabeledContent("Default remote path") {
                     TextField("/home/user", text: optionalTextBinding(\.defaultRemotePath))
                         .textFieldStyle(.roundedBorder)
+                        .accessibilityIdentifier("\(accessibilityPrefix) Default Remote Path")
                 }
             }
 
@@ -451,6 +468,7 @@ private struct HostDraftEditorView: View {
                 Button("Save Host", action: onSave)
                     .keyboardShortcut(.defaultAction)
                     .disabled(isSaving)
+                    .accessibilityIdentifier("\(accessibilityPrefix) Save")
                 if isSaving {
                     ProgressView()
                         .controlSize(.small)
@@ -459,6 +477,11 @@ private struct HostDraftEditorView: View {
         }
         .padding(24)
         .background(Color(red: 0.973, green: 0.98, blue: 0.988))
+        .accessibilityIdentifier("\(accessibilityPrefix) Form")
+    }
+
+    private var accessibilityPrefix: String {
+        title == "Manual Add" ? "Manual Host" : "SSH Config Host"
     }
 
     private var portBinding: Binding<String> {
@@ -504,8 +527,10 @@ private struct SSHConfigAliasPickerView: View {
             HStack(spacing: 10) {
                 TextField("Search aliases", text: $searchText)
                     .textFieldStyle(.roundedBorder)
+                    .accessibilityIdentifier("SSH Config Search")
                 Button("Refresh", action: onRefresh)
                     .disabled(isLoading || isResolving)
+                    .accessibilityIdentifier("SSH Config Refresh")
             }
 
             Group {
@@ -543,6 +568,7 @@ private struct SSHConfigAliasPickerView: View {
                         }
                         .buttonStyle(.plain)
                         .disabled(isResolving)
+                        .accessibilityIdentifier("SSH Config Alias \(alias.alias)")
                     }
                     .frame(minHeight: 240)
                 }
@@ -556,6 +582,7 @@ private struct SSHConfigAliasPickerView: View {
         }
         .padding(24)
         .background(Color(red: 0.973, green: 0.98, blue: 0.988))
+        .accessibilityIdentifier("SSH Config Alias Picker")
     }
 }
 
@@ -611,6 +638,7 @@ private struct ConnectHostOptionCard: View {
     let title: String
     let description: String
     let buttonTitle: String
+    let buttonAccessibilityIdentifier: String
     let systemImage: String
     let isProminent: Bool
     let action: () -> Void
@@ -630,6 +658,7 @@ private struct ConnectHostOptionCard: View {
             Button(buttonTitle, action: action)
                 .buttonStyle(.bordered)
                 .controlSize(.small)
+                .accessibilityIdentifier(buttonAccessibilityIdentifier)
         }
         .frame(maxWidth: .infinity, minHeight: 104, alignment: .topLeading)
         .padding(16)

@@ -7,24 +7,28 @@ public final class MainBrowserViewModel: ObservableObject {
     @Published public private(set) var selectedHost: SavedHost?
     @Published public private(set) var localPanel: FilePanelState
     @Published public private(set) var remotePanel: FilePanelState
+    @Published public private(set) var pendingHostKeyTrust: TrustedHostKey?
 
     public let sidebarViewModel: HostSidebarViewModel
     public let transferQueueViewModel: TransferQueueViewModel
 
     private let hostCatalog: HostCatalog
     private let hostSessionManager: HostSessionManager
+    private let trustedHostStore: TrustedHostStore
     private let localFileSystem: LocalFileSystem
     private let transferQueue: TransferQueue
     private let fileRevealer: FileRevealer
     private let pasteboardWriter: PasteboardWriting
     private let defaultLocalPath: () -> String
+    private var localRefreshTask: Task<Void, Never>?
     private var transferQueueEventsTask: Task<Void, Never>?
 
     public convenience init() {
         let credentialStore = KeychainCredentialStore()
         let hostCatalog = FileHostCatalog(applicationSupportDirectory: FileManager.wetransApplicationSupportDirectory)
-        let browsingRemoteFileSystem = LibSSH2RemoteFileSystem()
-        let transferRemoteFileSystem = LibSSH2RemoteFileSystem()
+        let trustedHostStore = FileTrustedHostStore(applicationSupportDirectory: FileManager.wetransApplicationSupportDirectory)
+        let browsingRemoteFileSystem = LibSSH2RemoteFileSystem(trustedHostStore: trustedHostStore)
+        let transferRemoteFileSystem = LibSSH2RemoteFileSystem(trustedHostStore: trustedHostStore)
         let transferConnectionProvider = HostCatalogTransferConnectionProvider(
             hostCatalog: hostCatalog,
             credentialStore: credentialStore,
@@ -36,6 +40,7 @@ public final class MainBrowserViewModel: ObservableObject {
                 remoteFileSystem: browsingRemoteFileSystem,
                 credentialStore: credentialStore
             ),
+            trustedHostStore: trustedHostStore,
             localFileSystem: FileManagerLocalFileSystem(),
             transferQueue: TransferQueue(
                 engine: SFTPTransferEngine(
@@ -52,6 +57,9 @@ public final class MainBrowserViewModel: ObservableObject {
     public init(
         hostCatalog: HostCatalog,
         hostSessionManager: HostSessionManager,
+        trustedHostStore: TrustedHostStore = FileTrustedHostStore(
+            applicationSupportDirectory: FileManager.wetransApplicationSupportDirectory
+        ),
         localFileSystem: LocalFileSystem,
         transferQueue: TransferQueue = TransferQueue(engine: UnavailableTransferEngine()),
         fileRevealer: FileRevealer = NSWorkspaceFileRevealer(),
@@ -64,6 +72,7 @@ public final class MainBrowserViewModel: ObservableObject {
     ) {
         self.hostCatalog = hostCatalog
         self.hostSessionManager = hostSessionManager
+        self.trustedHostStore = trustedHostStore
         self.localFileSystem = localFileSystem
         self.transferQueue = transferQueue
         self.fileRevealer = fileRevealer
@@ -77,6 +86,7 @@ public final class MainBrowserViewModel: ObservableObject {
     }
 
     deinit {
+        localRefreshTask?.cancel()
         transferQueueEventsTask?.cancel()
     }
 
@@ -110,12 +120,33 @@ public final class MainBrowserViewModel: ObservableObject {
     }
 
     public func refreshLocal() {
+        let path = localPanel.path
         localPanel.loadingState = .loading
-        do {
-            let items = try localFileSystem.listDirectory(localPanel.path)
-            localPanel.loadingState = items.isEmpty ? .empty : .loaded(items)
-        } catch {
-            localPanel.loadingState = .failed(Self.message(forLocalError: error))
+        localRefreshTask?.cancel()
+
+        let localFileSystem = localFileSystem
+        localRefreshTask = Task { [weak self] in
+            let result = await Task.detached(priority: .userInitiated) {
+                Result {
+                    try localFileSystem.listDirectory(path)
+                }
+            }.value
+
+            guard !Task.isCancelled else {
+                return
+            }
+
+            await MainActor.run {
+                guard let self, self.localPanel.path == path else {
+                    return
+                }
+                switch result {
+                case .success(let items):
+                    self.localPanel.loadingState = items.isEmpty ? .empty : .loaded(items)
+                case .failure(let error):
+                    self.localPanel.loadingState = .failed(Self.message(forLocalError: error))
+                }
+            }
         }
     }
 
@@ -155,13 +186,45 @@ public final class MainBrowserViewModel: ObservableObject {
         remotePanel.loadingState = .loading
         do {
             let items = try await hostSessionManager.listRemoteDirectory(for: host)
+            pendingHostKeyTrust = nil
             let state = hostSessionManager.state(for: host)
             remotePanel.path = state.currentRemotePath
             remotePanel.loadingState = items.isEmpty ? .empty : .loaded(items)
             try? hostCatalog.markConnected(hostId: host.id, at: Date())
             try? hostCatalog.updatePaths(hostId: host.id, local: nil, remote: state.currentRemotePath)
+        } catch RemoteFileSystemError.hostKeyRequiresTrust(let candidate) {
+            pendingHostKeyTrust = candidate
+            remotePanel.loadingState = .failed(Self.message(forRemoteError: RemoteFileSystemError.hostKeyRequiresTrust(candidate)))
         } catch {
             remotePanel.loadingState = .failed(Self.message(forRemoteError: error))
+        }
+    }
+
+    public var pendingHostKeyTrustMessage: String {
+        guard let key = pendingHostKeyTrust else {
+            return ""
+        }
+        return """
+        \(key.hostname):\(key.port)
+        \(key.keyType)
+        \(key.fingerprintSHA256)
+        """
+    }
+
+    public func cancelPendingHostKeyTrust() {
+        pendingHostKeyTrust = nil
+    }
+
+    public func trustPendingHostKeyAndRefresh() async {
+        guard let key = pendingHostKeyTrust else {
+            return
+        }
+        do {
+            try trustedHostStore.trust(key)
+            pendingHostKeyTrust = nil
+            await refreshRemote()
+        } catch {
+            remotePanel.loadingState = .failed("Could not save trusted host key: \(error.localizedDescription)")
         }
     }
 

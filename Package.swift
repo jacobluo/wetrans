@@ -8,7 +8,8 @@ let package = Package(
         .macOS(.v14)
     ],
     products: [
-        .executable(name: "wetrans", targets: ["wetransApp"])
+        .executable(name: "wetrans", targets: ["wetransApp"]),
+        .executable(name: "wetrans-e2e", targets: ["wetransE2E"])
     ],
     targets: [
         .target(
@@ -20,6 +21,10 @@ let package = Package(
             dependencies: ["wetrans"],
             path: "wetransApp"
         ),
+        .executableTarget(
+            name: "wetransE2E",
+            path: "wetransE2E"
+        ),
         .testTarget(
             name: "wetransTests",
             dependencies: ["wetrans"],
@@ -27,4 +32,3 @@ let package = Package(
         )
     ]
 )
-
