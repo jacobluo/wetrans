@@ -32,4 +32,15 @@ public struct FilePanelState: Equatable {
         }
         return message
     }
+
+    public var loadedItems: [FileItem] {
+        guard case .loaded(let items) = loadingState else {
+            return []
+        }
+        return items
+    }
+
+    public var selectedItems: [FileItem] {
+        loadedItems.filter { selectedItemIds.contains($0.id) }
+    }
 }

@@ -17,6 +17,29 @@ final class FilePanelViewTests: XCTestCase {
             state: state,
             onRefresh: {},
             onGoUp: {},
+            onSelect: { _ in },
+            onOpen: { _ in }
+        )
+
+        XCTAssertNotNil(String(describing: type(of: view.body)))
+    }
+
+    func testFilePanelViewCanRenderActionButton() {
+        let state = FilePanelState(
+            title: "Remote",
+            path: "/project",
+            loadingState: .loaded([
+                FileItem(name: "app.log", path: "/project/app.log", isDirectory: false)
+            ]),
+            selectedItemIds: ["/project/app.log"]
+        )
+
+        let view = FilePanelView(
+            state: state,
+            action: FilePanelAction(title: "Download", systemImage: "arrow.down.circle", isEnabled: true, perform: {}),
+            onRefresh: {},
+            onGoUp: {},
+            onSelect: { _ in },
             onOpen: { _ in }
         )
 

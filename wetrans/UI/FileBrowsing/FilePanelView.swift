@@ -1,20 +1,40 @@
 import SwiftUI
 
+public struct FilePanelAction {
+    public let title: String
+    public let systemImage: String
+    public let isEnabled: Bool
+    public let perform: () -> Void
+
+    public init(title: String, systemImage: String, isEnabled: Bool, perform: @escaping () -> Void) {
+        self.title = title
+        self.systemImage = systemImage
+        self.isEnabled = isEnabled
+        self.perform = perform
+    }
+}
+
 public struct FilePanelView: View {
     private let state: FilePanelState
+    private let action: FilePanelAction?
     private let onRefresh: () -> Void
     private let onGoUp: () -> Void
+    private let onSelect: (FileItem) -> Void
     private let onOpen: (FileItem) -> Void
 
     public init(
         state: FilePanelState,
+        action: FilePanelAction? = nil,
         onRefresh: @escaping () -> Void,
         onGoUp: @escaping () -> Void,
+        onSelect: @escaping (FileItem) -> Void = { _ in },
         onOpen: @escaping (FileItem) -> Void
     ) {
         self.state = state
+        self.action = action
         self.onRefresh = onRefresh
         self.onGoUp = onGoUp
+        self.onSelect = onSelect
         self.onOpen = onOpen
     }
 
@@ -41,6 +61,15 @@ public struct FilePanelView: View {
             }
 
             Spacer(minLength: 8)
+
+            if let action {
+                Button(action: action.perform) {
+                    Image(systemName: action.systemImage)
+                }
+                .buttonStyle(.borderless)
+                .disabled(!action.isEnabled)
+                .help(action.title)
+            }
 
             Button(action: onGoUp) {
                 Image(systemName: "arrow.up")
@@ -83,6 +112,10 @@ public struct FilePanelView: View {
         List(items) { item in
             FileItemRow(item: item)
                 .contentShape(Rectangle())
+                .listRowBackground(state.selectedItemIds.contains(item.id) ? Color.accentColor.opacity(0.16) : Color.clear)
+                .onTapGesture {
+                    onSelect(item)
+                }
                 .onTapGesture(count: 2) {
                     onOpen(item)
                 }
