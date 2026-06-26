@@ -81,7 +81,7 @@ wetransTests/UI/ConnectHostViewModelTests.swift
 - Create or modify: `wetrans/Domain/HostValidation.swift`
 - Test: `wetransTests/Domain/HostValidationTests.swift`
 
-- [ ] **Step 1: Write failing validation tests**
+- [x] **Step 1: Write failing validation tests**
 
 ```swift
 import XCTest
@@ -158,7 +158,7 @@ private extension HostDraft {
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run:
 
@@ -168,7 +168,7 @@ xcodebuild test -scheme wetrans -destination 'platform=macOS' -only-testing:wetr
 
 Expected: fails because `HostDraft` or `HostValidator` is missing.
 
-- [ ] **Step 3: Implement HostDraft and HostValidator**
+- [x] **Step 3: Implement HostDraft and HostValidator**
 
 ```swift
 import Foundation
@@ -225,7 +225,7 @@ enum HostValidator {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run:
 
@@ -235,7 +235,7 @@ xcodebuild test -scheme wetrans -destination 'platform=macOS' -only-testing:wetr
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add wetrans/Domain/HostDraft.swift wetrans/Domain/HostValidation.swift wetransTests/Domain/HostValidationTests.swift
@@ -250,7 +250,7 @@ git commit -m "Add host draft validation"
 - Modify: `wetrans/Domain/HostDraft.swift`
 - Test: `wetransTests/Domain/HostDraftConversionTests.swift`
 
-- [ ] **Step 1: Write failing conversion tests**
+- [x] **Step 1: Write failing conversion tests**
 
 ```swift
 import XCTest
@@ -313,7 +313,7 @@ final class HostDraftConversionTests: XCTestCase {
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run:
 
@@ -323,7 +323,7 @@ xcodebuild test -scheme wetrans -destination 'platform=macOS' -only-testing:wetr
 
 Expected: fails because `makeSavedHost` is missing.
 
-- [ ] **Step 3: Implement conversion**
+- [x] **Step 3: Implement conversion**
 
 ```swift
 import Foundation
@@ -354,7 +354,7 @@ extension HostDraft {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run:
 
@@ -364,7 +364,7 @@ xcodebuild test -scheme wetrans -destination 'platform=macOS' -only-testing:wetr
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add wetrans/Domain/SavedHost.swift wetrans/Domain/HostDraft.swift wetransTests/Domain/HostDraftConversionTests.swift
@@ -379,7 +379,7 @@ git commit -m "Convert host drafts to saved hosts"
 - Create or modify: `wetrans/Persistence/FileHostCatalog.swift`
 - Test: `wetransTests/Persistence/HostCatalogTests.swift`
 
-- [ ] **Step 1: Write failing catalog tests**
+- [x] **Step 1: Write failing catalog tests**
 
 ```swift
 import XCTest
@@ -448,7 +448,7 @@ private extension SavedHost {
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run:
 
@@ -458,7 +458,7 @@ xcodebuild test -scheme wetrans -destination 'platform=macOS' -only-testing:wetr
 
 Expected: fails because `FileHostCatalog` is missing.
 
-- [ ] **Step 3: Implement catalog interface and file-backed adapter**
+- [x] **Step 3: Implement catalog interface and file-backed adapter**
 
 ```swift
 import Foundation
@@ -553,7 +553,7 @@ extension JSONDecoder {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run:
 
@@ -563,7 +563,7 @@ xcodebuild test -scheme wetrans -destination 'platform=macOS' -only-testing:wetr
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add wetrans/Persistence/HostCatalog.swift wetrans/Persistence/FileHostCatalog.swift wetransTests/Persistence/HostCatalogTests.swift
@@ -579,7 +579,7 @@ git commit -m "Add file-backed host catalog"
 - Create: `wetrans/SSHConfig/FileSSHConfigScanner.swift`
 - Test: `wetransTests/SSHConfig/SSHConfigScannerTests.swift`
 
-- [ ] **Step 1: Write failing scanner tests**
+- [x] **Step 1: Write failing scanner tests**
 
 ```swift
 import XCTest
@@ -611,7 +611,7 @@ final class SSHConfigScannerTests: XCTestCase {
 }
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run:
 
@@ -621,7 +621,7 @@ xcodebuild test -scheme wetrans -destination 'platform=macOS' -only-testing:wetr
 
 Expected: fails because scanner is missing.
 
-- [ ] **Step 3: Implement scanner**
+- [x] **Step 3: Implement scanner**
 
 ```swift
 import Foundation
@@ -669,7 +669,7 @@ final class FileSSHConfigScanner: SSHConfigScanner {
 }
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run:
 
@@ -679,7 +679,7 @@ xcodebuild test -scheme wetrans -destination 'platform=macOS' -only-testing:wetr
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add wetrans/SSHConfig/SSHConfigAlias.swift wetrans/SSHConfig/SSHConfigScanner.swift wetrans/SSHConfig/FileSSHConfigScanner.swift wetransTests/SSHConfig/SSHConfigScannerTests.swift
