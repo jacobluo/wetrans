@@ -9,6 +9,7 @@ public actor TransferQueue {
 
     private var tasks: [TransferTask]
     private var runningJobs: [UUID: Task<Void, Never>] = [:]
+    private var eventContinuations: [UUID: AsyncStream<TransferQueueEvent>.Continuation] = [:]
     private var lastPersistenceErrorMessage: String?
 
     public init(
@@ -49,6 +50,18 @@ public actor TransferQueue {
 
     public func lastPersistenceError() -> String? {
         lastPersistenceErrorMessage
+    }
+
+    public func events() -> AsyncStream<TransferQueueEvent> {
+        let id = UUID()
+        return AsyncStream { continuation in
+            eventContinuations[id] = continuation
+            continuation.onTermination = { [weak self] _ in
+                Task {
+                    await self?.removeEventContinuation(id: id)
+                }
+            }
+        }
     }
 
     public func enqueue(_ newTasks: [TransferTask]) {
@@ -207,6 +220,7 @@ public actor TransferQueue {
         tasks[index].errorMessage = nil
         tasks[index].completedAt = now()
         persist()
+        emit(TransferQueueEvent(task: tasks[index]))
         schedule()
     }
 
@@ -258,6 +272,16 @@ public actor TransferQueue {
             lastPersistenceErrorMessage = nil
         } catch {
             lastPersistenceErrorMessage = Self.message(for: error)
+        }
+    }
+
+    private func removeEventContinuation(id: UUID) {
+        eventContinuations.removeValue(forKey: id)
+    }
+
+    private func emit(_ event: TransferQueueEvent) {
+        for continuation in eventContinuations.values {
+            continuation.yield(event)
         }
     }
 
