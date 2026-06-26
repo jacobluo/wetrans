@@ -117,6 +117,19 @@ public actor TransferQueue {
         schedule()
     }
 
+    public func removeFinished(taskId: UUID) {
+        guard let index = tasks.firstIndex(where: { $0.id == taskId }) else {
+            return
+        }
+        guard [.succeeded, .failed, .cancelled].contains(tasks[index].status) else {
+            return
+        }
+
+        tasks.remove(at: index)
+        persist()
+        schedule()
+    }
+
     private func schedule() {
         var runningTotal = tasks.filter { $0.status == .running }.count
         var runningByHost = tasks

@@ -169,6 +169,22 @@ final class TransferQueueTests: XCTestCase {
         XCTAssertTrue(savedSnapshots.contains { $0.contains { $0.id == task.id && $0.status == .succeeded } })
         XCTAssertEqual(savedSnapshots.last, [])
     }
+
+    func testRemoveFinishedRemovesOnlyTerminalTask() async throws {
+        let succeeded = makeTask(status: .succeeded, completedAt: fixedNow())
+        let failed = makeTask(status: .failed, completedAt: fixedNow())
+        let pending = makeTask(status: .pending)
+        let store = InMemoryTransferHistoryStore(initialTasks: [succeeded, failed, pending])
+        let queue = TransferQueue(engine: ScriptedTransferEngine(), historyStore: store, now: fixedNow)
+
+        await queue.removeFinished(taskId: failed.id)
+        await queue.removeFinished(taskId: pending.id)
+
+        let snapshot = await queue.snapshot()
+        XCTAssertEqual(snapshot.map(\.id), [succeeded.id, pending.id])
+        let savedSnapshots = await store.savedSnapshots
+        XCTAssertEqual(savedSnapshots.last?.map(\.id), [succeeded.id, pending.id])
+    }
 }
 
 private enum EngineBehavior: Sendable {

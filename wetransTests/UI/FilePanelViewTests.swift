@@ -54,4 +54,45 @@ final class FilePanelViewTests: XCTestCase {
 
         XCTAssertNotNil(String(describing: type(of: view.body)))
     }
+
+    func testTransferQueueSummaryViewCanRenderExpandedPanel() async {
+        let failed = TransferTask(
+            hostId: UUID(),
+            hostDisplayName: "dev",
+            direction: .download,
+            localPath: "/Users/me/app.log",
+            remotePath: "/var/log/app.log",
+            fileName: "app.log",
+            totalBytes: 1024,
+            status: .failed,
+            errorMessage: "Permission denied",
+            createdAt: Date(timeIntervalSince1970: 1_700_000_000)
+        )
+        let viewModel = TransferQueueViewModel(
+            queue: TransferQueue(
+                engine: UnavailableTransferEngine(),
+                historyStore: FilePanelTransferHistoryStore(initialTasks: [failed])
+            )
+        )
+
+        await viewModel.refresh()
+        viewModel.toggleExpanded()
+
+        let view = TransferQueueSummaryView(viewModel: viewModel)
+        XCTAssertTrue(String(describing: type(of: view.body)).contains("VStack"))
+    }
+}
+
+private final class FilePanelTransferHistoryStore: TransferHistoryStore, @unchecked Sendable {
+    private let tasks: [TransferTask]
+
+    init(initialTasks: [TransferTask]) {
+        self.tasks = initialTasks
+    }
+
+    func load() throws -> [TransferTask] {
+        tasks
+    }
+
+    func save(_ tasks: [TransferTask]) throws {}
 }
