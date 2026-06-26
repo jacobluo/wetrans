@@ -9,6 +9,7 @@ public final class MainBrowserViewModel: ObservableObject {
     @Published public private(set) var remotePanel: FilePanelState
 
     public let sidebarViewModel: HostSidebarViewModel
+    public let transferQueueViewModel: TransferQueueViewModel
 
     private let hostCatalog: HostCatalog
     private let hostSessionManager: HostSessionManager
@@ -24,7 +25,11 @@ public final class MainBrowserViewModel: ObservableObject {
                 remoteFileSystem: remoteFileSystem,
                 credentialStore: credentialStore
             ),
-            localFileSystem: FileManagerLocalFileSystem()
+            localFileSystem: FileManagerLocalFileSystem(),
+            transferQueue: TransferQueue(
+                engine: UnavailableTransferEngine(),
+                historyStore: FileTransferHistoryStore()
+            )
         )
     }
 
@@ -32,6 +37,7 @@ public final class MainBrowserViewModel: ObservableObject {
         hostCatalog: HostCatalog,
         hostSessionManager: HostSessionManager,
         localFileSystem: LocalFileSystem,
+        transferQueue: TransferQueue = TransferQueue(engine: UnavailableTransferEngine()),
         sidebarViewModel: HostSidebarViewModel = HostSidebarViewModel(),
         defaultLocalPath: @escaping () -> String = {
             FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first?.path
@@ -41,6 +47,7 @@ public final class MainBrowserViewModel: ObservableObject {
         self.hostCatalog = hostCatalog
         self.hostSessionManager = hostSessionManager
         self.localFileSystem = localFileSystem
+        self.transferQueueViewModel = TransferQueueViewModel(queue: transferQueue)
         self.sidebarViewModel = sidebarViewModel
         self.defaultLocalPath = defaultLocalPath
         self.localPanel = FilePanelState(title: "Local", path: defaultLocalPath())
