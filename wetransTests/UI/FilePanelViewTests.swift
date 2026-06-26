@@ -92,6 +92,16 @@ final class FilePanelViewTests: XCTestCase {
         XCTAssertNotNil(String(describing: type(of: view.body)))
     }
 
+    func testConnectHostSheetViewCanRenderActionBackedFlow() {
+        let view = ConnectHostSheetView(
+            catalog: FilePanelHostCatalog(),
+            credentialStore: FilePanelCredentialStore(),
+            onSaved: { _ in }
+        )
+
+        XCTAssertNotNil(String(describing: type(of: view.body)))
+    }
+
     func testTransferQueueSummaryViewCanRenderExpandedPanel() async {
         let failed = TransferTask(
             hostId: UUID(),
@@ -132,4 +142,21 @@ private final class FilePanelTransferHistoryStore: TransferHistoryStore, @unchec
     }
 
     func save(_ tasks: [TransferTask]) throws {}
+}
+
+private final class FilePanelHostCatalog: HostCatalog {
+    func load() throws -> [SavedHost] { [] }
+    func save(_ host: SavedHost) throws {}
+    func delete(hostId: UUID) throws {}
+    func markConnected(hostId: UUID, at date: Date) throws {}
+    func updatePaths(hostId: UUID, local: String?, remote: String?) throws {}
+    func setFavorite(hostId: UUID, isFavorite: Bool) throws {}
+}
+
+private final class FilePanelCredentialStore: CredentialStore {
+    func savePassword(_ password: String, hostId: UUID) throws {}
+    func loadPassword(hostId: UUID) throws -> String? { nil }
+    func saveKeyPassphrase(_ passphrase: String, hostId: UUID) throws {}
+    func loadKeyPassphrase(hostId: UUID) throws -> String? { nil }
+    func deleteCredentials(hostId: UUID) throws {}
 }

@@ -1,6 +1,6 @@
 import Foundation
 
-public struct ResolvedSSHConfig: Equatable {
+public struct ResolvedSSHConfig: Equatable, Sendable {
     public let alias: String
     public let hostname: String
     public let user: String?
@@ -27,4 +27,3 @@ public struct ResolvedSSHConfig: Equatable {
         self.proxyCommand = proxyCommand
     }
 }
-

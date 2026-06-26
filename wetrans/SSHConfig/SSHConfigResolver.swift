@@ -1,6 +1,6 @@
 import Foundation
 
-public protocol SSHConfigResolver {
+public protocol SSHConfigResolver: Sendable {
     func resolve(alias: String) async throws -> ResolvedSSHConfig
 }
 
@@ -9,4 +9,3 @@ public enum SSHConfigResolverError: Error, Equatable {
     case invalidPort(String)
     case processFailed(exitCode: Int32, stderr: String)
 }
-

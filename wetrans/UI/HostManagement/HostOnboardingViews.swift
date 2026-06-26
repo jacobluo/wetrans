@@ -194,6 +194,419 @@ public struct ConnectHostDialogView: View {
     }
 }
 
+public struct ConnectHostSheetView: View {
+    private enum Route {
+        case choices
+        case manual
+        case sshConfig
+        case sshConfigDraft
+    }
+
+    private let catalog: HostCatalog
+    private let credentialStore: CredentialStore
+    private let scanner: SSHConfigScanner
+    private let resolver: SSHConfigResolver
+    private let onSaved: (SavedHost) -> Void
+
+    @State private var route: Route = .choices
+    @State private var draft = Self.emptyManualDraft
+    @State private var aliases: [SSHConfigAlias] = []
+    @State private var searchText = ""
+    @State private var isLoadingAliases = false
+    @State private var isResolvingAlias = false
+    @State private var errorMessage: String?
+
+    public init(
+        catalog: HostCatalog,
+        credentialStore: CredentialStore,
+        scanner: SSHConfigScanner = FileSSHConfigScanner(),
+        resolver: SSHConfigResolver = ProcessSSHConfigResolver(),
+        onSaved: @escaping (SavedHost) -> Void
+    ) {
+        self.catalog = catalog
+        self.credentialStore = credentialStore
+        self.scanner = scanner
+        self.resolver = resolver
+        self.onSaved = onSaved
+    }
+
+    public var body: some View {
+        Group {
+            switch route {
+            case .choices:
+                ConnectHostDialogView(
+                    onManualAdd: showManualAdd,
+                    onSelectSSHConfig: showSSHConfigAliases
+                )
+            case .manual:
+                HostDraftEditorView(
+                    title: "Manual Add",
+                    subtitle: "Create a saved host with server address, username, port, and authentication.",
+                    draft: $draft,
+                    errorMessage: errorMessage,
+                    isSaving: isResolvingAlias,
+                    onBack: showChoices,
+                    onSave: saveCurrentDraft
+                )
+            case .sshConfig:
+                SSHConfigAliasPickerView(
+                    aliases: filteredAliases,
+                    searchText: $searchText,
+                    isLoading: isLoadingAliases,
+                    isResolving: isResolvingAlias,
+                    errorMessage: errorMessage,
+                    onBack: showChoices,
+                    onRefresh: loadAliases,
+                    onSelect: resolveAlias
+                )
+            case .sshConfigDraft:
+                HostDraftEditorView(
+                    title: "Review SSH Config Host",
+                    subtitle: "This host was generated from ~/.ssh/config and will be saved as a normal host.",
+                    draft: $draft,
+                    errorMessage: errorMessage,
+                    isSaving: isResolvingAlias,
+                    onBack: showSSHConfigAliases,
+                    onSave: saveCurrentDraft
+                )
+            }
+        }
+        .frame(width: 720)
+    }
+
+    private var filteredAliases: [SSHConfigAlias] {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else {
+            return aliases
+        }
+        return aliases.filter { $0.alias.localizedCaseInsensitiveContains(query) }
+    }
+
+    private func showChoices() {
+        route = .choices
+        errorMessage = nil
+    }
+
+    private func showManualAdd() {
+        draft = Self.emptyManualDraft
+        route = .manual
+        errorMessage = nil
+    }
+
+    private func showSSHConfigAliases() {
+        route = .sshConfig
+        errorMessage = nil
+        if aliases.isEmpty {
+            loadAliases()
+        }
+    }
+
+    private func loadAliases() {
+        isLoadingAliases = true
+        errorMessage = nil
+        do {
+            aliases = try scanner.scanDefaultConfig()
+            if aliases.isEmpty {
+                errorMessage = "No selectable Host aliases found in ~/.ssh/config."
+            }
+        } catch CocoaError.fileReadNoSuchFile {
+            errorMessage = "No ~/.ssh/config found. You can add a host manually."
+            aliases = []
+        } catch {
+            errorMessage = readableMessage(for: error)
+            aliases = []
+        }
+        isLoadingAliases = false
+    }
+
+    private func resolveAlias(_ alias: SSHConfigAlias) {
+        isResolvingAlias = true
+        errorMessage = nil
+        Task {
+            do {
+                let resolved = try await resolver.resolve(alias: alias.alias)
+                draft = ProcessSSHConfigResolver.makeDraft(from: resolved)
+                route = .sshConfigDraft
+            } catch {
+                errorMessage = readableMessage(for: error)
+            }
+            isResolvingAlias = false
+        }
+    }
+
+    private func saveCurrentDraft() {
+        isResolvingAlias = true
+        errorMessage = nil
+        Task {
+            do {
+                let viewModel = ConnectHostViewModel(
+                    catalog: catalog,
+                    credentialStore: credentialStore,
+                    draft: draft
+                )
+                try await viewModel.saveDraft()
+                if let savedHost = viewModel.savedHost {
+                    onSaved(savedHost)
+                }
+            } catch {
+                errorMessage = readableMessage(for: error)
+            }
+            isResolvingAlias = false
+        }
+    }
+
+    private static var emptyManualDraft: HostDraft {
+        HostDraft(
+            source: .manual,
+            displayName: "",
+            hostname: "",
+            port: 22,
+            username: NSUserName(),
+            authType: .password
+        )
+    }
+}
+
+private struct HostDraftEditorView: View {
+    let title: String
+    let subtitle: String
+    @Binding var draft: HostDraft
+    let errorMessage: String?
+    let isSaving: Bool
+    let onBack: () -> Void
+    let onSave: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            SheetHeaderView(title: title, subtitle: subtitle, onBack: onBack)
+
+            VStack(alignment: .leading, spacing: 12) {
+                LabeledContent("Display name") {
+                    TextField("dev", text: $draft.displayName)
+                        .textFieldStyle(.roundedBorder)
+                }
+                LabeledContent("Host / IP") {
+                    TextField("example.com", text: $draft.hostname)
+                        .textFieldStyle(.roundedBorder)
+                }
+                LabeledContent("Port") {
+                    TextField("22", text: portBinding)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 120)
+                }
+                LabeledContent("Username") {
+                    TextField(NSUserName(), text: $draft.username)
+                        .textFieldStyle(.roundedBorder)
+                }
+                LabeledContent("Authentication") {
+                    Picker("Authentication", selection: authSelectionBinding) {
+                        Text("Password").tag(AuthType.password.rawValue)
+                        Text("SSH Key").tag(AuthType.sshKey.rawValue)
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .frame(width: 220)
+                }
+
+                if draft.authType == .sshKey {
+                    LabeledContent("Identity file") {
+                        TextField("~/.ssh/id_ed25519", text: optionalTextBinding(\.identityFile))
+                            .textFieldStyle(.roundedBorder)
+                    }
+                    LabeledContent("Key passphrase") {
+                        SecureField("Stored in Keychain", text: optionalTextBinding(\.keyPassphrase))
+                            .textFieldStyle(.roundedBorder)
+                    }
+                } else {
+                    LabeledContent("Password") {
+                        SecureField("Stored in Keychain", text: optionalTextBinding(\.password))
+                            .textFieldStyle(.roundedBorder)
+                    }
+                }
+
+                LabeledContent("Default remote path") {
+                    TextField("/home/user", text: optionalTextBinding(\.defaultRemotePath))
+                        .textFieldStyle(.roundedBorder)
+                }
+            }
+
+            if !draft.unsupportedOptions.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(draft.unsupportedOptions, id: \.key) { warning in
+                        Label(warning.message, systemImage: "exclamationmark.triangle")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.orange)
+                    }
+                }
+            }
+
+            if let errorMessage {
+                Text(errorMessage)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.red)
+            }
+
+            HStack {
+                Spacer()
+                Button("Save Host", action: onSave)
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(isSaving)
+                if isSaving {
+                    ProgressView()
+                        .controlSize(.small)
+                }
+            }
+        }
+        .padding(24)
+        .background(Color(red: 0.973, green: 0.98, blue: 0.988))
+    }
+
+    private var portBinding: Binding<String> {
+        Binding(
+            get: { String(draft.port) },
+            set: { draft.port = Int($0) ?? 0 }
+        )
+    }
+
+    private var authSelectionBinding: Binding<String> {
+        Binding(
+            get: { draft.authType.rawValue },
+            set: { draft.authType = AuthType(rawValue: $0) ?? .password }
+        )
+    }
+
+    private func optionalTextBinding(_ keyPath: WritableKeyPath<HostDraft, String?>) -> Binding<String> {
+        Binding(
+            get: { draft[keyPath: keyPath] ?? "" },
+            set: { draft[keyPath: keyPath] = $0 }
+        )
+    }
+}
+
+private struct SSHConfigAliasPickerView: View {
+    let aliases: [SSHConfigAlias]
+    @Binding var searchText: String
+    let isLoading: Bool
+    let isResolving: Bool
+    let errorMessage: String?
+    let onBack: () -> Void
+    let onRefresh: () -> Void
+    let onSelect: (SSHConfigAlias) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            SheetHeaderView(
+                title: "Select from SSH Config",
+                subtitle: "Search plain Host aliases, resolve with ssh -G, then save as a normal host.",
+                onBack: onBack
+            )
+
+            HStack(spacing: 10) {
+                TextField("Search aliases", text: $searchText)
+                    .textFieldStyle(.roundedBorder)
+                Button("Refresh", action: onRefresh)
+                    .disabled(isLoading || isResolving)
+            }
+
+            Group {
+                if isLoading {
+                    ProgressView("Reading ~/.ssh/config...")
+                        .frame(maxWidth: .infinity, minHeight: 220)
+                } else if aliases.isEmpty {
+                    ContentUnavailableView(
+                        "No aliases",
+                        systemImage: "terminal",
+                        description: Text("No selectable SSH Config Host aliases are available.")
+                    )
+                    .frame(minHeight: 220)
+                } else {
+                    List(aliases) { alias in
+                        Button {
+                            onSelect(alias)
+                        } label: {
+                            HStack {
+                                Image(systemName: "terminal")
+                                    .foregroundStyle(.secondary)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(alias.alias)
+                                        .font(.system(size: 13, weight: .medium))
+                                    if let sourcePath = alias.sourcePath {
+                                        Text(sourcePath)
+                                            .font(.system(size: 10))
+                                            .foregroundStyle(.secondary)
+                                            .lineLimit(1)
+                                            .truncationMode(.middle)
+                                    }
+                                }
+                                Spacer()
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(isResolving)
+                    }
+                    .frame(minHeight: 240)
+                }
+            }
+
+            if let errorMessage {
+                Text(errorMessage)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.red)
+            }
+        }
+        .padding(24)
+        .background(Color(red: 0.973, green: 0.98, blue: 0.988))
+    }
+}
+
+private struct SheetHeaderView: View {
+    let title: String
+    let subtitle: String
+    let onBack: () -> Void
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Button(action: onBack) {
+                Image(systemName: "chevron.left")
+            }
+            .buttonStyle(.borderless)
+            .controlSize(.small)
+            .help("Back")
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text(title)
+                    .font(.system(size: 20, weight: .bold))
+                Text(subtitle)
+                    .font(.system(size: 12))
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+}
+
+private func readableMessage(for error: Error) -> String {
+    switch error {
+    case HostValidationError.missingDisplayName:
+        return "Display name is required."
+    case HostValidationError.missingHostname:
+        return "Host / IP is required."
+    case HostValidationError.invalidPort:
+        return "Port must be between 1 and 65535."
+    case HostValidationError.missingUsername:
+        return "Username is required."
+    case HostValidationError.missingIdentityFile:
+        return "Identity file is required for SSH Key authentication."
+    case SSHConfigResolverError.missingHostname:
+        return "Unable to resolve this SSH Config host."
+    case SSHConfigResolverError.invalidPort:
+        return "SSH Config resolved an invalid port."
+    case SSHConfigResolverError.processFailed:
+        return "ssh -G failed for this alias. Check your SSH Config and try again."
+    default:
+        return error.localizedDescription
+    }
+}
+
 private struct ConnectHostOptionCard: View {
     let title: String
     let description: String

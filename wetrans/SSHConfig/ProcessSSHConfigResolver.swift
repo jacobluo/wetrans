@@ -1,6 +1,6 @@
 import Foundation
 
-public final class ProcessSSHConfigResolver: SSHConfigResolver {
+public final class ProcessSSHConfigResolver: SSHConfigResolver, @unchecked Sendable {
     private let sshURL: URL
 
     public init(sshURL: URL = URL(fileURLWithPath: "/usr/bin/ssh")) {
@@ -112,4 +112,3 @@ private func nonNone(_ value: String?) -> String? {
     }
     return value
 }
-
