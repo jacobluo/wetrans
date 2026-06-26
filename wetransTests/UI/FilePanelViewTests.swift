@@ -46,6 +46,37 @@ final class FilePanelViewTests: XCTestCase {
         XCTAssertNotNil(String(describing: type(of: view.body)))
     }
 
+    func testFilePanelViewCanRenderContextActions() {
+        let state = FilePanelState(
+            title: "Local",
+            path: "/tmp",
+            loadingState: .loaded([
+                FileItem(name: "config.yaml", path: "/tmp/config.yaml", isDirectory: false)
+            ])
+        )
+
+        let view = FilePanelView(
+            state: state,
+            contextActions: { item in
+                [
+                    FilePanelContextAction(
+                        id: "upload-\(item.id)",
+                        title: "Upload",
+                        systemImage: "arrow.up.circle",
+                        isEnabled: true,
+                        perform: {}
+                    )
+                ]
+            },
+            onRefresh: {},
+            onGoUp: {},
+            onSelect: { _ in },
+            onOpen: { _ in }
+        )
+
+        XCTAssertNotNil(String(describing: type(of: view.body)))
+    }
+
     func testMainBrowserViewCanRender() {
         let view = MainBrowserView(
             viewModel: MainBrowserViewModel(),

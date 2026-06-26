@@ -15,6 +15,8 @@ public final class MainBrowserViewModel: ObservableObject {
     private let hostSessionManager: HostSessionManager
     private let localFileSystem: LocalFileSystem
     private let transferQueue: TransferQueue
+    private let fileRevealer: FileRevealer
+    private let pasteboardWriter: PasteboardWriting
     private let defaultLocalPath: () -> String
     private var transferQueueEventsTask: Task<Void, Never>?
 
@@ -41,7 +43,9 @@ public final class MainBrowserViewModel: ObservableObject {
                     remoteFileSystem: transferRemoteFileSystem
                 ),
                 historyStore: FileTransferHistoryStore()
-            )
+            ),
+            fileRevealer: NSWorkspaceFileRevealer(),
+            pasteboardWriter: SystemPasteboardWriter()
         )
     }
 
@@ -50,6 +54,8 @@ public final class MainBrowserViewModel: ObservableObject {
         hostSessionManager: HostSessionManager,
         localFileSystem: LocalFileSystem,
         transferQueue: TransferQueue = TransferQueue(engine: UnavailableTransferEngine()),
+        fileRevealer: FileRevealer = NSWorkspaceFileRevealer(),
+        pasteboardWriter: PasteboardWriting = SystemPasteboardWriter(),
         sidebarViewModel: HostSidebarViewModel = HostSidebarViewModel(),
         defaultLocalPath: @escaping () -> String = {
             FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first?.path
@@ -60,6 +66,8 @@ public final class MainBrowserViewModel: ObservableObject {
         self.hostSessionManager = hostSessionManager
         self.localFileSystem = localFileSystem
         self.transferQueue = transferQueue
+        self.fileRevealer = fileRevealer
+        self.pasteboardWriter = pasteboardWriter
         self.transferQueueViewModel = TransferQueueViewModel(queue: transferQueue)
         self.sidebarViewModel = sidebarViewModel
         self.defaultLocalPath = defaultLocalPath
@@ -180,6 +188,60 @@ public final class MainBrowserViewModel: ObservableObject {
         toggleSelection(item.id, in: &remotePanel)
     }
 
+    public func revealLocalItemInFinder(_ item: FileItem) {
+        fileRevealer.reveal(path: item.path)
+    }
+
+    public func copyRemotePath(_ item: FileItem) {
+        pasteboardWriter.writeString(item.path)
+    }
+
+    public func enqueueUpload(_ item: FileItem) async {
+        guard let host = selectedHost else {
+            localPanel.loadingState = .failed("Select a host before uploading files.")
+            return
+        }
+        guard !item.isDirectory else {
+            localPanel.loadingState = .failed("Select a file to upload.")
+            return
+        }
+
+        await enqueueUploadTasks([
+            TransferTask(
+                hostId: host.id,
+                hostDisplayName: host.displayName,
+                direction: .upload,
+                localPath: item.path,
+                remotePath: BrowserPath.remoteJoin(directory: remotePanel.path, name: item.name),
+                fileName: item.name,
+                totalBytes: item.size
+            )
+        ])
+    }
+
+    public func enqueueDownload(_ item: FileItem) async {
+        guard let host = selectedHost else {
+            remotePanel.loadingState = .failed("Select a host before downloading files.")
+            return
+        }
+        guard !item.isDirectory else {
+            remotePanel.loadingState = .failed("Select a file to download.")
+            return
+        }
+
+        await enqueueDownloadTasks([
+            TransferTask(
+                hostId: host.id,
+                hostDisplayName: host.displayName,
+                direction: .download,
+                localPath: BrowserPath.localJoin(directory: localPanel.path, name: item.name),
+                remotePath: item.path,
+                fileName: item.name,
+                totalBytes: item.size
+            )
+        ])
+    }
+
     public func enqueueUploadSelection() async {
         guard let host = selectedHost else {
             localPanel.loadingState = .failed("Select a host before uploading files.")
@@ -200,13 +262,7 @@ public final class MainBrowserViewModel: ObservableObject {
                 )
             }
 
-        guard !tasks.isEmpty else {
-            localPanel.loadingState = .failed("Select one or more files to upload.")
-            return
-        }
-
-        await transferQueue.enqueue(tasks)
-        await transferQueueViewModel.refresh()
+        await enqueueUploadTasks(tasks)
     }
 
     public func enqueueDownloadSelection() async {
@@ -229,6 +285,20 @@ public final class MainBrowserViewModel: ObservableObject {
                 )
             }
 
+        await enqueueDownloadTasks(tasks)
+    }
+
+    private func enqueueUploadTasks(_ tasks: [TransferTask]) async {
+        guard !tasks.isEmpty else {
+            localPanel.loadingState = .failed("Select one or more files to upload.")
+            return
+        }
+
+        await transferQueue.enqueue(tasks)
+        await transferQueueViewModel.refresh()
+    }
+
+    private func enqueueDownloadTasks(_ tasks: [TransferTask]) async {
         guard !tasks.isEmpty else {
             remotePanel.loadingState = .failed("Select one or more files to download.")
             return
