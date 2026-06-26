@@ -186,7 +186,7 @@ git commit -m "docs: document libssh2 probe strategy"
 
 - Verify all files changed by this plan.
 
-- [ ] **Step 1: Run all tests**
+- [x] **Step 1: Run all tests**
 
 ```bash
 swift test
@@ -194,7 +194,7 @@ swift test
 
 Expected: PASS.
 
-- [ ] **Step 2: Run build**
+- [x] **Step 2: Run build**
 
 ```bash
 swift build
@@ -202,15 +202,15 @@ swift build
 
 Expected: PASS.
 
-- [ ] **Step 3: Optional real probe command**
+- [x] **Step 3: Optional real probe command**
 
 ```bash
 WETRANS_RUN_LIBSSH2_REAL_PROBE=1 swift test --filter LibSSH2RuntimeRealProbeTests
 ```
 
-Expected: PASS only on machines with a loadable libssh2. If the test target does not include a real-probe test yet, record that the optional real probe remains future work.
+Expected: skipped by default; PASS only with `WETRANS_RUN_LIBSSH2_REAL_PROBE=1` on machines with a loadable libssh2.
 
-- [ ] **Step 4: Mark plan complete and commit**
+- [x] **Step 4: Mark plan complete and commit**
 
 ```bash
 git add docs/superpowers/plans/sftp-libssh2-adapter-plan.md

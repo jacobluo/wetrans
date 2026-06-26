@@ -51,6 +51,21 @@ final class LibSSH2RuntimeTests: XCTestCase {
     }
 }
 
+final class LibSSH2RuntimeRealProbeTests: XCTestCase {
+    func testRealProbeWhenEnabled() throws {
+        guard ProcessInfo.processInfo.environment["WETRANS_RUN_LIBSSH2_REAL_PROBE"] == "1" else {
+            throw XCTSkip("Set WETRANS_RUN_LIBSSH2_REAL_PROBE=1 to run the real libssh2 probe.")
+        }
+
+        let runtime = LibSSH2Runtime()
+        let info = try runtime.initialize()
+
+        XCTAssertFalse(info.path.isEmpty)
+
+        runtime.shutdown()
+    }
+}
+
 private final class FakeLibSSH2Loader: LibSSH2LibraryLoading {
     let loadedLibrary: FakeLoadedLibSSH2Library
     let loadError: Error?
@@ -92,4 +107,3 @@ private final class FakeLoadedLibSSH2Library: LoadedLibSSH2Library {
         shutdownCount += 1
     }
 }
-
