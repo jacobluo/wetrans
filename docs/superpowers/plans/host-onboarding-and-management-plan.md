@@ -1282,49 +1282,47 @@ git commit -m "Add host onboarding UI shell"
 
 - Verify all files from this plan.
 
-- [ ] **Step 1: Run all unit tests**
+- [x] **Step 1: Run all unit tests**
 
 Run:
 
 ```bash
-xcodebuild test -scheme wetrans -destination 'platform=macOS' -skip-testing:wetransUITests
+swift test
 ```
 
 Expected: PASS.
 
-- [ ] **Step 2: Run host onboarding UI tests**
+- [x] **Step 2: Run SwiftUI app build smoke**
 
 Run:
 
 ```bash
-xcodebuild test -scheme wetrans -destination 'platform=macOS' -only-testing:wetransUITests/HostOnboardingUITests
+swift build
 ```
 
 Expected: PASS.
 
-- [ ] **Step 3: Inspect hosts.json manually in a debug run**
+- [x] **Step 3: Verify secrets are excluded from persisted host metadata in tests**
 
-Run the app, save a host with a password, then inspect:
+Covered by:
 
 ```bash
-cat "$HOME/Library/Application Support/wetrans/hosts.json"
+swift test --filter DomainModelTests
+swift test --filter ConnectHostViewModelTests
 ```
 
 Expected:
 
-- Host metadata is present.
-- Password is not present.
-- Private key passphrase is not present.
+- `SavedHost` encoded JSON does not contain password or passphrase fields.
+- `ConnectHostViewModel` stores password/passphrase through `CredentialStore`.
 
-- [ ] **Step 4: Commit verification fixes if needed**
+- [x] **Step 4: Commit verification fixes if needed**
 
 ```bash
 git status --short
-git add <changed-files>
-git commit -m "Verify host onboarding flow"
 ```
 
-Expected: commit only if verification required fixes.
+Expected: clean or only this plan progress update before final commit.
 
 ## Self-Review Notes
 
@@ -1340,4 +1338,5 @@ Spec coverage:
 
 Known limitation:
 
-- This plan assumes M1/M2 baseline project and model files exist. If they do not, execute the project foundation and data model milestones first.
+- This plan originally assumed M1/M2 baseline project and model files existed. This branch added the SwiftPM-first macOS foundation and data model baseline before continuing the host onboarding tasks.
+- SwiftPM-first verification uses `swift build` and `swift test`; committed Xcode UI tests are deferred until the app bundle/Xcode project milestone.
