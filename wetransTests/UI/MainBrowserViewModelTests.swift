@@ -116,22 +116,94 @@ final class MainBrowserViewModelTests: XCTestCase {
         XCTAssertTrue(viewModel.remotePanel.errorMessage.contains("Host key requires confirmation"))
     }
 
+    func testUploadSelectionEnqueuesSelectedLocalFilesToCurrentRemotePath() async throws {
+        let host = SavedHost.fixture(lastRemotePath: "/project", lastLocalPath: "/Users/me/Downloads")
+        let localFile = FileItem(name: "config.yaml", path: "/Users/me/Downloads/config.yaml", isDirectory: false, size: 12)
+        let localDirectory = FileItem(name: "folder", path: "/Users/me/Downloads/folder", isDirectory: true)
+        let transferQueue = TransferQueue(engine: RecordingTransferEngine())
+        let viewModel = makeViewModel(
+            hosts: [host],
+            localFileSystem: FakeLocalFileSystem(listingsByPath: ["/Users/me/Downloads": [localFile, localDirectory]]),
+            remoteFileSystem: MockRemoteFileSystem(listingsByPath: ["/project": []]),
+            transferQueue: transferQueue
+        )
+
+        try viewModel.loadHosts()
+        viewModel.select(hostId: host.id)
+        viewModel.refreshLocal()
+        await viewModel.refreshRemote()
+        viewModel.selectLocalItem(localFile)
+        viewModel.selectLocalItem(localDirectory)
+        await viewModel.enqueueUploadSelection()
+
+        let tasks = await transferQueue.snapshot()
+        XCTAssertEqual(tasks.count, 1)
+        XCTAssertEqual(tasks[0].hostId, host.id)
+        XCTAssertEqual(tasks[0].hostDisplayName, "dev")
+        XCTAssertEqual(tasks[0].direction, .upload)
+        XCTAssertEqual(tasks[0].localPath, "/Users/me/Downloads/config.yaml")
+        XCTAssertEqual(tasks[0].remotePath, "/project/config.yaml")
+        XCTAssertEqual(tasks[0].fileName, "config.yaml")
+        XCTAssertEqual(tasks[0].totalBytes, 12)
+    }
+
+    func testDownloadSelectionEnqueuesSelectedRemoteFilesToCurrentLocalPath() async throws {
+        let host = SavedHost.fixture(lastRemotePath: "/var/log", lastLocalPath: "/Users/me/Downloads")
+        let remoteFile = FileItem(name: "app.log", path: "/var/log/app.log", isDirectory: false, size: 42)
+        let transferQueue = TransferQueue(engine: RecordingTransferEngine())
+        let viewModel = makeViewModel(
+            hosts: [host],
+            localFileSystem: FakeLocalFileSystem(listingsByPath: ["/Users/me/Downloads": []]),
+            remoteFileSystem: MockRemoteFileSystem(listingsByPath: ["/var/log": [remoteFile]]),
+            transferQueue: transferQueue
+        )
+
+        try viewModel.loadHosts()
+        viewModel.select(hostId: host.id)
+        viewModel.refreshLocal()
+        await viewModel.refreshRemote()
+        viewModel.selectRemoteItem(remoteFile)
+        await viewModel.enqueueDownloadSelection()
+
+        let tasks = await transferQueue.snapshot()
+        XCTAssertEqual(tasks.count, 1)
+        XCTAssertEqual(tasks[0].direction, .download)
+        XCTAssertEqual(tasks[0].remotePath, "/var/log/app.log")
+        XCTAssertEqual(tasks[0].localPath, "/Users/me/Downloads/app.log")
+        XCTAssertEqual(tasks[0].fileName, "app.log")
+        XCTAssertEqual(tasks[0].totalBytes, 42)
+    }
+
+    func testUploadWithoutSelectedHostShowsError() async throws {
+        let transferQueue = TransferQueue(engine: RecordingTransferEngine())
+        let viewModel = makeViewModel(hosts: [], transferQueue: transferQueue)
+
+        await viewModel.enqueueUploadSelection()
+
+        XCTAssertTrue(viewModel.localPanel.errorMessage.contains("Select a host"))
+        let tasks = await transferQueue.snapshot()
+        XCTAssertEqual(tasks, [])
+    }
+
     private func makeViewModel(
         hosts: [SavedHost] = [],
         localFileSystem: LocalFileSystem = FakeLocalFileSystem(),
-        remoteFileSystem: MockRemoteFileSystem = MockRemoteFileSystem()
+        remoteFileSystem: MockRemoteFileSystem = MockRemoteFileSystem(),
+        transferQueue: TransferQueue = TransferQueue(engine: RecordingTransferEngine())
     ) -> MainBrowserViewModel {
         makeViewModel(
             hostCatalog: FakeHostCatalog(hosts: hosts),
             localFileSystem: localFileSystem,
-            remoteFileSystem: remoteFileSystem
+            remoteFileSystem: remoteFileSystem,
+            transferQueue: transferQueue
         )
     }
 
     private func makeViewModel(
         hostCatalog: HostCatalog,
         localFileSystem: LocalFileSystem = FakeLocalFileSystem(),
-        remoteFileSystem: MockRemoteFileSystem = MockRemoteFileSystem()
+        remoteFileSystem: MockRemoteFileSystem = MockRemoteFileSystem(),
+        transferQueue: TransferQueue = TransferQueue(engine: RecordingTransferEngine())
     ) -> MainBrowserViewModel {
         let sessionManager = HostSessionManager(
             remoteFileSystem: remoteFileSystem,
@@ -142,9 +214,17 @@ final class MainBrowserViewModelTests: XCTestCase {
             hostCatalog: hostCatalog,
             hostSessionManager: sessionManager,
             localFileSystem: localFileSystem,
+            transferQueue: transferQueue,
             defaultLocalPath: { "/Users/me/Downloads" }
         )
     }
+}
+
+private struct RecordingTransferEngine: TransferEngine {
+    func run(
+        task: TransferTask,
+        progress: @escaping @Sendable (TransferProgress) async -> Void
+    ) async throws {}
 }
 
 private final class FakeLocalFileSystem: LocalFileSystem {

@@ -16,13 +16,34 @@ public struct MainBrowserView: View {
             HSplitView {
                 FilePanelView(
                     state: viewModel.localPanel,
+                    action: FilePanelAction(
+                        title: "Upload",
+                        systemImage: "arrow.up.circle",
+                        isEnabled: viewModel.canUploadSelection,
+                        perform: {
+                            Task {
+                                await viewModel.enqueueUploadSelection()
+                            }
+                        }
+                    ),
                     onRefresh: viewModel.refreshLocal,
                     onGoUp: viewModel.goUpLocal,
+                    onSelect: viewModel.selectLocalItem,
                     onOpen: viewModel.openLocalItem
                 )
 
                 FilePanelView(
                     state: viewModel.remotePanel,
+                    action: FilePanelAction(
+                        title: "Download",
+                        systemImage: "arrow.down.circle",
+                        isEnabled: viewModel.canDownloadSelection,
+                        perform: {
+                            Task {
+                                await viewModel.enqueueDownloadSelection()
+                            }
+                        }
+                    ),
                     onRefresh: {
                         Task {
                             await viewModel.refreshRemote()
@@ -33,6 +54,7 @@ public struct MainBrowserView: View {
                             await viewModel.goUpRemote()
                         }
                     },
+                    onSelect: viewModel.selectRemoteItem,
                     onOpen: { item in
                         Task {
                             await viewModel.openRemoteItem(item)
