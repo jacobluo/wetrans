@@ -1,16 +1,16 @@
 import Foundation
 
-public enum HostSource: String, Codable, Equatable {
+public enum HostSource: String, Codable, Equatable, Sendable {
     case manual
     case sshConfigGenerated
 }
 
-public enum AuthType: String, Codable, Equatable {
+public enum AuthType: String, Codable, Equatable, Sendable {
     case password
     case sshKey
 }
 
-public struct SavedHost: Identifiable, Codable, Equatable {
+public struct SavedHost: Identifiable, Codable, Equatable, Sendable {
     public let id: UUID
     public var source: HostSource
     public var displayName: String
@@ -67,4 +67,3 @@ public struct SavedHost: Identifiable, Codable, Equatable {
         self.note = note
     }
 }
-

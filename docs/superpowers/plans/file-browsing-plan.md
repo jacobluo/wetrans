@@ -97,7 +97,7 @@ git commit -m "feat: add file browsing state helpers"
 - Create: `wetrans/Support/ApplicationSupport.swift`
 - Test: `wetransTests/UI/MainBrowserViewModelTests.swift`
 
-- [ ] **Step 1: Write failing view model tests**
+- [x] **Step 1: Write failing view model tests**
 
 Tests must cover:
 
@@ -130,7 +130,7 @@ XCTAssertEqual(viewModel.remotePanel.path, "/project")
 XCTAssertTrue(viewModel.remotePanel.errorMessage.contains("Host key requires confirmation"))
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 swift test --filter MainBrowserViewModelTests
@@ -138,7 +138,7 @@ swift test --filter MainBrowserViewModelTests
 
 Expected: FAIL because `MainBrowserViewModel` is missing.
 
-- [ ] **Step 3: Implement view model**
+- [x] **Step 3: Implement view model**
 
 Implement a `@MainActor final class MainBrowserViewModel: ObservableObject` that:
 
@@ -152,7 +152,7 @@ Implement a `@MainActor final class MainBrowserViewModel: ObservableObject` that
 - Selects file items without transfer behavior.
 - Maps errors to readable `failed` state strings.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 ```bash
 swift test --filter MainBrowserViewModelTests
@@ -160,7 +160,7 @@ swift test --filter MainBrowserViewModelTests
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add wetrans/Support/ApplicationSupport.swift wetrans/UI/FileBrowsing/MainBrowserViewModel.swift wetransTests/UI/MainBrowserViewModelTests.swift docs/superpowers/plans/file-browsing-plan.md
