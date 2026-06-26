@@ -174,7 +174,7 @@ git commit -m "feat: add main browser view model"
 - Create: `wetrans/UI/FileBrowsing/FilePanelView.swift`
 - Test: `wetransTests/UI/FilePanelViewTests.swift`
 
-- [ ] **Step 1: Write failing view compile tests**
+- [x] **Step 1: Write failing view compile tests**
 
 Tests must instantiate the local and remote panel surfaces:
 
@@ -184,7 +184,7 @@ let view = FilePanelView(state: state, onRefresh: {}, onGoUp: {}, onOpen: { _ in
 XCTAssertNotNil(view)
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 swift test --filter FilePanelViewTests
@@ -192,7 +192,7 @@ swift test --filter FilePanelViewTests
 
 Expected: FAIL because `FilePanelView` is missing.
 
-- [ ] **Step 3: Implement `FilePanelView`**
+- [x] **Step 3: Implement `FilePanelView`**
 
 Build a compact macOS SwiftUI panel:
 
@@ -202,7 +202,7 @@ Build a compact macOS SwiftUI panel:
 - loading/empty/failed states
 - double-click item open through `.onTapGesture(count: 2)`
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 ```bash
 swift test --filter FilePanelViewTests
@@ -210,7 +210,7 @@ swift test --filter FilePanelViewTests
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add wetrans/UI/FileBrowsing/FilePanelView.swift wetransTests/UI/FilePanelViewTests.swift docs/superpowers/plans/file-browsing-plan.md
