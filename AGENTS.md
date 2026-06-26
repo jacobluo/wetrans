@@ -1,17 +1,25 @@
 # wetrans Agent Guide
 
-This repository uses project-level documentation paths instead of skill-default documentation paths.
+This repository keeps Superpowers workflow specs in the Superpowers specs directory and keeps long-lived project design documents directly under `docs/`.
 
 ## Documentation Layout
 
-- `docs/2026-06-26-wetrans-prd.md`
-  - Product requirements document for wetrans.
+- `docs/superpowers/specs/2026-06-26-wetrans-prd.md`
+  - Superpowers brainstorming spec for the wetrans PRD.
   - Product scope, user flows, MVP/P1/P2 scope, data model, acceptance criteria.
 
 - `docs/2026-06-26-wetrans-architecture-design.md`
   - Architecture design document.
   - Technical stack, module interfaces, data flow, persistence, SSH/SFTP choices, security model, testing approach.
   - Create this file when architecture design is finalized.
+
+- `docs/2026-06-26-wetrans-technical-selection.md`
+  - Technical selection document, if needed separately from architecture.
+  - Compare concrete choices such as libssh2 vs libssh, Swift Package layout, persistence format, and distribution approach.
+
+- `docs/2026-06-26-wetrans-data-model.md`
+  - Data model design, if it grows beyond the PRD and architecture document.
+  - Define persisted JSON schemas, Keychain keys, trusted host key records, transfer summaries, and migration rules.
 
 - `docs/2026-06-26-wetrans-implementation-plan.md`
   - Implementation plan.
@@ -20,9 +28,9 @@ This repository uses project-level documentation paths instead of skill-default 
 
 ## Directory Rules
 
-- Put project documents directly under `docs/`.
-- Do not put canonical project documents under `docs/superpowers/specs/`.
-- Use `docs/superpowers/specs/` only for temporary skill-generated drafts if a workflow absolutely requires it, then move reviewed documents into `docs/`.
+- Put Superpowers workflow specs under `docs/superpowers/specs/`.
+- Put project design documents directly under `docs/`, including architecture design, technical selection, data model, and overall planning documents.
+- Do not move Superpowers specs out of `docs/superpowers/specs/` unless the user explicitly asks for a different location.
 - Keep document filenames date-prefixed and descriptive:
 
 ```text
