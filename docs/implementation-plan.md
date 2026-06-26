@@ -12,7 +12,7 @@
 
 ## 1. Source Documents
 
-- Product spec: `docs/superpowers/specs/2026-06-26-wetrans-prd.md`
+- Product PRD: `docs/prd.md`
 - Architecture design: `docs/architecture-design.md`
 - Technical selection: `docs/technical-selection.md`
 - Data model: `docs/data-model.md`

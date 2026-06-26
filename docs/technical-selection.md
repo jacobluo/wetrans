@@ -1,7 +1,7 @@
 # wetrans Technical Selection
 
 Status: Draft for review
-Source spec: `docs/superpowers/specs/2026-06-26-wetrans-prd.md`
+Source PRD: `docs/prd.md`
 
 ## 1. Purpose
 

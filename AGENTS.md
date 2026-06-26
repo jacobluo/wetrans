@@ -4,8 +4,8 @@ This repository keeps Superpowers workflow specs in the Superpowers specs direct
 
 ## Documentation Layout
 
-- `docs/superpowers/specs/2026-06-26-wetrans-prd.md`
-  - Superpowers brainstorming spec for the wetrans PRD.
+- `docs/prd.md`
+  - Product requirements document for wetrans.
   - Product scope, user flows, MVP/P1/P2 scope, data model, acceptance criteria.
 
 - `docs/architecture-design.md`
@@ -31,6 +31,7 @@ This repository keeps Superpowers workflow specs in the Superpowers specs direct
 
 - Put Superpowers workflow specs under `docs/superpowers/specs/`.
 - Put project design documents directly under `docs/`, including architecture design, technical selection, data model, and overall planning documents.
+- Put the project-level PRD directly under `docs/prd.md`.
 - Do not move Superpowers specs out of `docs/superpowers/specs/` unless the user explicitly asks for a different location.
 - Use `docs/implementation-plan.md` for the canonical implementation plan. Avoid root-level `PLAN.md` for project planning.
 - Use stable, descriptive filenames for project documents directly under `docs/`; do not date-prefix those files:
