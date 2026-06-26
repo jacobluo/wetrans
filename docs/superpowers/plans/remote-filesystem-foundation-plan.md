@@ -109,7 +109,7 @@ git commit -m "feat: add local file system adapter"
 - Create: `wetrans/RemoteFileSystem/MockRemoteFileSystem.swift`
 - Test: `wetransTests/RemoteFileSystem/ConnectionSpecTests.swift`
 
-- [ ] **Step 1: Write failing connection spec tests**
+- [x] **Step 1: Write failing connection spec tests**
 
 Create tests that cover:
 
@@ -121,7 +121,7 @@ XCTAssertThrowsError(try ConnectionSpec.make(host: missingIdentityHost, credenti
 XCTAssertEqual(spec.defaultRemotePath, "/last")
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run:
 
@@ -131,7 +131,7 @@ swift test --filter ConnectionSpecTests
 
 Expected: FAIL because remote file-system contracts are missing.
 
-- [ ] **Step 3: Implement contracts and mock remote**
+- [x] **Step 3: Implement contracts and mock remote**
 
 Implement:
 
@@ -152,7 +152,7 @@ public final class MockRemoteFileSystem: RemoteFileSystem
 
 Use remote path default order: `lastRemotePath`, `defaultRemotePath`, `~`.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run:
 
@@ -162,7 +162,7 @@ swift test --filter ConnectionSpecTests
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add wetrans/RemoteFileSystem wetransTests/RemoteFileSystem docs/superpowers/plans/remote-filesystem-foundation-plan.md
