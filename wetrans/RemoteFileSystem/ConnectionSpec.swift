@@ -46,7 +46,7 @@ public struct ConnectionSpec: Equatable {
                 throw ConnectionSpecError.missingIdentityFile(hostId: host.id)
             }
             auth = .sshKey(
-                identityFile: identityFile,
+                identityFile: (identityFile as NSString).expandingTildeInPath,
                 passphrase: try credentialStore.loadKeyPassphrase(hostId: host.id)
             )
         }

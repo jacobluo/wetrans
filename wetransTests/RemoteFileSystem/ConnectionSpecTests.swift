@@ -28,7 +28,10 @@ final class ConnectionSpecTests: XCTestCase {
 
         let spec = try ConnectionSpec.make(host: host, credentialStore: credentials)
 
-        XCTAssertEqual(spec.auth, .sshKey(identityFile: "~/.ssh/id_ed25519", passphrase: "phrase"))
+        XCTAssertEqual(
+            spec.auth,
+            .sshKey(identityFile: "\(NSHomeDirectory())/.ssh/id_ed25519", passphrase: "phrase")
+        )
     }
 
     func testSSHKeyHostWithoutIdentityFileThrows() {

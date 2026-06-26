@@ -34,4 +34,11 @@ final class LibSSH2DynamicClientTests: XCTestCase {
         XCTAssertNil(files.publicKeyFile)
         XCTAssertEqual(files.privateKeyFile, "/Users/me/.ssh/id_ed25519")
     }
+
+    func testPublicKeyAuthExpandsTildePrivateKeyPath() {
+        let files = LibSSH2PublicKeyAuthFiles(identityFile: "~/.ssh/id_ed25519")
+
+        XCTAssertNil(files.publicKeyFile)
+        XCTAssertEqual(files.privateKeyFile, "\(NSHomeDirectory())/.ssh/id_ed25519")
+    }
 }

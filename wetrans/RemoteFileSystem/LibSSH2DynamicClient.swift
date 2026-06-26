@@ -461,7 +461,7 @@ struct LibSSH2PublicKeyAuthFiles: Equatable {
 
     init(identityFile: String) {
         self.publicKeyFile = nil
-        self.privateKeyFile = identityFile
+        self.privateKeyFile = (identityFile as NSString).expandingTildeInPath
     }
 }
 
