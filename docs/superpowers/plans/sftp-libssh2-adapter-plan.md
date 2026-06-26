@@ -96,7 +96,7 @@ git commit -m "feat: add libssh2 runtime probe"
 - Create: `wetrans/RemoteFileSystem/LibSSH2RemoteFileSystem.swift`
 - Test: `wetransTests/RemoteFileSystem/LibSSH2RemoteFileSystemTests.swift`
 
-- [ ] **Step 1: Write failing adapter tests**
+- [x] **Step 1: Write failing adapter tests**
 
 Tests must cover:
 
@@ -108,7 +108,7 @@ await adapter.disconnect(session)
 XCTAssertEqual(runtime.shutdownCallCount, 1)
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 ```bash
 swift test --filter LibSSH2RemoteFileSystemTests
@@ -116,7 +116,7 @@ swift test --filter LibSSH2RemoteFileSystemTests
 
 Expected: FAIL because adapter is missing.
 
-- [ ] **Step 3: Implement adapter skeleton**
+- [x] **Step 3: Implement adapter skeleton**
 
 Implement:
 
@@ -134,7 +134,7 @@ Behavior:
 - `listDirectory` throws `RemoteFileSystemError.disconnected`.
 - `disconnect` calls runtime shutdown.
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 ```bash
 swift test --filter LibSSH2RemoteFileSystemTests
@@ -142,7 +142,7 @@ swift test --filter LibSSH2RemoteFileSystemTests
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add wetrans/RemoteFileSystem/LibSSH2RemoteFileSystem.swift wetransTests/RemoteFileSystem/LibSSH2RemoteFileSystemTests.swift docs/superpowers/plans/sftp-libssh2-adapter-plan.md
@@ -234,4 +234,3 @@ Out-of-scope items intentionally untouched:
 - Host-key extraction.
 - SFTP directory listing.
 - Upload/download/cancel.
-

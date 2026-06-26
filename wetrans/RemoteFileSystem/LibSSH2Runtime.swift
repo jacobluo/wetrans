@@ -28,7 +28,13 @@ public protocol LibSSH2LibraryLoading {
     func load(candidates: [String]) throws -> LoadedLibSSH2Library
 }
 
-public final class LibSSH2Runtime {
+public protocol LibSSH2RuntimeManaging {
+    @discardableResult
+    func initialize() throws -> LibSSH2LibraryInfo
+    func shutdown()
+}
+
+public final class LibSSH2Runtime: LibSSH2RuntimeManaging {
     private let loader: LibSSH2LibraryLoading
     private let candidatePaths: [String]
     private var loadedLibrary: LoadedLibSSH2Library?
@@ -154,4 +160,3 @@ private final class DarwinLoadedLibSSH2Library: LoadedLibSSH2Library {
         exitFunction()
     }
 }
-
