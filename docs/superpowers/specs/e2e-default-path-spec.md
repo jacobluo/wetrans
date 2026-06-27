@@ -111,7 +111,19 @@ Default behavior should run real-host connect/list and transfer checks plus app 
 
 The existing full UI scenarios remain gated because they depend on Accessibility permission, local SSH config state, and environment-provided host details.
 
-## 7. Secret and Safety Rules
+## 7. Documentation Updates
+
+After implementation, update long-lived project documentation so the test strategy matches the new default E2E path:
+
+- `docs/prd.md`: describe the internal-test readiness expectation for real-host transfer E2E and app smoke.
+- `docs/architecture-design.md`: update the testing and E2E architecture sections so real-host SFTP E2E and native app smoke are documented as separate layers under one script entry point.
+- `docs/implementation-plan.md`: update before-internal-testing verification steps and remove stale wording that says full UI E2E is not part of the default path.
+- `docs/real-host-sftp-smoke.md`: expand from connect/list smoke to real-host transfer E2E, including upload and download coverage.
+- `.codebuddy/rules/testing.mdc`: update the verification entry description if it still describes `scripts/e2e` as only a placeholder or UI smoke.
+
+The docs should keep the distinction between direct real-host SFTP E2E and gated full UI automation clear.
+
+## 8. Secret and Safety Rules
 
 - Do not commit private keys, passphrases, passwords, tokens, `.env` files, or authorization headers.
 - Test fixture files may contain host metadata and local identity-file paths only.
@@ -120,7 +132,7 @@ The existing full UI scenarios remain gated because they depend on Accessibility
 - Tests should avoid deleting any path that does not begin with the generated temporary root.
 - Failure output may include host names and temporary paths, but must not print credential values.
 
-## 8. Acceptance Criteria
+## 9. Acceptance Criteria
 
 - `scripts/e2e` runs real-host SFTP E2E by default.
 - Real-host E2E covers connect/list.
@@ -130,3 +142,4 @@ The existing full UI scenarios remain gated because they depend on Accessibility
 - App build and run smoke still launches the packaged app and checks the main UI accessibility anchors.
 - Full UI E2E scenarios remain opt-in behind `WETRANS_E2E_RUN_FULL=1`.
 - `scripts/verify` includes the updated `scripts/e2e` path.
+- PRD, architecture, implementation plan, real-host testing docs, and testing rules describe the updated E2E default path accurately.
