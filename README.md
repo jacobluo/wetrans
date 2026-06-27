@@ -41,7 +41,7 @@ The UI direction comes from the ardot MVP prototype:
 cocraft://localhost/file/697398357828482?node_id=0%3A1
 ```
 
-The target feel is macOS-native: Finder-like host navigation, AppKit table density, restrained controls, and a bottom transfer queue that stays visible while browsing.
+The target feel is macOS-native: Finder-like host navigation, dense SwiftUI file panels with narrow AppKit desktop integrations, restrained controls, and a bottom transfer queue that stays visible while browsing.
 
 ## Local Development
 
@@ -70,6 +70,20 @@ Common commands:
 swift build
 swift test
 swift run wetrans
+```
+
+Package for internal testing:
+
+```bash
+scripts/package
+```
+
+The packaging script always creates `dist/wetrans.app` and `dist/wetrans.zip`. It skips signing and notarization unless credentials are provided:
+
+```bash
+WETRANS_DEVELOPER_ID_APPLICATION="Developer ID Application: Example (TEAMID)" \
+WETRANS_NOTARYTOOL_PROFILE="wetrans-notary" \
+scripts/package
 ```
 
 Real integration checks run by default and therefore require local libssh2 support, network access, and the committed `openclaw-vm` key path:

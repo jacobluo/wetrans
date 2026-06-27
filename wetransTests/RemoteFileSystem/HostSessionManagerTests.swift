@@ -182,6 +182,32 @@ final class HostSessionManagerTests: XCTestCase {
         XCTAssertFalse(manager.state(for: host).isConnected)
         XCTAssertEqual(manager.state(for: host).currentRemotePath, "/project")
     }
+
+    func testDisconnectIdleSessionsDisconnectsOnlyExpiredSessionsAndPreservesPaths() async throws {
+        let oldHost = SavedHost.fixture(displayName: "old", lastRemotePath: "/old")
+        let recentHost = SavedHost.fixture(displayName: "recent", lastRemotePath: "/recent")
+        let clock = TestClock(date: Date(timeIntervalSince1970: 1_700_000_000))
+        let remoteFileSystem = MockRemoteFileSystem(listingsByPath: ["/old": [], "/recent": []])
+        let manager = HostSessionManager(
+            remoteFileSystem: remoteFileSystem,
+            credentialStore: InMemoryCredentialStore(),
+            defaultLocalPath: { "/Users/me/Downloads" },
+            now: { clock.date }
+        )
+
+        _ = try await manager.listRemoteDirectory(for: oldHost)
+        clock.advance(by: 600)
+        _ = try await manager.listRemoteDirectory(for: recentHost)
+        clock.advance(by: 600)
+
+        await manager.disconnectIdleSessions(now: clock.date, idleTimeout: 900)
+
+        XCTAssertEqual(remoteFileSystem.disconnectedSessions.map(\.hostId), [oldHost.id])
+        XCTAssertFalse(manager.state(for: oldHost).isConnected)
+        XCTAssertTrue(manager.state(for: recentHost).isConnected)
+        XCTAssertEqual(manager.state(for: oldHost).currentRemotePath, "/old")
+        XCTAssertEqual(manager.state(for: recentHost).currentRemotePath, "/recent")
+    }
 }
 
 private actor SlowConnectRemoteFileSystem: RemoteFileSystem {
@@ -221,6 +247,25 @@ private actor SlowConnectRemoteFileSystem: RemoteFileSystem {
         in session: RemoteSession,
         progress: @escaping @Sendable (TransferProgress) async -> Void
     ) async throws {}
+}
+
+private final class TestClock: @unchecked Sendable {
+    private let lock = NSLock()
+    private var currentDate: Date
+
+    init(date: Date) {
+        self.currentDate = date
+    }
+
+    var date: Date {
+        lock.withLock { currentDate }
+    }
+
+    func advance(by interval: TimeInterval) {
+        lock.withLock {
+            currentDate = currentDate.addingTimeInterval(interval)
+        }
+    }
 }
 
 private actor SequencedListRemoteFileSystem: RemoteFileSystem {

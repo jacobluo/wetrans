@@ -303,7 +303,7 @@ struct TransferTask: Identifiable, Codable, Equatable {
 - Persist completed, failed, and cancelled summaries.
 - Persist pending tasks only if they are not tied to a live process.
 - On app startup, any persisted `running` task should be converted to `failed` with an interrupted message.
-- Keep a bounded history in MVP, for example the latest 500 tasks.
+- Current implementation persists the queue snapshot as-is. Bounded pruning can be added later if transfer history grows too large.
 
 ## 8. Runtime HostSessionState
 
@@ -407,8 +407,7 @@ Migration rules:
 
 - Unknown future schema versions should fail with a readable error.
 - Missing optional fields should use defaults.
-- Migrations should be pure functions with unit tests.
-- Before writing migrated data, keep a backup copy during development builds.
+- Pure migration functions and development backup files are not implemented yet.
 
 ## 12. Atomic Write Strategy
 
@@ -416,8 +415,7 @@ For JSON files:
 
 1. Encode to memory.
 2. Write to a temporary file in the same directory.
-3. Flush to disk.
-4. Rename over the target file.
+3. Replace or move the temporary file over the target file.
 
 This avoids partial writes if the app quits mid-save.
 

@@ -67,7 +67,6 @@ wetrans persists:
 - Last local path per host
 - Last remote path per host
 - Default remote path
-- Favorite remote paths
 - Transfer history needed for visible queue state
 
 wetrans does not persist:
@@ -438,7 +437,6 @@ These fields persist across app restarts:
 
 - Last remote path
 - Last local path
-- Favorite remote paths
 - Default remote path
 - Last connected time
 - Favorite state
@@ -596,11 +594,9 @@ Rules:
 
 ### 10.3 File Conflict Handling
 
-MVP can use a conservative default:
+The current MVP transfer implementation writes to the requested destination path and does not yet present a conflict prompt or preflight block for existing files. Users should choose destination directories with that behavior in mind during internal testing.
 
-- If the destination file exists, block the transfer and show an error.
-
-P1 should add:
+P1 should add explicit conflict handling:
 
 ```text
 Destination already contains config.yaml.
@@ -869,12 +865,14 @@ SwiftUI should own:
 
 AppKit should own:
 
-- File tables
-- Outline/list interactions
-- Drag and drop
-- Multi-select
-- Context menus
-- Precise keyboard behavior
+- Future high-fidelity file tables.
+- Future outline/list interactions.
+- Future drag and drop.
+- Future Finder-grade multi-select.
+- Context menus and desktop integrations where SwiftUI benefits from AppKit bridges.
+- Future precise keyboard behavior.
+
+The current MVP file panels are SwiftUI-rendered list surfaces with narrow AppKit integrations for Finder reveal, pasteboard, and modifier-event lookup.
 
 ### 13.2 Core Modules
 
@@ -1045,7 +1043,7 @@ Error messages should:
 - Explain what happened.
 - Suggest a next step.
 - Avoid raw stack traces by default.
-- Allow viewing technical details when useful.
+- Use typed domain errors and focused string mapping. A full stable-code/recovery/debug-detail object model is not implemented yet.
 
 ### 15.2 Common Errors
 
@@ -1112,7 +1110,6 @@ Error messages should:
 - Drag-and-drop upload/download.
 - File conflict handling.
 - Retry failed transfers.
-- Favorite remote paths.
 - Create remote directory.
 - Rename.
 - Delete.

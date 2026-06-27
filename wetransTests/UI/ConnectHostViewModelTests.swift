@@ -3,6 +3,25 @@ import XCTest
 
 @MainActor
 final class ConnectHostViewModelTests: XCTestCase {
+    func testAppStateTracksConnectHostPresentationAndSelection() {
+        let appState = AppState()
+        let hostId = UUID()
+
+        appState.showConnectHost()
+        appState.selectHost(hostId)
+        appState.setTransferQueueExpanded(false)
+        appState.showError("Could not load hosts.")
+        appState.dismissConnectHost()
+
+        XCTAssertFalse(appState.isShowingConnectHost)
+        XCTAssertEqual(appState.selectedHostId, hostId)
+        XCTAssertFalse(appState.isTransferQueueExpanded)
+        XCTAssertEqual(appState.appErrorMessage, "Could not load hosts.")
+
+        appState.clearError()
+        XCTAssertNil(appState.appErrorMessage)
+    }
+
     func testConnectHostEntryAreaUsesCompactCardHeight() {
         XCTAssertLessThanOrEqual(ConnectHostLayout.optionCardHeight, 124)
         XCTAssertLessThanOrEqual(ConnectHostLayout.headerSpacing, 10)
@@ -99,10 +118,71 @@ final class ConnectHostViewModelTests: XCTestCase {
         XCTAssertEqual(credentials.passphrases[host.id], "phrase")
         XCTAssertNil(credentials.passwords[host.id])
     }
+
+    func testDeletingSavedHostRemovesMetadataCredentialsTrustedKeysAndRuntimeSession() async throws {
+        let host = SavedHost.fixture()
+        let catalog = InMemoryHostCatalog(hosts: [host])
+        let credentials = InMemoryCredentialStore()
+        let trustedHosts = InMemoryTrustedHostStore()
+        let sessions = RecordingHostSessionCleaner()
+        let maintenance = SavedHostMaintenance(
+            catalog: catalog,
+            credentialStore: credentials,
+            trustedHostStore: trustedHosts,
+            hostSessionCleaner: sessions
+        )
+
+        try await maintenance.delete(host)
+
+        XCTAssertTrue(catalog.hosts.isEmpty)
+        XCTAssertEqual(credentials.deletedHostIds, [host.id])
+        XCTAssertEqual(trustedHosts.deletedHostIds, [host.id])
+        let deletedSessionHostIds = await sessions.snapshot()
+        XCTAssertEqual(deletedSessionHostIds, [host.id])
+    }
+
+    func testSavingEditedHostDeletesOldCredentialsWhenAuthTypeChanges() async throws {
+        let host = SavedHost.fixture(authType: .password)
+        let edited = SavedHost.fixture(id: host.id, authType: .sshKey, identityFile: "~/.ssh/id_ed25519")
+        let catalog = InMemoryHostCatalog(hosts: [host])
+        let credentials = InMemoryCredentialStore()
+        let maintenance = SavedHostMaintenance(
+            catalog: catalog,
+            credentialStore: credentials,
+            trustedHostStore: InMemoryTrustedHostStore()
+        )
+
+        try await maintenance.saveEdited(original: host, edited: edited)
+
+        XCTAssertEqual(catalog.hosts.first?.authType, .sshKey)
+        XCTAssertEqual(credentials.deletedHostIds, [host.id])
+    }
+}
+
+private extension SavedHost {
+    static func fixture(
+        id: UUID = UUID(),
+        authType: AuthType = .password,
+        identityFile: String? = nil
+    ) -> SavedHost {
+        SavedHost(
+            id: id,
+            source: .manual,
+            displayName: "dev",
+            hostname: "dev.example.com",
+            username: "ubuntu",
+            authType: authType,
+            identityFile: identityFile
+        )
+    }
 }
 
 private final class InMemoryHostCatalog: HostCatalog {
     var hosts: [SavedHost] = []
+
+    init(hosts: [SavedHost] = []) {
+        self.hosts = hosts
+    }
 
     func load() throws -> [SavedHost] { hosts }
 
@@ -129,5 +209,29 @@ private final class InMemoryHostCatalog: HostCatalog {
     func setFavorite(hostId: UUID, isFavorite: Bool) throws {
         guard let index = hosts.firstIndex(where: { $0.id == hostId }) else { return }
         hosts[index].isFavorite = isFavorite
+    }
+}
+
+private final class InMemoryTrustedHostStore: TrustedHostStore {
+    var deletedHostIds: [UUID] = []
+
+    func lookup(hostId: UUID, hostname: String, port: Int) throws -> TrustedHostKey? { nil }
+    func trust(_ key: TrustedHostKey) throws {}
+    func recordVerification(hostId: UUID, hostname: String, port: Int, at date: Date) throws {}
+
+    func deleteKeys(hostId: UUID) throws {
+        deletedHostIds.append(hostId)
+    }
+}
+
+private actor RecordingHostSessionCleaner: HostSessionCleaning {
+    private(set) var deletedHostIds: [UUID] = []
+
+    func disconnect(hostId: UUID) async {
+        deletedHostIds.append(hostId)
+    }
+
+    func snapshot() -> [UUID] {
+        deletedHostIds
     }
 }
