@@ -271,6 +271,27 @@ final class RemoteFileSystemRealHostIntegrationTests: XCTestCase {
         XCTAssertTrue(failures.isEmpty, failures.joined(separator: "\n"))
     }
 
+    func testConfiguredRealHostsUploadAndDownloadFilesAndDirectories() async throws {
+        let environment = ProcessInfo.processInfo.environment
+        let configURL = try Self.configURL(environment: environment)
+        let config = try SFTPIntegrationConfig.load(from: configURL)
+        guard !config.hosts.isEmpty else {
+            XCTFail("SFTP integration config has no hosts: \(configURL.path)")
+            return
+        }
+
+        var failures: [String] = []
+        for host in config.hosts {
+            do {
+                try await transferE2E(host: host, environment: environment)
+            } catch {
+                failures.append(String(describing: error))
+            }
+        }
+
+        XCTAssertTrue(failures.isEmpty, failures.joined(separator: "\n"))
+    }
+
     func testConfiguredOpenCloudHostUploadsUnicodeDirectoryFilesWhenEnabled() async throws {
         let environment = ProcessInfo.processInfo.environment
         guard environment["WETRANS_REAL_UPLOAD_SMOKE"] == "1" else {
@@ -510,6 +531,208 @@ final class RemoteFileSystemRealHostIntegrationTests: XCTestCase {
         )
     }
 
+    private func transferE2E(host: SFTPIntegrationHost, environment: [String: String]) async throws {
+        let hostId = UUID()
+        let spec = ConnectionSpec(
+            hostId: hostId,
+            displayName: host.name,
+            hostname: host.hostname,
+            port: host.port,
+            username: host.username,
+            auth: .sshKey(
+                identityFile: host.expandedIdentityFile,
+                passphrase: host.passphrase(environment: environment)
+            ),
+            defaultRemotePath: host.listPath
+        )
+        let trustedStore = FileTrustedHostStore(applicationSupportDirectory: temporaryDirectory())
+        if let trustedKey = host.trustedHostKey(hostId: hostId) {
+            try trustedStore.trust(trustedKey)
+        }
+
+        let adapter = LibSSH2RemoteFileSystem(trustedHostStore: trustedStore)
+        let session: RemoteSession
+        do {
+            session = try await connect(
+                adapter: adapter,
+                spec: spec,
+                trustedStore: trustedStore,
+                host: host,
+                hostId: hostId
+            )
+        } catch {
+            throw SFTPIntegrationError(host: host, operation: "connect", underlying: error)
+        }
+
+        do {
+            try await runTransferE2E(adapter: adapter, session: session, host: host)
+            await adapter.disconnect(session)
+        } catch {
+            await adapter.disconnect(session)
+            throw SFTPIntegrationError(host: host, operation: "upload/download E2E", underlying: error)
+        }
+    }
+
+    private func runTransferE2E(
+        adapter: LibSSH2RemoteFileSystem,
+        session: RemoteSession,
+        host: SFTPIntegrationHost
+    ) async throws {
+        _ = try await adapter.listDirectory(host.listPath, in: session)
+
+        let fixture = try makeTransferE2EFixture()
+        let remoteRoot = "/tmp/wetrans-e2e-\(UUID().uuidString)"
+        let uploadsRoot = "\(remoteRoot)/uploads"
+        let downloadRoot = temporaryDirectory().appendingPathComponent("downloads", isDirectory: true)
+
+        try await adapter.ensureDirectory(remoteRoot, in: session)
+
+        let remoteSingleDirectory = "\(uploadsRoot)/single"
+        let remoteSinglePath = "\(remoteSingleDirectory)/single.txt"
+        try await adapter.ensureDirectory(remoteSingleDirectory, in: session)
+        try await adapter.upload(
+            UploadRequest(localPath: fixture.single.path, remotePath: remoteSinglePath),
+            in: session,
+            progress: { _ in }
+        )
+        try await assertRemoteNames(["single.txt"], in: remoteSingleDirectory, adapter: adapter, session: session)
+
+        let remoteMultipleDirectory = "\(uploadsRoot)/multiple"
+        try await adapter.ensureDirectory(remoteMultipleDirectory, in: session)
+        for localFile in fixture.multiple {
+            try await adapter.upload(
+                UploadRequest(
+                    localPath: localFile.path,
+                    remotePath: "\(remoteMultipleDirectory)/\(localFile.lastPathComponent)"
+                ),
+                in: session,
+                progress: { _ in }
+            )
+        }
+        try await assertRemoteNames(
+            ["multi-a.txt", "multi-b.txt"],
+            in: remoteMultipleDirectory,
+            adapter: adapter,
+            session: session
+        )
+
+        let remoteDirectoryRoot = "\(uploadsRoot)/directory"
+        for (relativePath, _) in fixture.directoryContentsByRelativePath {
+            let localPath = fixture.directory.appendingPathComponent(relativePath).path
+            let remotePath = "\(remoteDirectoryRoot)/folder/\(relativePath)"
+            try await adapter.ensureDirectory(BrowserPath.remoteParent(of: remotePath), in: session)
+            try await adapter.upload(
+                UploadRequest(localPath: localPath, remotePath: remotePath),
+                in: session,
+                progress: { _ in }
+            )
+        }
+        try await assertRemoteNames(
+            ["nested", "root-a.txt"],
+            in: "\(remoteDirectoryRoot)/folder",
+            adapter: adapter,
+            session: session
+        )
+        try await assertRemoteNames(
+            ["nested-a.txt", "nested-b.txt"],
+            in: "\(remoteDirectoryRoot)/folder/nested",
+            adapter: adapter,
+            session: session
+        )
+
+        let downloadedSingle = downloadRoot.appendingPathComponent("single/single.txt")
+        try await adapter.download(
+            DownloadRequest(remotePath: remoteSinglePath, localPath: downloadedSingle.path),
+            in: session,
+            progress: { _ in }
+        )
+        XCTAssertEqual(
+            try Data(contentsOf: downloadedSingle),
+            try XCTUnwrap(fixture.contentsByLocalPath[fixture.single.path])
+        )
+
+        for localFile in fixture.multiple {
+            let downloaded = downloadRoot
+                .appendingPathComponent("multiple", isDirectory: true)
+                .appendingPathComponent(localFile.lastPathComponent)
+            try await adapter.download(
+                DownloadRequest(
+                    remotePath: "\(remoteMultipleDirectory)/\(localFile.lastPathComponent)",
+                    localPath: downloaded.path
+                ),
+                in: session,
+                progress: { _ in }
+            )
+            XCTAssertEqual(
+                try Data(contentsOf: downloaded),
+                try XCTUnwrap(fixture.contentsByLocalPath[localFile.path])
+            )
+        }
+
+        for (relativePath, expectedData) in fixture.directoryContentsByRelativePath {
+            let downloaded = downloadRoot
+                .appendingPathComponent("directory/folder", isDirectory: true)
+                .appendingPathComponent(relativePath)
+            try await adapter.download(
+                DownloadRequest(
+                    remotePath: "\(remoteDirectoryRoot)/folder/\(relativePath)",
+                    localPath: downloaded.path
+                ),
+                in: session,
+                progress: { _ in }
+            )
+            XCTAssertEqual(try Data(contentsOf: downloaded), expectedData)
+        }
+    }
+
+    private func assertRemoteNames(
+        _ expectedNames: Set<String>,
+        in path: String,
+        adapter: LibSSH2RemoteFileSystem,
+        session: RemoteSession
+    ) async throws {
+        let items = try await adapter.listDirectory(path, in: session)
+        XCTAssertEqual(Set(items.map(\.name)), expectedNames)
+    }
+
+    private func makeTransferE2EFixture() throws -> TransferE2EFixture {
+        let sourceRoot = temporaryDirectory().appendingPathComponent("source", isDirectory: true)
+        let folder = sourceRoot.appendingPathComponent("folder", isDirectory: true)
+        let nested = folder.appendingPathComponent("nested", isDirectory: true)
+        try FileManager.default.createDirectory(at: nested, withIntermediateDirectories: true)
+
+        let files: [(URL, Data)] = [
+            (sourceRoot.appendingPathComponent("single.txt"), Data("wetrans e2e single\n".utf8)),
+            (sourceRoot.appendingPathComponent("multi-a.txt"), Data("wetrans e2e multiple a\n".utf8)),
+            (sourceRoot.appendingPathComponent("multi-b.txt"), Data("wetrans e2e multiple b\n".utf8)),
+            (folder.appendingPathComponent("root-a.txt"), Data("wetrans e2e folder root\n".utf8)),
+            (nested.appendingPathComponent("nested-a.txt"), Data("wetrans e2e nested a\n".utf8)),
+            (nested.appendingPathComponent("nested-b.txt"), Data("wetrans e2e nested b\n".utf8))
+        ]
+
+        var contentsByLocalPath: [String: Data] = [:]
+        for (url, data) in files {
+            try data.write(to: url)
+            contentsByLocalPath[url.path] = data
+        }
+
+        return TransferE2EFixture(
+            sourceRoot: sourceRoot,
+            single: sourceRoot.appendingPathComponent("single.txt"),
+            multiple: [
+                sourceRoot.appendingPathComponent("multi-a.txt"),
+                sourceRoot.appendingPathComponent("multi-b.txt")
+            ],
+            directory: folder,
+            directoryContentsByRelativePath: [
+                "root-a.txt": Data("wetrans e2e folder root\n".utf8),
+                "nested/nested-a.txt": Data("wetrans e2e nested a\n".utf8),
+                "nested/nested-b.txt": Data("wetrans e2e nested b\n".utf8)
+            ],
+            contentsByLocalPath: contentsByLocalPath
+        )
+    }
+
     private static func defaultConfigURL() -> URL {
         guard let url = Bundle.module.url(
             forResource: "real-host-smoke.example",
@@ -592,6 +815,15 @@ private struct SFTPIntegrationConfig: Decodable {
         let data = try Data(contentsOf: url)
         return try JSONDecoder().decode(SFTPIntegrationConfig.self, from: data)
     }
+}
+
+private struct TransferE2EFixture {
+    let sourceRoot: URL
+    let single: URL
+    let multiple: [URL]
+    let directory: URL
+    let directoryContentsByRelativePath: [String: Data]
+    let contentsByLocalPath: [String: Data]
 }
 
 private struct SFTPIntegrationHost: Decodable {

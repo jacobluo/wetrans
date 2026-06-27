@@ -15,7 +15,7 @@
 **Files:**
 - Modify: `wetransTests/RemoteFileSystem/LibSSH2RemoteFileSystemTests.swift`
 
-- [ ] **Step 1: Write failing real-host transfer test**
+- [x] **Step 1: Write failing real-host transfer test**
 
 Add `testConfiguredRealHostsUploadAndDownloadFilesAndDirectories` to `RemoteFileSystemRealHostIntegrationTests`. The test should load the same integration config as connect/list, iterate each host, and call a helper that verifies upload/download of single file, multiple files, and a directory with a nested child directory.
 
@@ -35,7 +35,7 @@ source/
 
 The helper should use a unique remote root like `/tmp/wetrans-e2e-\(UUID().uuidString)` and download into a separate local temporary directory.
 
-- [ ] **Step 2: Verify red**
+- [x] **Step 2: Verify red**
 
 Run:
 
@@ -45,7 +45,7 @@ swift test --filter RemoteFileSystemRealHostIntegrationTests/testConfiguredRealH
 
 Expected: FAIL because the test method and helper do not exist yet.
 
-- [ ] **Step 3: Implement local fixture helpers**
+- [x] **Step 3: Implement local fixture helpers**
 
 Add helpers in the test file:
 
@@ -61,7 +61,7 @@ private struct E2EFixture {
 
 Create deterministic files using `Data("...\n".utf8)` so downloads can be compared byte-for-byte.
 
-- [ ] **Step 4: Implement upload/download assertions**
+- [x] **Step 4: Implement upload/download assertions**
 
 Use the existing `LibSSH2RemoteFileSystem` adapter to:
 
@@ -75,7 +75,7 @@ Use the existing `LibSSH2RemoteFileSystem` adapter to:
 - compare downloaded file contents with the original source data
 - list remote directories to assert expected uploaded file names are visible
 
-- [ ] **Step 5: Verify green**
+- [x] **Step 5: Verify green**
 
 Run:
 
@@ -85,7 +85,7 @@ swift test --filter RemoteFileSystemRealHostIntegrationTests/testConfiguredRealH
 
 Expected: PASS against the configured OpenCloud VM.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 Commit with:
 
