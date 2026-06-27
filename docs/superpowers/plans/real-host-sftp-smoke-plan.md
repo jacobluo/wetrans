@@ -2,11 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add an opt-in real host integration test that verifies libssh2 can connect to and list remote directories for `openclaw-vm`.
+**Goal:** Add a required real host integration test that verifies libssh2 can connect to and list remote directories for `openclaw-vm`.
 
-**Architecture:** Keep real host testing inside XCTest and off the default verification path. A small Decodable config model in `LibSSH2RemoteFileSystemIntegrationTests` reads a committed non-secret fixture or a `WETRANS_SFTP_INTEGRATION_FILE` override, builds `ConnectionSpec` values with local identity-file paths, and exercises `LibSSH2RemoteFileSystem`.
+**Architecture:** Keep real host testing inside XCTest and on the default verification path. A small Decodable config model in `RemoteFileSystemRealHostIntegrationTests` reads a committed non-secret fixture or a `WETRANS_SFTP_INTEGRATION_FILE` override, builds `ConnectionSpec` values with local identity-file paths, and exercises `LibSSH2RemoteFileSystem`.
 
-**Tech Stack:** Swift 6, SwiftPM XCTest, JSONDecoder, existing `LibSSH2RemoteFileSystem`, existing opt-in environment-variable pattern.
+**Tech Stack:** Swift 6, SwiftPM XCTest, JSONDecoder, existing `LibSSH2RemoteFileSystem`, optional local config override via environment variable.
 
 ---
 
@@ -31,23 +31,23 @@ Create `docs/real-host-sftp-smoke.md` explaining purpose, config format, field r
 
 - [x] **Step 3: Write config decoding test**
 
-Add `LibSSH2RemoteFileSystemIntegrationTests` fixture decoding coverage that asserts the committed fixture contains `openclaw-vm`.
+Add `RemoteFileSystemRealHostIntegrationTests` fixture decoding coverage that asserts the committed fixture contains `openclaw-vm`.
 
 - [x] **Step 4: Run decoding test**
 
-Run: `swift test --filter LibSSH2RemoteFileSystemIntegrationTests/testCommittedFixtureDecodesOpenclawVM`
+Run: `swift test --filter RemoteFileSystemRealHostIntegrationTests/testCommittedFixtureDecodesOpenclawVM`
 
 Expected: PASS.
 
-### Task 2: Opt-In Real Host Integration
+### Task 2: Required Real Host Integration
 
 **Files:**
 - Modify: `wetransTests/RemoteFileSystem/LibSSH2RemoteFileSystemTests.swift`
 - Modify: `docs/superpowers/plans/real-host-sftp-smoke-plan.md`
 
-- [x] **Step 1: Add skipped-by-default integration test**
+- [x] **Step 1: Add required integration test**
 
-Add `testConfiguredRealHostsConnectAndListWhenEnabled`. It should skip unless `WETRANS_RUN_SFTP_INTEGRATION=1`.
+Add `testConfiguredRealHostsConnectAndList`. It should run without an environment-variable gate.
 
 - [x] **Step 2: Implement config resolution**
 
@@ -57,20 +57,20 @@ Use `WETRANS_SFTP_INTEGRATION_FILE` when set; otherwise use `wetransTests/Fixtur
 
 For each configured host, expand `~` in `identityFile`, read passphrase from `passphraseEnv` if present, build `ConnectionSpec`, connect with `LibSSH2RemoteFileSystem`, list `listPath`, and disconnect. If a host key requires trust and no host key is preconfigured, trust only in the temporary test store and retry.
 
-- [x] **Step 4: Run default skip verification**
+- [x] **Step 4: Run direct real host verification**
 
-Run: `swift test --filter LibSSH2RemoteFileSystemIntegrationTests/testConfiguredRealHostsConnectAndListWhenEnabled`
+Run: `swift test --filter RemoteFileSystemRealHostIntegrationTests/testConfiguredRealHostsConnectAndList`
 
-Expected: PASS with the test skipped.
+Expected: PASS with the configured real host.
 
 - [x] **Step 5: Run full verification**
 
 Run: `scripts/verify`
 
-Expected: PASS with real host integration skipped.
+Expected: PASS with real host integration running.
 
-- [x] **Step 6: Run opt-in real host integration**
+- [x] **Step 6: Run required real host integration**
 
-Run: `WETRANS_RUN_SFTP_INTEGRATION=1 swift test --filter LibSSH2RemoteFileSystemIntegrationTests/testConfiguredRealHostsConnectAndListWhenEnabled`
+Run: `swift test --filter RemoteFileSystemRealHostIntegrationTests/testConfiguredRealHostsConnectAndList`
 
 Expected: PASS for the configured real host.

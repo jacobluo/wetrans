@@ -26,7 +26,7 @@ LibSSH2RemoteFileSystem
   -> Darwin TCP socket + dynamically-loaded libssh2 symbols
 ```
 
-Adapter unit tests should use fake clients and never require a real SSH server or libssh2 dylib. A real integration test may exist, but it must be opt-in through environment variables and skipped by default.
+Adapter unit tests should use fake clients. Required real integration tests cover the live libssh2 runtime and fixed real-host SFTP connect/list path.
 
 ## 3. Module Boundaries
 
@@ -135,21 +135,15 @@ The user-facing copy can be refined later; this slice should preserve structured
 
 ## 8. Real Integration Test
 
-Add a skipped-by-default integration test for real environments.
+Add a required integration test for real environments.
 
-It should run only when all required variables are present:
+It uses the committed real-host fixture by default:
 
 ```text
-WETRANS_RUN_SFTP_INTEGRATION=1
-WETRANS_SFTP_HOST
-WETRANS_SFTP_PORT
-WETRANS_SFTP_USER
-WETRANS_SFTP_PASSWORD or WETRANS_SFTP_IDENTITY_FILE
-WETRANS_SFTP_LIST_PATH
-WETRANS_LIBSSH2_DYLIB
+swift test --filter RemoteFileSystemRealHostIntegrationTests
 ```
 
-The test should connect, pre-trust the provided host key if a fingerprint variable is supplied, and list the requested path.
+`WETRANS_SFTP_INTEGRATION_FILE` may point to a local override fixture when the committed key path differs. The test should connect, trust host keys only in a temporary test store when needed, and list the requested path without writing remote files.
 
 If no real environment is configured, normal `swift test` must pass with the integration test skipped.
 

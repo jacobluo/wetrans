@@ -72,11 +72,11 @@ swift test
 swift run wetrans
 ```
 
-Optional real integration probes are disabled by default because they require local environment setup and real SSH credentials:
+Real integration checks run by default and therefore require local libssh2 support, network access, and the committed `openclaw-vm` key path:
 
 ```bash
-WETRANS_RUN_LIBSSH2_REAL_PROBE=1 swift test --filter LibSSH2RuntimeRealProbeTests
-WETRANS_RUN_SFTP_INTEGRATION=1 swift test --filter LibSSH2RemoteFileSystemIntegrationTests
+swift test --filter LibSSH2RuntimeRealProbeTests
+swift test --filter RemoteFileSystemRealHostIntegrationTests
 ```
 
 See [`docs/real-host-sftp-smoke.md`](docs/real-host-sftp-smoke.md) for the fixed real host SFTP integration config format and secret handling rules.

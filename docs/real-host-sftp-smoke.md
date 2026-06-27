@@ -2,22 +2,21 @@
 
 The real host SFTP integration test verifies that wetrans can connect to known development hosts and list remote directories through the same libssh2-backed SFTP path used by the app.
 
-This test is skipped by default because it depends on network access, reachable hosts, and local private key files.
+This test runs by default because real remote directory access is part of the required verification path. It depends on network access, reachable hosts, and local private key files.
 
 ## Run
 
 Use the committed non-secret fixture:
 
 ```bash
-WETRANS_RUN_SFTP_INTEGRATION=1 swift test --filter LibSSH2RemoteFileSystemIntegrationTests
+swift test --filter RemoteFileSystemRealHostIntegrationTests
 ```
 
 Use a local override config:
 
 ```bash
-WETRANS_RUN_SFTP_INTEGRATION=1 \
 WETRANS_SFTP_INTEGRATION_FILE=/Users/robiluo/.config/wetrans/real-sftp-integration.json \
-swift test --filter LibSSH2RemoteFileSystemIntegrationTests
+swift test --filter RemoteFileSystemRealHostIntegrationTests
 ```
 
 ## Config Format

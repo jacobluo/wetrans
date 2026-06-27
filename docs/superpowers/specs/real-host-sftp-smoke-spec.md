@@ -2,7 +2,7 @@
 
 ## Purpose
 
-wetrans has regressed multiple times in ways that compile and pass fake-client tests but fail to open real remote directories. Add an explicit, opt-in integration test that connects to a known development host through the same libssh2-backed SFTP path used by the app.
+wetrans has regressed multiple times in ways that compile and pass fake-client tests but fail to open real remote directories. Add an explicit required integration test that connects to a known development host through the same libssh2-backed SFTP path used by the app.
 
 ## Host
 
@@ -14,8 +14,8 @@ This host is a development integration target. Its private key and passphrase mu
 
 ## Scope
 
-- Merge the fixed real-host connect/list coverage into `LibSSH2RemoteFileSystemIntegrationTests`.
-- Add a skipped-by-default XCTest that reads a JSON host list.
+- Merge the fixed real-host connect/list coverage into `RemoteFileSystemRealHostIntegrationTests`.
+- Add a required XCTest that reads a JSON host list.
 - Include a committed example fixture with non-secret host metadata and local identity-file paths.
 - Allow `WETRANS_SFTP_INTEGRATION_FILE` to override the committed fixture.
 - Run each configured host independently through `LibSSH2RemoteFileSystem.connect`, `listDirectory`, and `disconnect`.
@@ -24,7 +24,6 @@ This host is a development integration target. Its private key and passphrase mu
 
 ## Out of Scope
 
-- Running real host tests from default `scripts/verify`.
 - UI automation for host selection.
 - Upload/download transfer checks.
 - Storing or reading app Keychain credentials.
@@ -74,27 +73,26 @@ Rules:
 
 ## Running
 
-Default `swift test` should skip real host access.
+Default `swift test` runs real host access.
 
-Run the integration test explicitly:
+Run the integration test directly:
 
 ```bash
-WETRANS_RUN_SFTP_INTEGRATION=1 swift test --filter LibSSH2RemoteFileSystemIntegrationTests
+swift test --filter RemoteFileSystemRealHostIntegrationTests
 ```
 
 Use an override config:
 
 ```bash
-WETRANS_RUN_SFTP_INTEGRATION=1 \
 WETRANS_SFTP_INTEGRATION_FILE=/Users/robiluo/.config/wetrans/real-sftp-integration.json \
-swift test --filter LibSSH2RemoteFileSystemIntegrationTests
+swift test --filter RemoteFileSystemRealHostIntegrationTests
 ```
 
 ## Acceptance Criteria
 
 - The committed fixture decodes and contains `openclaw-vm`.
-- Default test runs skip real host access.
-- Opt-in test connects and lists every configured host with libssh2 SFTP.
+- Default test runs real host access.
+- Required test connects and lists every configured host with libssh2 SFTP.
 - Failures identify the host name, hostname, and list path.
 - No committed file contains secrets.
-- `scripts/verify` passes with the integration test skipped.
+- `scripts/verify` passes with the integration test running.

@@ -221,7 +221,7 @@ final class LibSSH2RemoteFileSystemTests: XCTestCase {
     }
 }
 
-final class LibSSH2RemoteFileSystemIntegrationTests: XCTestCase {
+final class RemoteFileSystemRealHostIntegrationTests: XCTestCase {
     func testCommittedFixtureDecodesOpenclawVM() throws {
         let config = try SFTPIntegrationConfig.load(from: Self.defaultConfigURL())
 
@@ -233,14 +233,8 @@ final class LibSSH2RemoteFileSystemIntegrationTests: XCTestCase {
         XCTAssertFalse(config.hosts[0].identityFile.contains("BEGIN "))
     }
 
-    func testConfiguredRealHostsConnectAndListWhenEnabled() async throws {
+    func testConfiguredRealHostsConnectAndList() async throws {
         let environment = ProcessInfo.processInfo.environment
-        guard environment["WETRANS_RUN_SFTP_INTEGRATION"] == "1" else {
-            throw XCTSkip(
-                "Set WETRANS_RUN_SFTP_INTEGRATION=1 to run the fixed real SFTP integration test."
-            )
-        }
-
         let configURL = try Self.configURL(environment: environment)
         let config = try SFTPIntegrationConfig.load(from: configURL)
         guard !config.hosts.isEmpty else {

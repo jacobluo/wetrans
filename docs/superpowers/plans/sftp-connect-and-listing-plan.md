@@ -243,23 +243,19 @@ git commit -m "feat: add dynamic libssh2 sftp client"
 - Modify: `wetransTests/RemoteFileSystem/LibSSH2RemoteFileSystemTests.swift`
 - Modify: `docs/technical-selection.md`
 
-- [x] **Step 1: Add skipped-by-default integration test**
+- [x] **Step 1: Add required integration test**
 
-Add a test that skips unless:
+Add a test that runs the fixed real-host fixture by default:
 
 ```text
-WETRANS_RUN_SFTP_INTEGRATION=1
-WETRANS_SFTP_HOST
-WETRANS_SFTP_PORT
-WETRANS_SFTP_USER
-WETRANS_SFTP_LIST_PATH
+swift test --filter RemoteFileSystemRealHostIntegrationTests
 ```
 
-The test should connect and list the configured path only when environment variables are present.
+The test should connect and list the configured path without writing remote files. `WETRANS_SFTP_INTEGRATION_FILE` may point to a local override fixture when needed.
 
 - [x] **Step 2: Update technical selection**
 
-Document that this slice adds real connect/listing support behind opt-in integration tests, while upload/download remains future transfer queue work.
+Document that this slice adds required real connect/listing support, while upload/download remains future transfer queue work.
 
 - [x] **Step 3: Run verification**
 
