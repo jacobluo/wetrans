@@ -14,13 +14,30 @@ public struct RemoteSession: Identifiable, Equatable, Sendable {
     }
 }
 
-public enum RemoteFileSystemError: Error, Equatable {
+public enum RemoteFileSystemError: Error, Equatable, LocalizedError {
     case connectionFailed(String)
     case disconnected
     case hostKeyRequiresTrust(TrustedHostKey)
     case hostKeyChanged(expected: TrustedHostKey, actual: TrustedHostKey)
     case notDirectory(String)
     case permissionDenied(String)
+
+    public var errorDescription: String? {
+        switch self {
+        case .connectionFailed(let message):
+            return message
+        case .disconnected:
+            return "Remote connection is disconnected. Refresh to retry."
+        case .hostKeyRequiresTrust:
+            return "Host key requires confirmation before browsing."
+        case .hostKeyChanged:
+            return "Host key changed. Remote browsing is blocked."
+        case .notDirectory(let path):
+            return "Not a remote directory: \(path)"
+        case .permissionDenied(let path):
+            return "Permission denied: \(path)"
+        }
+    }
 }
 
 public protocol RemoteFileSystem: Sendable {
