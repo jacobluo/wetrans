@@ -149,7 +149,7 @@ git commit -m "feat: diagnose SFTP startup output prefixes"
 - Modify: `wetransTests/UI/MainBrowserViewModelTests.swift`
 - Modify: `docs/superpowers/plans/sftp-startup-output-diagnostics-plan.md`
 
-- [ ] **Step 1: Write failing ViewModel routing tests**
+- [x] **Step 1: Write failing ViewModel routing tests**
 
 Add these tests near existing remote error tests in `wetransTests/UI/MainBrowserViewModelTests.swift`:
 
@@ -190,13 +190,13 @@ func testUnrelatedRemoteConnectionFailureMessageIsUnchanged() async throws {
 }
 ```
 
-- [ ] **Step 2: Run focused ViewModel tests and verify the new routing test fails**
+- [x] **Step 2: Run focused ViewModel tests and verify the new routing test fails**
 
 Run: `swift test --filter MainBrowserViewModelTests/testRemoteStartupOutputConnectionFailureShowsSpecificDiagnostic`
 
 Expected: FAIL because `MainBrowserViewModel` still returns the raw connection failure message.
 
-- [ ] **Step 3: Route matching connection failures through the diagnostic helper**
+- [x] **Step 3: Route matching connection failures through the diagnostic helper**
 
 Change the `RemoteFileSystemError.connectionFailed` branch in `MainBrowserViewModel.message(forRemoteError:)` to:
 
@@ -208,19 +208,19 @@ case RemoteFileSystemError.connectionFailed(let message):
     return message
 ```
 
-- [ ] **Step 4: Run focused ViewModel tests and verify they pass**
+- [x] **Step 4: Run focused ViewModel tests and verify they pass**
 
 Run: `swift test --filter MainBrowserViewModelTests/testRemoteStartupOutputConnectionFailureShowsSpecificDiagnostic && swift test --filter MainBrowserViewModelTests/testUnrelatedRemoteConnectionFailureMessageIsUnchanged`
 
 Expected: PASS.
 
-- [ ] **Step 5: Run broader verification**
+- [x] **Step 5: Run broader verification**
 
 Run: `scripts/verify`
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit routing task**
+- [x] **Step 6: Commit routing task**
 
 Run:
 

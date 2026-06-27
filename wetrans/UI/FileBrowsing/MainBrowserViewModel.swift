@@ -502,6 +502,9 @@ public final class MainBrowserViewModel: ObservableObject {
         case RemoteFileSystemError.permissionDenied(let path):
             return "Permission denied: \(path)"
         case RemoteFileSystemError.connectionFailed(let message):
+            if let diagnostic = SFTPStartupOutputDiagnostic(message: message) {
+                return diagnostic.userMessage
+            }
             return message
         default:
             return "Cannot load remote directory: \(error.localizedDescription)"

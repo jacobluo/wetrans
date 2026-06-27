@@ -274,6 +274,41 @@ final class MainBrowserViewModelTests: XCTestCase {
         XCTAssertFalse(viewModel.remotePanel.errorMessage.contains("error 0"))
     }
 
+    func testRemoteStartupOutputConnectionFailureShowsSpecificDiagnostic() async throws {
+        let host = SavedHost.fixture(lastRemotePath: "/project", lastLocalPath: "/Users/me/Downloads")
+        let remoteFileSystem = MockRemoteFileSystem(
+            listErrorsByPath: [
+                "/project": RemoteFileSystemError.connectionFailed("Received message too long 1298753394")
+            ]
+        )
+        let viewModel = makeViewModel(hosts: [host], remoteFileSystem: remoteFileSystem)
+
+        try viewModel.loadHosts()
+        viewModel.select(hostId: host.id)
+        await viewModel.refreshRemote()
+
+        XCTAssertTrue(viewModel.remotePanel.errorMessage.contains("remote shell printed text"))
+        XCTAssertTrue(viewModel.remotePanel.errorMessage.contains("Detected output prefix: \"Migr\""))
+        XCTAssertTrue(viewModel.remotePanel.errorMessage.contains("~/.bashrc"))
+        XCTAssertFalse(viewModel.remotePanel.errorMessage.contains("Received message too long 1298753394"))
+    }
+
+    func testUnrelatedRemoteConnectionFailureMessageIsUnchanged() async throws {
+        let host = SavedHost.fixture(lastRemotePath: "/project", lastLocalPath: "/Users/me/Downloads")
+        let remoteFileSystem = MockRemoteFileSystem(
+            listErrorsByPath: [
+                "/project": RemoteFileSystemError.connectionFailed("Unable to open SFTP session")
+            ]
+        )
+        let viewModel = makeViewModel(hosts: [host], remoteFileSystem: remoteFileSystem)
+
+        try viewModel.loadHosts()
+        viewModel.select(hostId: host.id)
+        await viewModel.refreshRemote()
+
+        XCTAssertEqual(viewModel.remotePanel.errorMessage, "Unable to open SFTP session")
+    }
+
     func testUploadSelectionEnqueuesSelectedLocalFilesToCurrentRemotePath() async throws {
         let host = SavedHost.fixture(lastRemotePath: "/project", lastLocalPath: "/Users/me/Downloads")
         let localFile = FileItem(name: "config.yaml", path: "/Users/me/Downloads/config.yaml", isDirectory: false, size: 12)
