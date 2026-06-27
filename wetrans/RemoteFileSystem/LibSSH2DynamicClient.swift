@@ -277,7 +277,7 @@ public final class LibSSH2DynamicClient: LibSSH2Client {
                         .advanced(by: writtenTotal)
                         .assumingMemoryBound(to: CChar.self)
                     let written = symbols.sftpWrite(remoteHandle, pointer, data.count - writtenTotal)
-                    guard written >= 0 else {
+                    guard written > 0 else {
                         throw RemoteFileSystemError.connectionFailed(
                             lastErrorMessage(
                                 fallback: "Unable to write remote file \(request.remotePath)",

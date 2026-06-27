@@ -271,6 +271,32 @@ final class RemoteFileSystemRealHostIntegrationTests: XCTestCase {
         XCTAssertTrue(failures.isEmpty, failures.joined(separator: "\n"))
     }
 
+    func testConfiguredOpenCloudHostUploadsUnicodeDirectoryFilesWhenEnabled() async throws {
+        let environment = ProcessInfo.processInfo.environment
+        guard environment["WETRANS_REAL_UPLOAD_SMOKE"] == "1" else {
+            throw XCTSkip("Set WETRANS_REAL_UPLOAD_SMOKE=1 to write upload smoke files to OpenCloud VM.")
+        }
+
+        let configURL = try Self.configURL(environment: environment)
+        let config = try SFTPIntegrationConfig.load(from: configURL)
+        let host = try XCTUnwrap(config.hosts.first { $0.name == "openclaw-vm" })
+
+        try await uploadUnicodeSmokeFiles(host: host, environment: environment)
+    }
+
+    func testConfiguredOpenCloudHostUploadsUnicodeDirectoryThroughTransferQueueWhenEnabled() async throws {
+        let environment = ProcessInfo.processInfo.environment
+        guard environment["WETRANS_REAL_UPLOAD_SMOKE"] == "1" else {
+            throw XCTSkip("Set WETRANS_REAL_UPLOAD_SMOKE=1 to write upload smoke files to OpenCloud VM.")
+        }
+
+        let configURL = try Self.configURL(environment: environment)
+        let config = try SFTPIntegrationConfig.load(from: configURL)
+        let host = try XCTUnwrap(config.hosts.first { $0.name == "openclaw-vm" })
+
+        try await uploadUnicodeSmokeDirectoryThroughQueue(host: host, environment: environment)
+    }
+
     private func connect(
         adapter: LibSSH2RemoteFileSystem,
         spec: ConnectionSpec,
@@ -329,6 +355,161 @@ final class RemoteFileSystemRealHostIntegrationTests: XCTestCase {
         await adapter.disconnect(session)
     }
 
+    private func uploadUnicodeSmokeFiles(host: SFTPIntegrationHost, environment: [String: String]) async throws {
+        let hostId = UUID()
+        let spec = ConnectionSpec(
+            hostId: hostId,
+            displayName: host.name,
+            hostname: host.hostname,
+            port: host.port,
+            username: host.username,
+            auth: .sshKey(
+                identityFile: host.expandedIdentityFile,
+                passphrase: host.passphrase(environment: environment)
+            ),
+            defaultRemotePath: host.listPath
+        )
+        let trustedStore = FileTrustedHostStore(applicationSupportDirectory: temporaryDirectory())
+        if let trustedKey = host.trustedHostKey(hostId: hostId) {
+            try trustedStore.trust(trustedKey)
+        }
+
+        let localDirectory = temporaryDirectory().appendingPathComponent("unicode-upload", isDirectory: true)
+        try FileManager.default.createDirectory(at: localDirectory, withIntermediateDirectories: true)
+        let fileNames = [
+            "滴滴出行行程报销单.pdf",
+            "滴滴电子发票.pdf",
+            "雅乐轩-酒店.pdf",
+            "雅乐轩-水单.jpg"
+        ]
+        for (index, fileName) in fileNames.enumerated() {
+            let data = Data("wetrans unicode upload smoke \(index)\n".utf8)
+            try data.write(to: localDirectory.appendingPathComponent(fileName))
+        }
+
+        let remoteDirectory = "/tmp/wetrans-upload-smoke-\(UUID().uuidString)"
+        let adapter = LibSSH2RemoteFileSystem(trustedHostStore: trustedStore)
+        let session = try await connect(
+            adapter: adapter,
+            spec: spec,
+            trustedStore: trustedStore,
+            host: host,
+            hostId: hostId
+        )
+        defer {
+            Task {
+                await adapter.disconnect(session)
+            }
+        }
+
+        try await adapter.ensureDirectory(remoteDirectory, in: session)
+        var failures: [String] = []
+        for fileName in fileNames {
+            let localPath = localDirectory.appendingPathComponent(fileName).path
+            let remotePath = "\(remoteDirectory)/\(fileName)"
+            do {
+                try await adapter.upload(
+                    UploadRequest(localPath: localPath, remotePath: remotePath),
+                    in: session,
+                    progress: { _ in }
+                )
+            } catch {
+                failures.append("\(fileName): \(error.localizedDescription)")
+            }
+        }
+
+        let uploadedItems = try await adapter.listDirectory(remoteDirectory, in: session)
+        XCTAssertEqual(Set(uploadedItems.map(\.name)), Set(fileNames))
+        XCTAssertTrue(failures.isEmpty, "Remote directory: \(remoteDirectory)\n" + failures.joined(separator: "\n"))
+    }
+
+    private func uploadUnicodeSmokeDirectoryThroughQueue(
+        host: SFTPIntegrationHost,
+        environment: [String: String]
+    ) async throws {
+        let hostId = UUID()
+        let spec = ConnectionSpec(
+            hostId: hostId,
+            displayName: host.name,
+            hostname: host.hostname,
+            port: host.port,
+            username: host.username,
+            auth: .sshKey(
+                identityFile: host.expandedIdentityFile,
+                passphrase: host.passphrase(environment: environment)
+            ),
+            defaultRemotePath: host.listPath
+        )
+        let trustedStore = FileTrustedHostStore(applicationSupportDirectory: temporaryDirectory())
+        if let trustedKey = host.trustedHostKey(hostId: hostId) {
+            try trustedStore.trust(trustedKey)
+        }
+
+        let localRoot = temporaryDirectory()
+        let localDirectory = localRoot.appendingPathComponent("0624报销", isDirectory: true)
+        try FileManager.default.createDirectory(at: localDirectory, withIntermediateDirectories: true)
+        let fileNames = [
+            "滴滴出行行程报销单.pdf",
+            "滴滴电子发票.pdf",
+            "雅乐轩-酒店.pdf",
+            "雅乐轩-水单.jpg"
+        ]
+        for (index, fileName) in fileNames.enumerated() {
+            let payload = Data(repeating: UInt8(index + 1), count: 96 * 1024)
+            try payload.write(to: localDirectory.appendingPathComponent(fileName))
+        }
+
+        let savedHost = SavedHost(
+            id: hostId,
+            source: .manual,
+            displayName: host.name,
+            hostname: host.hostname,
+            port: host.port,
+            username: host.username,
+            authType: .sshKey,
+            identityFile: host.expandedIdentityFile
+        )
+        let remoteRoot = "/tmp/wetrans-queue-upload-smoke-\(UUID().uuidString)"
+        let planner = DirectoryTransferPlanner(localFileSystem: FileManagerLocalFileSystem())
+        let tasks = try planner.uploadTasks(
+            for: [
+                FileItem(name: localDirectory.lastPathComponent, path: localDirectory.path, isDirectory: true)
+            ],
+            host: savedHost,
+            remoteDirectory: remoteRoot
+        )
+        XCTAssertEqual(tasks.count, fileNames.count)
+
+        let adapter = LibSSH2RemoteFileSystem(trustedHostStore: trustedStore)
+        let connectionProvider = StaticSpecTransferConnectionProvider(
+            spec: spec,
+            adapter: adapter,
+            trustedStore: trustedStore,
+            integrationHost: host
+        )
+        let queue = TransferQueue(
+            engine: SFTPTransferEngine(connectionProvider: connectionProvider, remoteFileSystem: adapter),
+            historyStore: EmptyTransferHistoryStore(),
+            globalConcurrencyLimit: 3,
+            perHostConcurrencyLimit: 2
+        )
+
+        await queue.enqueue(tasks)
+        try await waitUntil(timeout: 20) {
+            let statuses = await queue.snapshot().map(\.status)
+            return statuses.allSatisfy { [.succeeded, .failed, .cancelled].contains($0) }
+        }
+
+        let snapshot = await queue.snapshot()
+        let failures = snapshot
+            .filter { $0.status != .succeeded }
+            .map { "\($0.fileName): \($0.errorMessage ?? $0.status.rawValue)" }
+        XCTAssertTrue(
+            failures.isEmpty,
+            "Remote root: \(remoteRoot)\n" + failures.joined(separator: "\n")
+        )
+    }
+
     private static func defaultConfigURL() -> URL {
         guard let url = Bundle.module.url(
             forResource: "real-host-smoke.example",
@@ -354,6 +535,54 @@ final class RemoteFileSystemRealHostIntegrationTests: XCTestCase {
         try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
         return url
     }
+}
+
+private final class StaticSpecTransferConnectionProvider: TransferConnectionProvider, @unchecked Sendable {
+    private let spec: ConnectionSpec
+    private let adapter: LibSSH2RemoteFileSystem
+    private let trustedStore: TrustedHostStore
+    private let integrationHost: SFTPIntegrationHost
+
+    init(
+        spec: ConnectionSpec,
+        adapter: LibSSH2RemoteFileSystem,
+        trustedStore: TrustedHostStore,
+        integrationHost: SFTPIntegrationHost
+    ) {
+        self.spec = spec
+        self.adapter = adapter
+        self.trustedStore = trustedStore
+        self.integrationHost = integrationHost
+    }
+
+    func connect(hostId: UUID) async throws -> RemoteSession {
+        do {
+            return try await adapter.connect(spec)
+        } catch RemoteFileSystemError.hostKeyRequiresTrust(let candidate)
+            where integrationHost.trustedHostKey(hostId: hostId) == nil
+        {
+            try trustedStore.trust(candidate)
+            return try await adapter.connect(spec)
+        }
+    }
+
+    func disconnect(_ session: RemoteSession) async {
+        await adapter.disconnect(session)
+    }
+}
+
+private func waitUntil(
+    timeout: TimeInterval,
+    condition: @escaping () async -> Bool
+) async throws {
+    let deadline = Date().addingTimeInterval(timeout)
+    while Date() < deadline {
+        if await condition() {
+            return
+        }
+        try await Task.sleep(nanoseconds: 20_000_000)
+    }
+    XCTFail("Timed out waiting for condition")
 }
 
 private struct SFTPIntegrationConfig: Decodable {
