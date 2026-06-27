@@ -1,6 +1,6 @@
-# Real Host SFTP Smoke
+# Real Host SFTP Integration
 
-The real host SFTP smoke test verifies that wetrans can connect to known development hosts and list remote directories through the same libssh2-backed SFTP path used by the app.
+The real host SFTP integration test verifies that wetrans can connect to known development hosts and list remote directories through the same libssh2-backed SFTP path used by the app.
 
 This test is skipped by default because it depends on network access, reachable hosts, and local private key files.
 
@@ -9,15 +9,15 @@ This test is skipped by default because it depends on network access, reachable 
 Use the committed non-secret fixture:
 
 ```bash
-WETRANS_RUN_REAL_HOST_SMOKE=1 swift test --filter RealHostSFTPSmokeTests
+WETRANS_RUN_SFTP_INTEGRATION=1 swift test --filter LibSSH2RemoteFileSystemIntegrationTests
 ```
 
 Use a local override config:
 
 ```bash
-WETRANS_RUN_REAL_HOST_SMOKE=1 \
-WETRANS_REAL_HOSTS_FILE=/Users/robiluo/.config/wetrans/real-host-smoke.json \
-swift test --filter RealHostSFTPSmokeTests
+WETRANS_RUN_SFTP_INTEGRATION=1 \
+WETRANS_SFTP_INTEGRATION_FILE=/Users/robiluo/.config/wetrans/real-sftp-integration.json \
+swift test --filter LibSSH2RemoteFileSystemIntegrationTests
 ```
 
 ## Config Format
@@ -59,9 +59,9 @@ Optional fields:
 
 Do not put passwords, private key contents, passphrases, tokens, authorization headers, or `.env` files in this repo.
 
-`identityFile` is only a local filesystem path. The smoke test expands `~` to the current user's home directory. If a private key passphrase is needed, store it in an environment variable and reference the variable name with `passphraseEnv`.
+`identityFile` is only a local filesystem path. The test expands `~` to the current user's home directory. If a private key passphrase is needed, store it in an environment variable and reference the variable name with `passphraseEnv`.
 
-If `hostKeyType` and `hostKeyFingerprintSHA256` are absent, the smoke test trusts the first observed host key only in a temporary test store for that test run.
+If `hostKeyType` and `hostKeyFingerprintSHA256` are absent, the test trusts the first observed host key only in a temporary test store for that test run.
 
 ## Committed Fixture
 
@@ -74,6 +74,5 @@ wetransTests/Fixtures/real-host-smoke.example.json
 It currently covers:
 
 - `openclaw-vm`
-- `xfh-cmg-es`
 
-Use `WETRANS_REAL_HOSTS_FILE` if your local key paths differ.
+Use `WETRANS_SFTP_INTEGRATION_FILE` if your local key paths differ.

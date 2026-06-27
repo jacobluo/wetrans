@@ -1,10 +1,10 @@
-# Real Host SFTP Smoke Implementation Plan
+# Real Host SFTP Integration Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add an opt-in real host smoke test that verifies libssh2 can connect to and list remote directories for `openclaw-vm` and `xfh-cmg-es`.
+**Goal:** Add an opt-in real host integration test that verifies libssh2 can connect to and list remote directories for `openclaw-vm`.
 
-**Architecture:** Keep real host testing inside XCTest and off the default verification path. A small Decodable config model in the test file reads a committed non-secret fixture or a `WETRANS_REAL_HOSTS_FILE` override, builds `ConnectionSpec` values with local identity-file paths, and exercises `LibSSH2RemoteFileSystem`.
+**Architecture:** Keep real host testing inside XCTest and off the default verification path. A small Decodable config model in `LibSSH2RemoteFileSystemIntegrationTests` reads a committed non-secret fixture or a `WETRANS_SFTP_INTEGRATION_FILE` override, builds `ConnectionSpec` values with local identity-file paths, and exercises `LibSSH2RemoteFileSystem`.
 
 **Tech Stack:** Swift 6, SwiftPM XCTest, JSONDecoder, existing `LibSSH2RemoteFileSystem`, existing opt-in environment-variable pattern.
 
@@ -17,13 +17,13 @@
 - Create: `docs/superpowers/plans/real-host-sftp-smoke-plan.md`
 - Create: `docs/real-host-sftp-smoke.md`
 - Create: `wetransTests/Fixtures/real-host-smoke.example.json`
-- Create: `wetransTests/RemoteFileSystem/RealHostSFTPSmokeTests.swift`
+- Modify: `wetransTests/RemoteFileSystem/LibSSH2RemoteFileSystemTests.swift`
 - Modify: `Package.swift`
 - Modify: `README.md`
 
 - [x] **Step 1: Add committed example fixture**
 
-Create `wetransTests/Fixtures/real-host-smoke.example.json` with `openclaw-vm` and `xfh-cmg-es` host metadata only. Do not include passwords, private key contents, passphrases, tokens, or authorization headers.
+Create `wetransTests/Fixtures/real-host-smoke.example.json` with `openclaw-vm` host metadata only. Do not include passwords, private key contents, passphrases, tokens, or authorization headers.
 
 - [x] **Step 2: Add docs**
 
@@ -31,27 +31,27 @@ Create `docs/real-host-sftp-smoke.md` explaining purpose, config format, field r
 
 - [x] **Step 3: Write config decoding test**
 
-Create `RealHostSFTPSmokeTests` with a test that decodes the committed fixture and asserts it contains `openclaw-vm` and `xfh-cmg-es`.
+Add `LibSSH2RemoteFileSystemIntegrationTests` fixture decoding coverage that asserts the committed fixture contains `openclaw-vm`.
 
 - [x] **Step 4: Run decoding test**
 
-Run: `swift test --filter RealHostSFTPSmokeTests/testCommittedFixtureDecodesExpectedHosts`
+Run: `swift test --filter LibSSH2RemoteFileSystemIntegrationTests/testCommittedFixtureDecodesOpenclawVM`
 
 Expected: PASS.
 
-### Task 2: Opt-In Real Host Smoke
+### Task 2: Opt-In Real Host Integration
 
 **Files:**
-- Modify: `wetransTests/RemoteFileSystem/RealHostSFTPSmokeTests.swift`
+- Modify: `wetransTests/RemoteFileSystem/LibSSH2RemoteFileSystemTests.swift`
 - Modify: `docs/superpowers/plans/real-host-sftp-smoke-plan.md`
 
-- [x] **Step 1: Add skipped-by-default smoke test**
+- [x] **Step 1: Add skipped-by-default integration test**
 
-Add `testConfiguredRealHostsConnectAndListWhenEnabled`. It should skip unless `WETRANS_RUN_REAL_HOST_SMOKE=1`.
+Add `testConfiguredRealHostsConnectAndListWhenEnabled`. It should skip unless `WETRANS_RUN_SFTP_INTEGRATION=1`.
 
 - [x] **Step 2: Implement config resolution**
 
-Use `WETRANS_REAL_HOSTS_FILE` when set; otherwise use `wetransTests/Fixtures/real-host-smoke.example.json`.
+Use `WETRANS_SFTP_INTEGRATION_FILE` when set; otherwise use `wetransTests/Fixtures/real-host-smoke.example.json`.
 
 - [x] **Step 3: Implement per-host connect/list/disconnect**
 
@@ -59,7 +59,7 @@ For each configured host, expand `~` in `identityFile`, read passphrase from `pa
 
 - [x] **Step 4: Run default skip verification**
 
-Run: `swift test --filter RealHostSFTPSmokeTests/testConfiguredRealHostsConnectAndListWhenEnabled`
+Run: `swift test --filter LibSSH2RemoteFileSystemIntegrationTests/testConfiguredRealHostsConnectAndListWhenEnabled`
 
 Expected: PASS with the test skipped.
 
@@ -67,19 +67,10 @@ Expected: PASS with the test skipped.
 
 Run: `scripts/verify`
 
-Expected: PASS with real host smoke skipped.
+Expected: PASS with real host integration skipped.
 
-- [x] **Step 6: Run opt-in real host smoke**
+- [x] **Step 6: Run opt-in real host integration**
 
-Run: `WETRANS_RUN_REAL_HOST_SMOKE=1 swift test --filter RealHostSFTPSmokeTests/testConfiguredRealHostsConnectAndListWhenEnabled`
+Run: `WETRANS_RUN_SFTP_INTEGRATION=1 swift test --filter LibSSH2RemoteFileSystemIntegrationTests/testConfiguredRealHostsConnectAndListWhenEnabled`
 
-Expected: PASS for the configured real hosts.
-
-- [x] **Step 7: Commit**
-
-Run:
-
-```bash
-git add Package.swift README.md docs/superpowers/specs/real-host-sftp-smoke-spec.md docs/superpowers/plans/real-host-sftp-smoke-plan.md docs/real-host-sftp-smoke.md wetransTests/Fixtures/real-host-smoke.example.json wetransTests/RemoteFileSystem/RealHostSFTPSmokeTests.swift
-git commit -m "test: add real host SFTP smoke"
-```
+Expected: PASS for the configured real host.

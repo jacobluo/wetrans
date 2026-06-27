@@ -7,14 +7,6 @@
       "username": "ubuntu",
       "identityFile": "~/.ssh/openclaw_vm",
       "listPath": "."
-    },
-    {
-      "name": "xfh-cmg-es",
-      "hostname": "139.199.78.130",
-      "port": 22,
-      "username": "root",
-      "identityFile": "~/.ssh/common-ssh",
-      "listPath": "/data"
     }
   ]
 }
