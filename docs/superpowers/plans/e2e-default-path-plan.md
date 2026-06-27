@@ -183,7 +183,7 @@ git commit -m "docs: update e2e testing strategy"
 
 ## Task 4: Final Verification
 
-- [ ] **Step 1: Run focused real-host E2E**
+- [x] **Step 1: Run focused real-host E2E**
 
 Run:
 
@@ -193,7 +193,7 @@ swift test --filter RemoteFileSystemRealHostIntegrationTests
 
 Expected: PASS.
 
-- [ ] **Step 2: Run E2E script**
+- [x] **Step 2: Run E2E script**
 
 Run:
 
@@ -203,7 +203,7 @@ scripts/e2e
 
 Expected: PASS.
 
-- [ ] **Step 3: Run full verification**
+- [x] **Step 3: Run full verification**
 
 Run:
 
@@ -213,11 +213,11 @@ scripts/verify
 
 Expected: PASS.
 
-- [ ] **Step 4: Close spec and plan**
+- [x] **Step 4: Close spec and plan**
 
 Update `docs/superpowers/specs/e2e-default-path-spec.md` to `Status: Closed` and mark this plan complete.
 
-- [ ] **Step 5: Commit and push**
+- [x] **Step 5: Commit and push**
 
 Commit with:
 
