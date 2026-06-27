@@ -54,13 +54,22 @@ final class SFTPTransferEngineTests: XCTestCase {
         let host = SavedHost.fixture()
         let session = RemoteSession(hostId: host.id, displayName: host.displayName)
         let remoteFileSystem = MockRemoteFileSystem()
-        remoteFileSystem.uploadError = RemoteFileSystemError.permissionDenied("/etc")
+        remoteFileSystem.uploadError = RemoteFileSystemError.connectionFailed("SFTP Protocol Error")
         let provider = FakeTransferConnectionProvider(hostsById: [host.id: host], session: session)
         let engine = SFTPTransferEngine(connectionProvider: provider, remoteFileSystem: remoteFileSystem)
-        let task = makeTask(host: host, direction: .upload)
+        let task = makeTask(
+            host: host,
+            direction: .upload,
+            localPath: "/Users/me/滴滴出行行程报销单.pdf",
+            remotePath: "/remote/滴滴出行行程报销单.pdf"
+        )
 
         await XCTAssertThrowsErrorAsync(try await engine.run(task: task) { _ in }) { error in
-            XCTAssertEqual(error as? RemoteFileSystemError, .permissionDenied("/etc"))
+            let localizedError = error as? LocalizedError
+            XCTAssertEqual(
+                localizedError?.errorDescription,
+                "Upload failed for /Users/me/滴滴出行行程报销单.pdf -> /remote/滴滴出行行程报销单.pdf: SFTP Protocol Error"
+            )
         }
         XCTAssertEqual(provider.disconnectCalls, [session])
     }

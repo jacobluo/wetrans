@@ -2,11 +2,14 @@ import Foundation
 
 public enum SFTPTransferEngineError: Error, Equatable, LocalizedError {
     case hostNotFound(UUID)
+    case transferFailed(direction: TransferDirection, localPath: String, remotePath: String, message: String)
 
     public var errorDescription: String? {
         switch self {
         case .hostNotFound(let hostId):
             return "Cannot find host for transfer task: \(hostId.uuidString)"
+        case .transferFailed(let direction, let localPath, let remotePath, let message):
+            return "\(direction.failureVerb) failed for \(localPath) -> \(remotePath): \(message)"
         }
     }
 }
@@ -82,7 +85,30 @@ public struct SFTPTransferEngine: TransferEngine {
             await connectionProvider.disconnect(session)
         } catch {
             await connectionProvider.disconnect(session)
-            throw error
+            throw SFTPTransferEngineError.transferFailed(
+                direction: task.direction,
+                localPath: task.localPath,
+                remotePath: task.remotePath,
+                message: Self.message(for: error)
+            )
+        }
+    }
+
+    private static func message(for error: Error) -> String {
+        if let localizedError = error as? LocalizedError, let description = localizedError.errorDescription {
+            return description
+        }
+        return error.localizedDescription
+    }
+}
+
+private extension TransferDirection {
+    var failureVerb: String {
+        switch self {
+        case .upload:
+            return "Upload"
+        case .download:
+            return "Download"
         }
     }
 }
