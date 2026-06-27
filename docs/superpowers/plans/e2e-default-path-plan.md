@@ -105,7 +105,7 @@ Update `scripts/e2e` so the default path runs:
 
 ```bash
 swift test --filter RemoteFileSystemRealHostIntegrationTests
-"$ROOT/script/build_and_run.sh" --verify
+"$ROOT/scripts/build-and-run" --verify
 swift run wetrans-e2e smoke
 ```
 

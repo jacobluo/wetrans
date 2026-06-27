@@ -1,15 +1,48 @@
-# Real Host SFTP E2E
+# SFTP E2E Notes
 
-The real host SFTP E2E tests verify that wetrans can connect to known development hosts, list remote directories, upload files, and download files through the same libssh2-backed SFTP path used by the app.
+This document is intentionally kept short. The default E2E direction has moved away from a fixed external real host and toward a local Docker-backed OpenSSH fixture.
 
-These tests run by default because real remote transfer access is part of the required verification path. They depend on network access, reachable hosts, and local private key files.
+Canonical spec:
+
+```text
+docs/superpowers/specs/local-docker-sftp-e2e-spec.md
+```
+
+## Default Path
+
+The default SFTP E2E path should not require:
+
+- `openclaw-vm`
+- public network access
+- `~/.ssh/openclaw_vm`
+- any personal private key or passphrase
+
+The intended default is:
+
+```text
+scripts/e2e
+  -> start local Docker OpenSSH fixture
+  -> generate temporary SFTP config
+  -> run SFTP integration tests against 127.0.0.1:<dynamic-port>
+  -> run packaged app smoke
+```
+
+The local fixture should use a general OpenSSH server image:
+
+```text
+lscr.io/linuxserver/openssh-server:latest
+```
+
+It should cover both authentication modes:
+
+- SSH key authentication
+- password authentication
 
 ## Coverage
 
-`RemoteFileSystemRealHostIntegrationTests` covers:
+The SFTP integration suite should continue to verify the real libssh2-backed path used by the app:
 
-- fixture decoding for the committed non-secret host metadata
-- connect and list for every configured host
+- connect and list
 - upload one file
 - upload multiple files
 - upload a directory that contains a nested child directory
@@ -17,84 +50,59 @@ These tests run by default because real remote transfer access is part of the re
 - download multiple files
 - download a directory that contains a nested child directory
 
-Download fixtures are created by the same test run. The tests upload deterministic local files to a unique remote `/tmp/wetrans-e2e-<uuid>/` root, download them into a separate local temporary directory, and compare file contents byte-for-byte. No manual remote fixture preparation is required.
+Download fixtures are created by the same test run. The tests upload deterministic local files to a unique remote `/tmp/wetrans-e2e-<uuid>/` root, download them into a separate local temporary directory, and compare file contents byte-for-byte.
 
-## Run
+## External Host Override
 
-Use the committed non-secret fixture:
+External SFTP hosts are opt-in only. They are useful for manual validation against a specific cloud VM, but they are not part of the default verification path.
 
-```bash
-swift test --filter RemoteFileSystemRealHostIntegrationTests
-```
-
-Run the default E2E path:
+Use a local override config when needed:
 
 ```bash
-scripts/e2e
+WETRANS_SFTP_INTEGRATION_FILE=/path/to/external-sftp-config.json \
+swift test --filter wetransTests.RemoteFileSystemRealHostIntegrationTests
 ```
 
-`scripts/e2e` runs the real-host SFTP E2E suite first, then builds and launches the packaged app for native UI smoke verification.
-
-Use a local override config:
-
-```bash
-WETRANS_SFTP_INTEGRATION_FILE=/path/to/local-real-sftp-integration.json \
-swift test --filter RemoteFileSystemRealHostIntegrationTests
-```
-
-## Config Format
+Expected config shape:
 
 ```json
 {
   "hosts": [
     {
-      "name": "openclaw-vm",
-      "hostname": "43.164.133.39",
+      "name": "external-key-host",
+      "hostname": "example.com",
       "port": 22,
       "username": "ubuntu",
-      "identityFile": "~/.ssh/openclaw_vm",
+      "identityFile": "~/.ssh/example_key",
       "listPath": ".",
-      "passphraseEnv": "WETRANS_OPENCLAW_KEY_PASSPHRASE",
+      "passphraseEnv": "EXAMPLE_KEY_PASSPHRASE",
       "hostKeyType": "ssh-ed25519",
       "hostKeyFingerprintSHA256": "SHA256:..."
+    },
+    {
+      "name": "external-password-host",
+      "hostname": "example.com",
+      "port": 22,
+      "username": "ubuntu",
+      "passwordEnv": "EXAMPLE_SFTP_PASSWORD",
+      "listPath": "."
     }
   ]
 }
 ```
 
-Required fields:
-
-- `name`
-- `hostname`
-- `port`
-- `username`
-- `identityFile`
-- `listPath`
-
-Optional fields:
-
-- `passphraseEnv`: environment variable name containing the private key passphrase.
-- `hostKeyType`: trusted host key type for pre-seeding trust.
-- `hostKeyFingerprintSHA256`: trusted host key fingerprint for pre-seeding trust.
-
 ## Secret Handling
 
 Do not put passwords, private key contents, passphrases, tokens, authorization headers, or `.env` files in this repo.
 
-`identityFile` is only a local filesystem path. The test expands `~` to the current user's home directory. If a private key passphrase is needed, store it in an environment variable and reference the variable name with `passphraseEnv`.
+Rules:
 
-If `hostKeyType` and `hostKeyFingerprintSHA256` are absent, the test trusts the first observed host key only in a temporary test store for that test run.
+- `identityFile` is only a local filesystem path.
+- `~` expands to the current user's home directory.
+- Key passphrases must be read through `passphraseEnv`.
+- Password auth must be read through `passwordEnv`.
+- If `hostKeyType` and `hostKeyFingerprintSHA256` are absent, the test may trust the first observed host key only in a temporary test store for that test run.
 
-## Committed Fixture
+## Historical Note
 
-The committed fixture is:
-
-```text
-wetransTests/Fixtures/real-host-smoke.example.json
-```
-
-It currently covers:
-
-- `openclaw-vm`
-
-Use `WETRANS_SFTP_INTEGRATION_FILE` if your local key paths differ.
+The previous default fixture pointed to `openclaw-vm`. That default is being retired because it depends on a specific external host, network reachability, and local credentials. Keep external host configs as local, opt-in files only.

@@ -3,8 +3,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-swift test --filter RemoteFileSystemRealHostIntegrationTests
-"$ROOT/script/build_and_run.sh" --verify
+"$ROOT/scripts/local-sftp-fixture" -- swift test --filter wetransTests.RemoteFileSystemRealHostIntegrationTests
+"$ROOT/scripts/build-and-run" --verify
 WETRANS_E2E_REQUIRE_AX=1 swift run wetrans-e2e smoke
 
 if [[ "${WETRANS_E2E_RUN_FULL:-0}" == "1" ]]; then

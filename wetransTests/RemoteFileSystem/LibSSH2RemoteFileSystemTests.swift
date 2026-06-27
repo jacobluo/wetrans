@@ -239,15 +239,32 @@ final class LibSSH2RemoteFileSystemTests: XCTestCase {
 }
 
 final class RemoteFileSystemRealHostIntegrationTests: XCTestCase {
-    func testCommittedFixtureDecodesOpenclawVM() throws {
+    func testCommittedFixtureDecodesLocalOpenSSHConfig() throws {
         let config = try SFTPIntegrationConfig.load(from: Self.defaultConfigURL())
 
-        XCTAssertEqual(config.hosts.map(\.name), ["openclaw-vm"])
-        XCTAssertEqual(config.hosts[0].hostname, "43.164.133.39")
-        XCTAssertEqual(config.hosts[0].username, "ubuntu")
-        XCTAssertEqual(config.hosts[0].identityFile, "~/.ssh/openclaw_vm")
+        XCTAssertEqual(config.hosts.map(\.name), ["local-openssh-key", "local-openssh-password"])
+        XCTAssertEqual(config.hosts[0].hostname, "127.0.0.1")
+        XCTAssertEqual(config.hosts[0].username, "wetrans")
+        XCTAssertEqual(config.hosts[0].identityFile, "/tmp/wetrans-sftp-fixture/id_ed25519")
         XCTAssertEqual(config.hosts[0].listPath, ".")
-        XCTAssertFalse(config.hosts[0].identityFile.contains("BEGIN "))
+        XCTAssertFalse(config.hosts[0].identityFile?.contains("BEGIN ") ?? false)
+        XCTAssertEqual(
+            config.hosts[0].auth(environment: [:]),
+            .sshKey(identityFile: "/tmp/wetrans-sftp-fixture/id_ed25519", passphrase: nil)
+        )
+        XCTAssertEqual(config.hosts[1].hostname, "127.0.0.1")
+        XCTAssertEqual(config.hosts[1].username, "wetrans")
+        XCTAssertEqual(config.hosts[1].passwordEnv, "WETRANS_SFTP_FIXTURE_PASSWORD")
+        XCTAssertEqual(
+            config.hosts[1].auth(environment: ["WETRANS_SFTP_FIXTURE_PASSWORD": "secret"]),
+            .password("secret")
+        )
+    }
+
+    func testConfigURLSkipsWhenNoIntegrationFileIsProvided() {
+        XCTAssertThrowsError(try Self.configURL(environment: [:])) { error in
+            XCTAssertTrue(error is XCTSkip)
+        }
     }
 
     func testConfiguredRealHostsConnectAndList() async throws {
@@ -307,20 +324,25 @@ final class RemoteFileSystemRealHostIntegrationTests: XCTestCase {
         }
     }
 
-    private func smoke(host: SFTPIntegrationHost, environment: [String: String]) async throws {
-        let hostId = UUID()
-        let spec = ConnectionSpec(
+    private func connectionSpec(
+        host: SFTPIntegrationHost,
+        environment: [String: String],
+        hostId: UUID
+    ) -> ConnectionSpec {
+        ConnectionSpec(
             hostId: hostId,
             displayName: host.name,
             hostname: host.hostname,
             port: host.port,
             username: host.username,
-            auth: .sshKey(
-                identityFile: host.expandedIdentityFile,
-                passphrase: host.passphrase(environment: environment)
-            ),
+            auth: host.auth(environment: environment),
             defaultRemotePath: host.listPath
         )
+    }
+
+    private func smoke(host: SFTPIntegrationHost, environment: [String: String]) async throws {
+        let hostId = UUID()
+        let spec = connectionSpec(host: host, environment: environment, hostId: hostId)
         let trustedStore = FileTrustedHostStore(applicationSupportDirectory: temporaryDirectory())
         if let trustedKey = host.trustedHostKey(hostId: hostId) {
             try trustedStore.trust(trustedKey)
@@ -352,18 +374,7 @@ final class RemoteFileSystemRealHostIntegrationTests: XCTestCase {
 
     private func transferE2E(host: SFTPIntegrationHost, environment: [String: String]) async throws {
         let hostId = UUID()
-        let spec = ConnectionSpec(
-            hostId: hostId,
-            displayName: host.name,
-            hostname: host.hostname,
-            port: host.port,
-            username: host.username,
-            auth: .sshKey(
-                identityFile: host.expandedIdentityFile,
-                passphrase: host.passphrase(environment: environment)
-            ),
-            defaultRemotePath: host.listPath
-        )
+        let spec = connectionSpec(host: host, environment: environment, hostId: hostId)
         let trustedStore = FileTrustedHostStore(applicationSupportDirectory: temporaryDirectory())
         if let trustedKey = host.trustedHostKey(hostId: hostId) {
             try trustedStore.trust(trustedKey)
@@ -554,12 +565,12 @@ final class RemoteFileSystemRealHostIntegrationTests: XCTestCase {
 
     private static func defaultConfigURL() -> URL {
         guard let url = Bundle.module.url(
-            forResource: "real-host-smoke.example",
+            forResource: "local-sftp-smoke.example",
             withExtension: "json",
             subdirectory: "Fixtures"
         ) else {
-            XCTFail("Missing bundled real SFTP integration fixture")
-            return URL(fileURLWithPath: "/missing-real-sftp-integration-fixture.json")
+            XCTFail("Missing bundled local SFTP integration fixture")
+            return URL(fileURLWithPath: "/missing-local-sftp-integration-fixture.json")
         }
         return url
     }
@@ -568,7 +579,7 @@ final class RemoteFileSystemRealHostIntegrationTests: XCTestCase {
         if let path = environment["WETRANS_SFTP_INTEGRATION_FILE"], !path.isEmpty {
             return URL(fileURLWithPath: (path as NSString).expandingTildeInPath)
         }
-        return defaultConfigURL()
+        throw XCTSkip("Set WETRANS_SFTP_INTEGRATION_FILE or run scripts/e2e to start the local Docker SFTP fixture.")
     }
 
     private func temporaryDirectory() -> URL {
@@ -602,14 +613,22 @@ private struct SFTPIntegrationHost: Decodable {
     let hostname: String
     let port: Int
     let username: String
-    let identityFile: String
+    let identityFile: String?
+    let passwordEnv: String?
     let listPath: String
     let passphraseEnv: String?
     let hostKeyType: String?
     let hostKeyFingerprintSHA256: String?
 
-    var expandedIdentityFile: String {
-        (identityFile as NSString).expandingTildeInPath
+    var expandedIdentityFile: String? {
+        identityFile.map { ($0 as NSString).expandingTildeInPath }
+    }
+
+    func auth(environment: [String: String]) -> ConnectionAuth {
+        if let identityFile = expandedIdentityFile?.trimmedNilIfEmpty {
+            return .sshKey(identityFile: identityFile, passphrase: passphrase(environment: environment))
+        }
+        return .password(password(environment: environment))
     }
 
     func passphrase(environment: [String: String]) -> String? {
@@ -617,6 +636,13 @@ private struct SFTPIntegrationHost: Decodable {
             return nil
         }
         return environment[passphraseEnv].flatMap { $0.isEmpty ? nil : $0 }
+    }
+
+    func password(environment: [String: String]) -> String? {
+        guard let passwordEnv, !passwordEnv.isEmpty else {
+            return nil
+        }
+        return environment[passwordEnv].flatMap { $0.isEmpty ? nil : $0 }
     }
 
     func trustedHostKey(hostId: UUID) -> TrustedHostKey? {

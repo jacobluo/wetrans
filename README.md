@@ -87,15 +87,15 @@ WETRANS_NOTARYTOOL_PROFILE="wetrans-notary" \
 scripts/package
 ```
 
-The default E2E path runs real-host SFTP checks and app smoke verification. It requires local libssh2 support, network access, and the committed `openclaw-vm` key path:
+The default E2E path runs local Docker OpenSSH-backed SFTP checks and app smoke verification. It requires local libssh2 support plus Docker CLI/daemon access, but it does not require a public SFTP host or personal SSH key:
 
 ```bash
 scripts/e2e
 ```
 
-`scripts/e2e` first runs `RemoteFileSystemRealHostIntegrationTests` for connect/list, upload, and download coverage, then launches the packaged app and checks the main UI accessibility anchors. Full UI scenarios remain opt-in with `WETRANS_E2E_RUN_FULL=1`.
+`scripts/e2e` first starts a temporary local OpenSSH container, runs `RemoteFileSystemRealHostIntegrationTests` for connect/list, upload, and download coverage using key and password authentication, then launches the packaged app and checks the main UI accessibility anchors. Full UI scenarios remain opt-in with `WETRANS_E2E_RUN_FULL=1`.
 
-See [`docs/real-host-sftp-smoke.md`](docs/real-host-sftp-smoke.md) for the real-host SFTP E2E config format and secret handling rules.
+See [`docs/real-host-sftp-smoke.md`](docs/real-host-sftp-smoke.md) for SFTP E2E notes, local Docker fixture behavior, external override config format, and secret handling rules.
 
 ## Project Docs
 

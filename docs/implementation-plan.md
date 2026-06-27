@@ -342,7 +342,7 @@ M6 must precede M7 because transfer actions depend on selected local/remote file
 
 - Build the macOS app.
 - Run unit tests.
-- Run `scripts/e2e`, which includes real-host SFTP connect/list/upload/download and packaged app UI smoke.
+- Run `scripts/e2e`, which includes local Docker OpenSSH SFTP connect/list/upload/download and packaged app UI smoke.
 - Test manual host creation.
 - Test SSH Config host generation.
 - Test password authentication.

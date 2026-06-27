@@ -67,7 +67,7 @@ The E2E layer is available directly:
 scripts/e2e
 ```
 
-`scripts/e2e` runs real-host SFTP connect/list/upload/download checks first, then performs packaged app build/run smoke through the native Accessibility runner. Full UI scenarios remain opt-in through `WETRANS_E2E_RUN_FULL=1`.
+`scripts/e2e` starts a temporary local Docker OpenSSH fixture, runs SFTP connect/list/upload/download checks through libssh2, then performs packaged app build/run smoke through the native Accessibility runner. External SFTP hosts are opt-in through `WETRANS_SFTP_INTEGRATION_FILE`; full UI scenarios remain opt-in through `WETRANS_E2E_RUN_FULL=1`.
 
 ## Current Decisions
 

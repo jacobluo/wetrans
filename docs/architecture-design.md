@@ -454,11 +454,12 @@ The app should be testable without a live SSH server for most behavior.
 
 ### 8.3 Integration Tests
 
-Use real-host SFTP E2E against the configured OpenCloud development VM as the default integration path. Keep fake adapters for most unit behavior, but require the real libssh2-backed path to prove network, authentication, remote listing, upload, and download behavior.
+Use local Docker OpenSSH-backed SFTP E2E as the default integration path. Keep fake adapters for most unit behavior, but require the real libssh2-backed path to prove SSH authentication, remote listing, upload, and download behavior without depending on an external public host.
 
 Validate:
 
-- Key connection.
+- Key authentication.
+- Password authentication.
 - Host-key trust and mismatch.
 - List directory.
 - Upload single file.
@@ -473,7 +474,7 @@ Validate:
 
 `scripts/e2e` is the default E2E entry point. It has two stable layers:
 
-- Real-host SFTP E2E through `RemoteFileSystemRealHostIntegrationTests`.
+- Local Docker OpenSSH SFTP E2E through `RemoteFileSystemRealHostIntegrationTests` with temporary key and password credentials.
 - Packaged app build/run smoke through the native `wetrans-e2e` Accessibility runner.
 
 The app smoke verifies that the launched app exposes the main automation anchors:

@@ -37,7 +37,7 @@ wetrans 是 SwiftPM-first 的原生 macOS 应用，不是 TypeScript / React / P
   - 执行 `swift test`。
 - `scripts/e2e`
   - 执行默认 E2E 路径。
-  - 先运行 `RemoteFileSystemRealHostIntegrationTests`，验证真实 OpenCloud SFTP connect/list/upload/download。
+  - 先启动本地 Docker OpenSSH fixture 并运行 `RemoteFileSystemRealHostIntegrationTests`，验证 libssh2 SFTP key/password connect/list/upload/download。
   - 再执行 packaged app build/run smoke，并通过 native Accessibility runner 检查主窗口关键 UI 锚点。
   - 完整 UI 场景仍通过 `WETRANS_E2E_RUN_FULL=1` 显式开启。
 - `scripts/verify`
@@ -98,7 +98,7 @@ WETRANS_RUN_LIBSSH2_REAL_PROBE=1 swift test --filter LibSSH2RuntimeRealProbeTest
 
 - `scripts/verify` 必须继续包含 `scripts/e2e`。
 - `WETRANS_E2E_RUN_FULL=1` 可运行 manual host、SSH Config host、transfer 等 UI 场景。
-- 内测前默认路径至少覆盖：真实主机连接、浏览远端目录、单文件/多文件/目录上传、单文件/多文件/目录下载、启动 app、打开主窗口、队列区域可见。
+- 内测前默认路径至少覆盖：本地 Docker OpenSSH 连接、key/password 认证、浏览远端目录、单文件/多文件/目录上传、单文件/多文件/目录下载、启动 app、打开主窗口、队列区域可见。
 
 ## 完成标准
 
