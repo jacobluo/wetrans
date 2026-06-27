@@ -38,6 +38,7 @@ This spec covers:
 - Detecting likely remote startup-output pollution during SSH/SFTP setup and directory listing.
 - Producing a user-readable error message that explains the remote configuration issue.
 - Including enough diagnostic detail for the user to fix the host.
+- Defining that any future compatibility transport must be visible in the main host list.
 - Preserving the current libssh2-backed `RemoteFileSystem` boundary.
 - Adding tests for message mapping and diagnostic extraction.
 
@@ -63,6 +64,20 @@ Check files such as ~/.bashrc, ~/.profile, /etc/profile, or /etc/bashrc.
 ```
 
 The message should be concise in the file panel, with the more detailed remediation available in any expanded error detail surface if introduced later.
+
+### Host List Transport Label
+
+The main left-side host list must make the active or configured transfer mode visible when wetrans supports more than standard SFTP.
+
+Rules:
+
+- Standard hosts should display `SFTP`.
+- Future compatibility hosts should display `SCP` or another explicit transport label.
+- Labels should appear in the host row metadata near user/host/status text, not only inside edit screens.
+- The selected host's current runtime transport should not be ambiguous after fallback or compatibility mode is enabled.
+- If compatibility mode is not implemented yet, the UI should not show an SCP label.
+
+This avoids making SCP/SSH compatibility feel identical to normal SFTP, because progress, cancellation, error semantics, and server requirements may differ.
 
 ## Detection Strategy
 
@@ -129,3 +144,4 @@ A future design may add an explicit compatibility mode. That mode must be separa
 - How host key trust remains consistent.
 - How errors differ from SFTP errors.
 - Whether the mode is per-host and visibly labeled in the UI.
+- How the main host list labels SFTP vs SCP/SSH compatibility mode.
