@@ -28,6 +28,10 @@ final class LibSSH2DynamicClientTests: XCTestCase {
         XCTAssertEqual(LibSSH2TransferOpenMode.openFileType, 0)
     }
 
+    func testDirectoryOpenModeUsesSFTPOpenDirectoryConstant() {
+        XCTAssertEqual(LibSSH2DirectoryOpenMode.openDirectory, 1)
+    }
+
     func testPublicKeyAuthUsesPrivateKeyWithoutSeparatePublicKeyFile() {
         let files = LibSSH2PublicKeyAuthFiles(identityFile: "/Users/me/.ssh/id_ed25519")
 

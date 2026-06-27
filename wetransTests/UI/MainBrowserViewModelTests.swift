@@ -114,6 +114,29 @@ final class MainBrowserViewModelTests: XCTestCase {
         XCTAssertEqual(catalog.updatePathCalls.last?.local, "/Users/me/Downloads/folder")
     }
 
+    func testEnterLocalPathUpdatesPathAndRefreshes() async throws {
+        let host = SavedHost.fixture(lastRemotePath: "/project", lastLocalPath: "/Users/me/Downloads")
+        let targetItems = [
+            FileItem(name: "manual.txt", path: "/Users/me/manual/manual.txt", isDirectory: false)
+        ]
+        let catalog = FakeHostCatalog(hosts: [host])
+        let localFileSystem = FakeLocalFileSystem(listingsByPath: [
+            "/Users/me/manual": targetItems
+        ])
+        let viewModel = makeViewModel(hostCatalog: catalog, localFileSystem: localFileSystem)
+
+        try viewModel.loadHosts()
+        viewModel.select(hostId: host.id)
+        viewModel.enterLocalPath("/Users/me/manual")
+
+        try await waitUntil {
+            viewModel.localPanel.loadingState == .loaded(targetItems)
+        }
+        XCTAssertEqual(viewModel.localPanel.path, "/Users/me/manual")
+        XCTAssertEqual(localFileSystem.listCalls, ["/Users/me/manual"])
+        XCTAssertEqual(catalog.updatePathCalls.last?.local, "/Users/me/manual")
+    }
+
     func testRefreshRemoteListsCurrentRemotePath() async throws {
         let host = SavedHost.fixture(lastRemotePath: "/project", lastLocalPath: "/Users/me/Downloads")
         let remoteItems = [
@@ -149,6 +172,27 @@ final class MainBrowserViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.remotePanel.path, "/project/logs")
         XCTAssertEqual(viewModel.remotePanel.loadingState, .loaded(nestedItems))
         XCTAssertEqual(catalog.updatePathCalls.last?.remote, "/project/logs")
+    }
+
+    func testEnterRemotePathUpdatesPathAndRefreshes() async throws {
+        let host = SavedHost.fixture(lastRemotePath: "/project", lastLocalPath: "/Users/me/Downloads")
+        let remoteItems = [
+            FileItem(name: "release.tar.gz", path: "/srv/releases/release.tar.gz", isDirectory: false)
+        ]
+        let catalog = FakeHostCatalog(hosts: [host])
+        let remoteFileSystem = MockRemoteFileSystem(listingsByPath: [
+            "/srv/releases": remoteItems
+        ])
+        let viewModel = makeViewModel(hostCatalog: catalog, remoteFileSystem: remoteFileSystem)
+
+        try viewModel.loadHosts()
+        viewModel.select(hostId: host.id)
+        await viewModel.enterRemotePath("/srv/releases")
+
+        XCTAssertEqual(viewModel.remotePanel.path, "/srv/releases")
+        XCTAssertEqual(viewModel.remotePanel.loadingState, .loaded(remoteItems))
+        XCTAssertEqual(remoteFileSystem.listCalls.map(\.path), ["/srv/releases"])
+        XCTAssertEqual(catalog.updatePathCalls.last?.remote, "/srv/releases")
     }
 
     func testRemoteErrorPreservesPathAndShowsHostKeyMessage() async throws {

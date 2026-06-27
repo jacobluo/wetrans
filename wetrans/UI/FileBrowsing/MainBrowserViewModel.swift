@@ -160,6 +160,16 @@ public final class MainBrowserViewModel: ObservableObject {
         refreshLocal()
     }
 
+    public func enterLocalPath(_ path: String) {
+        let path = path.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !path.isEmpty else {
+            refreshLocal()
+            return
+        }
+        updateLocalPath(path)
+        refreshLocal()
+    }
+
     public func openLocalItem(_ item: FileItem) {
         guard item.isDirectory else {
             selectLocalItem(item)
@@ -235,6 +245,16 @@ public final class MainBrowserViewModel: ObservableObject {
             return
         }
         updateRemotePath(parent)
+        await refreshRemote()
+    }
+
+    public func enterRemotePath(_ path: String) async {
+        let path = path.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !path.isEmpty else {
+            await refreshRemote()
+            return
+        }
+        updateRemotePath(path)
         await refreshRemote()
     }
 
@@ -394,6 +414,7 @@ public final class MainBrowserViewModel: ObservableObject {
 
     private func updateLocalPath(_ path: String) {
         localPanel.path = path
+        localPanel.selectedItemIds = []
         if let host = selectedHost {
             hostSessionManager.updateLocalPath(path, for: host)
             try? hostCatalog.updatePaths(hostId: host.id, local: path, remote: nil)
@@ -402,6 +423,7 @@ public final class MainBrowserViewModel: ObservableObject {
 
     private func updateRemotePath(_ path: String) {
         remotePanel.path = path
+        remotePanel.selectedItemIds = []
         if let host = selectedHost {
             hostSessionManager.updateRemotePath(path, for: host)
             try? hostCatalog.updatePaths(hostId: host.id, local: nil, remote: path)

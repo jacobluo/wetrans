@@ -55,6 +55,7 @@ public struct FilePanelView: View {
     private let contextActions: (FileItem) -> [FilePanelContextAction]
     private let onRefresh: () -> Void
     private let onGoUp: () -> Void
+    private let onPathSubmit: (String) -> Void
     private let onSelect: (FileItem, FilePanelSelectionIntent) -> Void
     private let onOpen: (FileItem) -> Void
 
@@ -64,6 +65,7 @@ public struct FilePanelView: View {
         contextActions: @escaping (FileItem) -> [FilePanelContextAction] = { _ in [] },
         onRefresh: @escaping () -> Void,
         onGoUp: @escaping () -> Void,
+        onPathSubmit: @escaping (String) -> Void = { _ in },
         onSelect: @escaping (FileItem, FilePanelSelectionIntent) -> Void = { _, _ in },
         onOpen: @escaping (FileItem) -> Void
     ) {
@@ -72,6 +74,7 @@ public struct FilePanelView: View {
         self.contextActions = contextActions
         self.onRefresh = onRefresh
         self.onGoUp = onGoUp
+        self.onPathSubmit = onPathSubmit
         self.onSelect = onSelect
         self.onOpen = onOpen
     }
@@ -99,12 +102,13 @@ public struct FilePanelView: View {
                     .font(.system(size: 12, weight: .semibold))
                     .lineLimit(1)
                     .accessibilityIdentifier("\(state.title) File Panel")
-                Text(state.path.isEmpty ? " " : state.path)
-                    .font(.system(size: 10))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
+                FilePanelPathField(
+                    panelTitle: state.title,
+                    path: state.path,
+                    onSubmit: onPathSubmit
+                )
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             Spacer(minLength: 8)
 
@@ -112,9 +116,10 @@ public struct FilePanelView: View {
                 Button(action: action.perform) {
                     Label(action.title, systemImage: action.systemImage)
                         .labelStyle(.titleAndIcon)
+                        .frame(minWidth: 108, minHeight: 28)
                 }
                 .buttonStyle(.bordered)
-                .controlSize(.mini)
+                .controlSize(.regular)
                 .disabled(!action.isEnabled)
                 .help(action.title)
                 .accessibilityIdentifier("\(state.title) \(action.title)")
@@ -122,22 +127,24 @@ public struct FilePanelView: View {
 
             Button(action: onGoUp) {
                 Image(systemName: "arrow.up")
+                    .frame(minWidth: 30, minHeight: 28)
             }
             .buttonStyle(.bordered)
-            .controlSize(.mini)
+            .controlSize(.regular)
             .help("Go Up")
             .accessibilityIdentifier("\(state.title) Go Up")
 
             Button(action: onRefresh) {
                 Image(systemName: "arrow.clockwise")
+                    .frame(minWidth: 30, minHeight: 28)
             }
             .buttonStyle(.bordered)
-            .controlSize(.mini)
+            .controlSize(.regular)
             .help("Refresh")
             .accessibilityIdentifier("\(state.title) Refresh")
         }
         .padding(.horizontal, 12)
-        .frame(height: 50)
+        .frame(height: 58)
     }
 
     @ViewBuilder
@@ -210,6 +217,37 @@ public struct FilePanelView: View {
 
     private var idleDescription: String {
         state.title == "Remote" ? "Add or select a host to start browsing remote files." : "Choose a local directory to browse."
+    }
+}
+
+private struct FilePanelPathField: View {
+    let panelTitle: String
+    let path: String
+    let onSubmit: (String) -> Void
+    @State private var draftPath: String
+
+    init(panelTitle: String, path: String, onSubmit: @escaping (String) -> Void) {
+        self.panelTitle = panelTitle
+        self.path = path
+        self.onSubmit = onSubmit
+        self._draftPath = State(initialValue: path)
+    }
+
+    var body: some View {
+        TextField("Path", text: $draftPath)
+            .textFieldStyle(.roundedBorder)
+            .font(.system(size: 11))
+            .lineLimit(1)
+            .onSubmit {
+                onSubmit(draftPath)
+            }
+            .onChange(of: path) { _, newPath in
+                guard newPath != draftPath else {
+                    return
+                }
+                draftPath = newPath
+            }
+            .accessibilityIdentifier("\(panelTitle) Path")
     }
 }
 

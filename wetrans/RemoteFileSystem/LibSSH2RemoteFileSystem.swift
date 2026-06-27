@@ -4,6 +4,7 @@ public final class LibSSH2RemoteFileSystem: RemoteFileSystem, @unchecked Sendabl
     private let runtime: LibSSH2RuntimeManaging
     private let trustedHostStore: TrustedHostStore
     private let clientFactory: LibSSH2ClientFactory
+    private let clientsLock = NSLock()
     private var clientsBySessionId: [UUID: LibSSH2Client] = [:]
 
     public init(
@@ -57,10 +58,15 @@ public final class LibSSH2RemoteFileSystem: RemoteFileSystem, @unchecked Sendabl
             try client.openSFTP()
 
             let session = RemoteSession(hostId: spec.hostId, displayName: spec.displayName)
-            clientsBySessionId[session.id] = client
+            clientsLock.withLock {
+                clientsBySessionId[session.id] = client
+            }
             return session
         } catch {
-            if clientsBySessionId.values.contains(where: { $0 === client }) == false {
+            let isTrackedClient = clientsLock.withLock {
+                clientsBySessionId.values.contains(where: { $0 === client })
+            }
+            if !isTrackedClient {
                 client.disconnect()
             }
             throw error
@@ -68,17 +74,23 @@ public final class LibSSH2RemoteFileSystem: RemoteFileSystem, @unchecked Sendabl
     }
 
     public func disconnect(_ session: RemoteSession) async {
-        guard let client = clientsBySessionId.removeValue(forKey: session.id) else {
+        let result = clientsLock.withLock {
+            guard let client = clientsBySessionId.removeValue(forKey: session.id) else {
+                return nil as (client: LibSSH2Client, shouldShutdown: Bool)?
+            }
+            return (client, clientsBySessionId.isEmpty)
+        }
+        guard let result else {
             return
         }
-        client.disconnect()
-        if clientsBySessionId.isEmpty {
+        result.client.disconnect()
+        if result.shouldShutdown {
             runtime.shutdown()
         }
     }
 
     public func listDirectory(_ path: String, in session: RemoteSession) async throws -> [FileItem] {
-        guard let client = clientsBySessionId[session.id] else {
+        guard let client = clientsLock.withLock({ clientsBySessionId[session.id] }) else {
             throw RemoteFileSystemError.disconnected
         }
         return try client.listDirectory(path)
@@ -89,7 +101,7 @@ public final class LibSSH2RemoteFileSystem: RemoteFileSystem, @unchecked Sendabl
         in session: RemoteSession,
         progress: @escaping @Sendable (TransferProgress) async -> Void
     ) async throws {
-        guard let client = clientsBySessionId[session.id] else {
+        guard let client = clientsLock.withLock({ clientsBySessionId[session.id] }) else {
             throw RemoteFileSystemError.disconnected
         }
         try await client.upload(request, progress: progress)
@@ -100,7 +112,7 @@ public final class LibSSH2RemoteFileSystem: RemoteFileSystem, @unchecked Sendabl
         in session: RemoteSession,
         progress: @escaping @Sendable (TransferProgress) async -> Void
     ) async throws {
-        guard let client = clientsBySessionId[session.id] else {
+        guard let client = clientsLock.withLock({ clientsBySessionId[session.id] }) else {
             throw RemoteFileSystemError.disconnected
         }
         try await client.download(request, progress: progress)

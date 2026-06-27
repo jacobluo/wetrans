@@ -1,15 +1,15 @@
 import Foundation
 
-public enum ConnectionAuth: Equatable {
+public enum ConnectionAuth: Equatable, Sendable {
     case password(String?)
     case sshKey(identityFile: String, passphrase: String?)
 }
 
-public enum ConnectionSpecError: Error, Equatable {
+public enum ConnectionSpecError: Error, Equatable, Sendable {
     case missingIdentityFile(hostId: UUID)
 }
 
-public struct ConnectionSpec: Equatable {
+public struct ConnectionSpec: Equatable, Sendable {
     public let hostId: UUID
     public let displayName: String
     public let hostname: String

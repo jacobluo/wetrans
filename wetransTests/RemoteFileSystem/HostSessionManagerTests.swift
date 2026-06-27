@@ -36,6 +36,24 @@ final class HostSessionManagerTests: XCTestCase {
         XCTAssertEqual(remoteFileSystem.listCalls.count, 2)
     }
 
+    func testConcurrentFirstListingsForSameHostSharePendingSession() async throws {
+        let host = SavedHost.fixture(lastRemotePath: "/project")
+        let remoteFileSystem = SlowConnectRemoteFileSystem(listingsByPath: ["/project": []])
+        let manager = HostSessionManager(
+            remoteFileSystem: remoteFileSystem,
+            credentialStore: InMemoryCredentialStore(),
+            defaultLocalPath: { "/Users/me/Downloads" }
+        )
+
+        async let first: [FileItem] = manager.listRemoteDirectory(for: host)
+        async let second: [FileItem] = manager.listRemoteDirectory(for: host)
+        _ = try await (first, second)
+
+        let counts = await remoteFileSystem.callCounts()
+        XCTAssertEqual(counts.connect, 1)
+        XCTAssertEqual(counts.list, 2)
+    }
+
     func testUpdatingRemotePathChangesListedPath() async throws {
         let host = SavedHost.fixture(lastRemotePath: "/project")
         let remoteFileSystem = MockRemoteFileSystem(listingsByPath: ["/var/log": []])
@@ -98,6 +116,45 @@ final class HostSessionManagerTests: XCTestCase {
         XCTAssertFalse(manager.state(for: host).isConnected)
         XCTAssertEqual(manager.state(for: host).currentRemotePath, "/project")
     }
+}
+
+private actor SlowConnectRemoteFileSystem: RemoteFileSystem {
+    private let listingsByPath: [String: [FileItem]]
+    private(set) var connectCallCount = 0
+    private(set) var listCallCount = 0
+
+    init(listingsByPath: [String: [FileItem]]) {
+        self.listingsByPath = listingsByPath
+    }
+
+    func connect(_ spec: ConnectionSpec) async throws -> RemoteSession {
+        connectCallCount += 1
+        try await Task.sleep(nanoseconds: 50_000_000)
+        return RemoteSession(hostId: spec.hostId, displayName: spec.displayName)
+    }
+
+    func callCounts() -> (connect: Int, list: Int) {
+        (connectCallCount, listCallCount)
+    }
+
+    func disconnect(_ session: RemoteSession) async {}
+
+    func listDirectory(_ path: String, in session: RemoteSession) async throws -> [FileItem] {
+        listCallCount += 1
+        return listingsByPath[path] ?? []
+    }
+
+    func upload(
+        _ request: UploadRequest,
+        in session: RemoteSession,
+        progress: @escaping @Sendable (TransferProgress) async -> Void
+    ) async throws {}
+
+    func download(
+        _ request: DownloadRequest,
+        in session: RemoteSession,
+        progress: @escaping @Sendable (TransferProgress) async -> Void
+    ) async throws {}
 }
 
 private extension SavedHost {
