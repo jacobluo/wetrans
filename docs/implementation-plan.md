@@ -379,4 +379,4 @@ Before implementation starts, confirm:
 
 - Whether M0 should create a temporary command-line harness or go straight into an Xcode test target.
 - Whether internal testing should require both password and key-auth test servers.
-- Whether drag-and-drop should stay deferred until directory transfer and full E2E coverage are stable.
+- Whether drag-and-drop should stay deferred after directory transfer shipped; current decision is to keep it deferred and prioritize directory-level upload/download hardening.

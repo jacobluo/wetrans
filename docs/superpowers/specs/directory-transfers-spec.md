@@ -1,5 +1,9 @@
 # Directory Transfers Spec
 
+Status: Closed
+
+Closed on 2026-06-27 after implementation, focused directory-transfer verification, real OpenCloud queue-path smoke verification, and full `scripts/verify`.
+
 ## 1. Purpose
 
 Drag-and-drop is no longer the next usability priority. wetrans should first support selecting a directory and uploading or downloading the files under that directory while preserving the directory tree.
@@ -77,3 +81,11 @@ Result: /Users/me/Downloads/nginx/...
 - Empty directories are skipped and do not create transfer tasks.
 - Drag-and-drop references are removed from near-term productization docs.
 - `scripts/verify` passes.
+
+## 8. Closure Notes
+
+- Implemented directory upload and download by recursively expanding files into existing transfer queue tasks.
+- Preserved top-level selected directory names and nested subdirectory paths.
+- Added remote parent-directory creation before upload execution.
+- Confirmed folder upload through the queue path against the OpenCloud VM with Unicode file names.
+- Known deferred edge: empty directories are skipped because the queue model has no directory-only transfer task.

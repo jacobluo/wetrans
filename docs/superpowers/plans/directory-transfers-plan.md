@@ -2,6 +2,8 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+**Status:** Closed on 2026-06-27.
+
 **Goal:** Support directory-level upload and download by recursively expanding selected directories into existing file transfer tasks.
 
 **Architecture:** Keep the queue model unchanged: one file remains one `TransferTask`. Add focused expansion helpers for local and remote directory walking, add an arbitrary-path remote listing method to `HostSessionManager`, and add remote parent-directory creation to upload execution.
@@ -181,3 +183,12 @@ Commit with:
 ```bash
 git commit -m "feat: add directory transfers"
 ```
+
+## Closure
+
+- Completed the original implementation plan.
+- Added follow-up transfer-error diagnostics and a real OpenCloud queue-path smoke test after user testing found a first-file folder-upload failure.
+- Fixed the root cause of a possible upload stall by treating non-positive SFTP write results as failures instead of continuing the write loop.
+- Final verification:
+  - `WETRANS_REAL_UPLOAD_SMOKE=1 swift test --filter RemoteFileSystemRealHostIntegrationTests/testConfiguredOpenCloudHostUploadsUnicodeDirectoryThroughTransferQueueWhenEnabled`
+  - `scripts/verify`
