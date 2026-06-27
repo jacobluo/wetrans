@@ -5,7 +5,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 swift test --filter RemoteFileSystemRealHostIntegrationTests
 "$ROOT/script/build_and_run.sh" --verify
-swift run wetrans-e2e smoke
+WETRANS_E2E_REQUIRE_AX=1 swift run wetrans-e2e smoke
 
 if [[ "${WETRANS_E2E_RUN_FULL:-0}" == "1" ]]; then
   swift run wetrans-e2e manual-host
@@ -13,7 +13,7 @@ if [[ "${WETRANS_E2E_RUN_FULL:-0}" == "1" ]]; then
   swift run wetrans-e2e transfer
 else
   cat <<'EOF'
-Full UI E2E skipped. Set WETRANS_E2E_RUN_FULL=1 with:
+Full UI E2E not run by default. Set WETRANS_E2E_RUN_FULL=1 with:
   WETRANS_E2E_MANUAL_DISPLAY_NAME
   WETRANS_E2E_MANUAL_HOST
   WETRANS_E2E_MANUAL_USER

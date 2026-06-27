@@ -190,5 +190,5 @@ git commit -m "feat: add directory transfers"
 - Added follow-up transfer-error diagnostics and a real OpenCloud queue-path smoke test after user testing found a first-file folder-upload failure.
 - Fixed the root cause of a possible upload stall by treating non-positive SFTP write results as failures instead of continuing the write loop.
 - Final verification:
-  - `WETRANS_REAL_UPLOAD_SMOKE=1 swift test --filter RemoteFileSystemRealHostIntegrationTests/testConfiguredOpenCloudHostUploadsUnicodeDirectoryThroughTransferQueueWhenEnabled`
+  - `swift test --filter RemoteFileSystemRealHostIntegrationTests/testConfiguredRealHostsUploadAndDownloadFilesAndDirectories`
   - `scripts/verify`

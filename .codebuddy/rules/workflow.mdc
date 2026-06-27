@@ -24,6 +24,9 @@ provider:
 - Build macOS Apps 负责 macOS 原生工程判断：SwiftUI/AppKit 结构、Xcode 构建运行、Keychain/entitlements、窗口行为、测试排查、打包与 notarization。
 - 开始新功能时，先用 Superpowers 明确 spec 和 plan；进入具体 macOS 实现点时，再调用 Build macOS Apps 对应能力。
 - 执行 `docs/superpowers/plans/*-plan.md` 时，默认用 Superpowers 管任务生命周期；遇到 SwiftUI/AppKit、Xcode、签名、测试或打包问题时，引入 Build macOS Apps。
+- 多步骤 spec 默认使用 `superpowers:subagent-driven-development` 执行：按 task 分派子代理实现，主代理在每个 task 后 review diff、验证结果和 plan checkbox。
+- 完成 spec 前必须做一次独立 review pass，优先使用 `superpowers:requesting-code-review` 或子代理 review；检查覆盖范围、测试真实性、文档同步、secret/safety 和冗余 skipped 测试。
+- 只有在用户明确要求 inline、当前环境无法使用子代理、或任务强依赖本机交互状态导致子代理无法执行时，才使用 `superpowers:executing-plans` inline 执行；这种例外必须在 plan 或最终交付说明中记录原因。
 - 不要把 Build macOS Apps 当作替代 spec/plan 的入口；它用于提升 macOS 实现质量，而不是跳过需求拆解。
 - 不要把 Superpowers 当作 macOS 技术细节的唯一依据；涉及原生 UI、系统权限、Keychain、sandbox、签名和分发时，应参考 Build macOS Apps。
 - 对 wetrans，默认组合是：Superpowers 管 `docs/` 和 `docs/superpowers/` 下的设计与执行记录，Build macOS Apps 管 Swift/macOS 代码落地与验证。

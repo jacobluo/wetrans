@@ -14,8 +14,7 @@ public final class HostSessionManager: @unchecked Sendable {
         remoteFileSystem: RemoteFileSystem,
         credentialStore: CredentialStore,
         defaultLocalPath: @escaping () -> String = {
-            FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first?.path
-                ?? FileManager.default.homeDirectoryForCurrentUser.path
+            FileManager.default.homeDirectoryForCurrentUser.path
         },
         now: @escaping @Sendable () -> Date = Date.init
     ) {

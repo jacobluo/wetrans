@@ -23,7 +23,7 @@ _Screenshots from the current ardot MVP prototype._
 - Treat SSH Config as an import source only; saved hosts become normal wetrans hosts.
 - Store host metadata locally while keeping passwords and key passphrases in macOS Keychain.
 - Verify and persist trusted host keys without modifying OpenSSH `known_hosts`.
-- Upload and download files through a global transfer queue with bounded concurrency.
+- Upload and download files and directories through a global transfer queue with bounded concurrency.
 - Support single-click selection by default, with Shift-click multi-selection for batch transfers.
 - Provide desktop-style row actions such as upload, download, reveal in Finder, copy remote path, and retry/remove transfer tasks.
 
@@ -31,7 +31,7 @@ _Screenshots from the current ardot MVP prototype._
 
 wetrans is in MVP development. The current implementation is SwiftPM-first and targets native macOS distribution outside the Mac App Store during early internal testing.
 
-The MVP intentionally focuses on direct SSH/SFTP file management. Advanced SSH runtime features such as ProxyJump, complex ProxyCommand, SSH Agent integration, keyboard-interactive auth, recursive folder transfer, and resumable transfers are outside the first slice.
+The MVP intentionally focuses on direct SSH/SFTP file management. Advanced SSH runtime features such as ProxyJump, complex ProxyCommand, SSH Agent integration, keyboard-interactive auth, drag-and-drop, directory sync, and resumable transfers are outside the first slice.
 
 ## Design Source
 
@@ -69,6 +69,7 @@ Common commands:
 ```bash
 swift build
 swift test
+scripts/e2e
 swift run wetrans
 ```
 
@@ -86,14 +87,15 @@ WETRANS_NOTARYTOOL_PROFILE="wetrans-notary" \
 scripts/package
 ```
 
-Real integration checks run by default and therefore require local libssh2 support, network access, and the committed `openclaw-vm` key path:
+The default E2E path runs real-host SFTP checks and app smoke verification. It requires local libssh2 support, network access, and the committed `openclaw-vm` key path:
 
 ```bash
-swift test --filter LibSSH2RuntimeRealProbeTests
-swift test --filter RemoteFileSystemRealHostIntegrationTests
+scripts/e2e
 ```
 
-See [`docs/real-host-sftp-smoke.md`](docs/real-host-sftp-smoke.md) for the fixed real host SFTP integration config format and secret handling rules.
+`scripts/e2e` first runs `RemoteFileSystemRealHostIntegrationTests` for connect/list, upload, and download coverage, then launches the packaged app and checks the main UI accessibility anchors. Full UI scenarios remain opt-in with `WETRANS_E2E_RUN_FULL=1`.
+
+See [`docs/real-host-sftp-smoke.md`](docs/real-host-sftp-smoke.md) for the real-host SFTP E2E config format and secret handling rules.
 
 ## Project Docs
 

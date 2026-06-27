@@ -152,11 +152,24 @@ final class AccessibilityDriver {
     }
 
     private func windows() -> [AXUIElement] {
+        var roots: [AXUIElement] = []
         var value: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(application, kAXWindowsAttribute as CFString, &value) == .success else {
-            return [application]
+        if AXUIElementCopyAttributeValue(application, kAXWindowsAttribute as CFString, &value) == .success,
+           let windows = value as? [AXUIElement] {
+            roots.append(contentsOf: windows)
         }
-        return (value as? [AXUIElement]) ?? [application]
+        value = nil
+        if AXUIElementCopyAttributeValue(application, kAXFocusedWindowAttribute as CFString, &value) == .success,
+           let value {
+            roots.append(value as! AXUIElement)
+        }
+        value = nil
+        if AXUIElementCopyAttributeValue(application, kAXMainWindowAttribute as CFString, &value) == .success,
+           let value {
+            roots.append(value as! AXUIElement)
+        }
+        roots.append(application)
+        return roots
     }
 
     private func children(of element: AXUIElement) -> [AXUIElement] {

@@ -69,8 +69,7 @@ public final class MainBrowserViewModel: ObservableObject {
         logger: DiagnosticLogging = OSLogDiagnosticLogger(),
         sidebarViewModel: HostSidebarViewModel = HostSidebarViewModel(),
         defaultLocalPath: @escaping () -> String = {
-            FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first?.path
-                ?? FileManager.default.homeDirectoryForCurrentUser.path
+            FileManager.default.homeDirectoryForCurrentUser.path
         }
     ) {
         self.hostCatalog = hostCatalog

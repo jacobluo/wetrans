@@ -3,6 +3,20 @@ import XCTest
 
 @MainActor
 final class MainBrowserViewModelTests: XCTestCase {
+    func testDefaultInitializerUsesHomeDirectoryForInitialLocalPath() {
+        let sessionManager = HostSessionManager(
+            remoteFileSystem: MockRemoteFileSystem(),
+            credentialStore: InMemoryCredentialStore()
+        )
+        let viewModel = MainBrowserViewModel(
+            hostCatalog: FakeHostCatalog(hosts: []),
+            hostSessionManager: sessionManager,
+            localFileSystem: FakeLocalFileSystem()
+        )
+
+        XCTAssertEqual(viewModel.localPanel.path, FileManager.default.homeDirectoryForCurrentUser.path)
+    }
+
     func testSingleClickLocalSelectionReplacesPreviousSelection() {
         let first = FileItem(name: "a.txt", path: "/Users/me/Downloads/a.txt", isDirectory: false)
         let second = FileItem(name: "b.txt", path: "/Users/me/Downloads/b.txt", isDirectory: false)

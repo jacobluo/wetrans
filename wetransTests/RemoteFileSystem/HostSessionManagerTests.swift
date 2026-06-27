@@ -2,6 +2,16 @@ import XCTest
 @testable import wetrans
 
 final class HostSessionManagerTests: XCTestCase {
+    func testInitialStateUsesHomeDirectoryWhenHostHasNoSavedLocalPath() {
+        let host = SavedHost.fixture(lastRemotePath: "/project")
+        let manager = HostSessionManager(
+            remoteFileSystem: MockRemoteFileSystem(),
+            credentialStore: InMemoryCredentialStore()
+        )
+
+        XCTAssertEqual(manager.state(for: host).currentLocalPath, FileManager.default.homeDirectoryForCurrentUser.path)
+    }
+
     func testFirstRemoteListingConnectsThenListsCurrentPath() async throws {
         let host = SavedHost.fixture(lastRemotePath: "/project")
         let remoteFileSystem = MockRemoteFileSystem(

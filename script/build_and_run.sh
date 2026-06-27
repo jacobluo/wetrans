@@ -51,6 +51,10 @@ open_app() {
   /usr/bin/open -n "$APP_BUNDLE"
 }
 
+open_app_for_e2e() {
+  WETRANS_E2E_FORCE_WINDOW=1 "$APP_BINARY" >/tmp/wetrans-e2e-app.log 2>&1 &
+}
+
 case "$MODE" in
   run)
     open_app
@@ -67,8 +71,8 @@ case "$MODE" in
     /usr/bin/log stream --info --style compact --predicate "subsystem == \"$BUNDLE_ID\""
     ;;
   --verify|verify)
-    open_app
-    sleep 1
+    open_app_for_e2e
+    sleep 2
     pgrep -x "$APP_NAME" >/dev/null
     ;;
   *)

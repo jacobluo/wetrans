@@ -149,8 +149,7 @@ Default local path priority:
 
 1. Current host state `currentLocalPath`.
 2. Host `lastLocalPath`.
-3. Downloads directory.
-4. Home directory.
+3. Home directory.
 
 Actions:
 
@@ -262,7 +261,7 @@ Use fake `LocalFileSystem`, fake `RemoteFileSystem`, fake `CredentialStore`, and
 
 Test:
 
-- initial local path uses downloads fallback.
+- initial local path uses home-directory fallback.
 - selecting a host restores its current local/remote state.
 - local refresh populates files.
 - local directory open updates host local path.
