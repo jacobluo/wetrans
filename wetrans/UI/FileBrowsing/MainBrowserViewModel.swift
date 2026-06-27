@@ -19,6 +19,7 @@ public final class MainBrowserViewModel: ObservableObject {
     private let transferQueue: TransferQueue
     private let fileRevealer: FileRevealer
     private let pasteboardWriter: PasteboardWriting
+    private let logger: DiagnosticLogging
     private let defaultLocalPath: () -> String
     private var localRefreshTask: Task<Void, Never>?
     private var transferQueueEventsTask: Task<Void, Never>?
@@ -50,7 +51,8 @@ public final class MainBrowserViewModel: ObservableObject {
                 historyStore: FileTransferHistoryStore()
             ),
             fileRevealer: NSWorkspaceFileRevealer(),
-            pasteboardWriter: SystemPasteboardWriter()
+            pasteboardWriter: SystemPasteboardWriter(),
+            logger: OSLogDiagnosticLogger()
         )
     }
 
@@ -64,6 +66,7 @@ public final class MainBrowserViewModel: ObservableObject {
         transferQueue: TransferQueue = TransferQueue(engine: UnavailableTransferEngine()),
         fileRevealer: FileRevealer = NSWorkspaceFileRevealer(),
         pasteboardWriter: PasteboardWriting = SystemPasteboardWriter(),
+        logger: DiagnosticLogging = OSLogDiagnosticLogger(),
         sidebarViewModel: HostSidebarViewModel = HostSidebarViewModel(),
         defaultLocalPath: @escaping () -> String = {
             FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first?.path
@@ -77,6 +80,7 @@ public final class MainBrowserViewModel: ObservableObject {
         self.transferQueue = transferQueue
         self.fileRevealer = fileRevealer
         self.pasteboardWriter = pasteboardWriter
+        self.logger = logger
         self.transferQueueViewModel = TransferQueueViewModel(queue: transferQueue)
         self.sidebarViewModel = sidebarViewModel
         self.defaultLocalPath = defaultLocalPath
@@ -144,7 +148,13 @@ public final class MainBrowserViewModel: ObservableObject {
                 case .success(let items):
                     self.localPanel.loadingState = items.isEmpty ? .empty : .loaded(items)
                 case .failure(let error):
-                    self.localPanel.loadingState = .failed(Self.message(forLocalError: error))
+                    let message = Self.message(forLocalError: error)
+                    self.logger.log(
+                        .localRefreshFailed,
+                        message: message,
+                        metadata: ["path": path]
+                    )
+                    self.localPanel.loadingState = .failed(message)
                 }
             }
         }
@@ -204,9 +214,13 @@ public final class MainBrowserViewModel: ObservableObject {
             try? hostCatalog.updatePaths(hostId: host.id, local: nil, remote: state.currentRemotePath)
         } catch RemoteFileSystemError.hostKeyRequiresTrust(let candidate) {
             pendingHostKeyTrust = candidate
-            remotePanel.loadingState = .failed(Self.message(forRemoteError: RemoteFileSystemError.hostKeyRequiresTrust(candidate)))
+            let message = Self.message(forRemoteError: RemoteFileSystemError.hostKeyRequiresTrust(candidate))
+            logger.log(.remoteRefreshFailed, message: message, metadata: ["path": remotePanel.path, "host": host.displayName])
+            remotePanel.loadingState = .failed(message)
         } catch {
-            remotePanel.loadingState = .failed(Self.message(forRemoteError: error))
+            let message = Self.message(forRemoteError: error)
+            logger.log(.remoteRefreshFailed, message: message, metadata: ["path": remotePanel.path, "host": host.displayName])
+            remotePanel.loadingState = .failed(message)
         }
     }
 
@@ -289,6 +303,14 @@ public final class MainBrowserViewModel: ObservableObject {
 
     public func copyRemotePath(_ item: FileItem) {
         pasteboardWriter.writeString(item.path)
+    }
+
+    public func copyLocalDebugDetail() {
+        copyDebugDetail(panelName: "Local", state: localPanel)
+    }
+
+    public func copyRemoteDebugDetail() {
+        copyDebugDetail(panelName: "Remote", state: remotePanel)
     }
 
     public func enqueueUpload(_ item: FileItem) async {
@@ -400,6 +422,11 @@ public final class MainBrowserViewModel: ObservableObject {
         }
 
         await transferQueue.enqueue(tasks)
+        logger.log(
+            .transferTasksEnqueued,
+            message: "Enqueued upload tasks",
+            metadata: ["count": "\(tasks.count)", "direction": "upload"]
+        )
         await transferQueueViewModel.refresh()
     }
 
@@ -410,7 +437,25 @@ public final class MainBrowserViewModel: ObservableObject {
         }
 
         await transferQueue.enqueue(tasks)
+        logger.log(
+            .transferTasksEnqueued,
+            message: "Enqueued download tasks",
+            metadata: ["count": "\(tasks.count)", "direction": "download"]
+        )
         await transferQueueViewModel.refresh()
+    }
+
+    private func copyDebugDetail(panelName: String, state: FilePanelState) {
+        guard !state.errorMessage.isEmpty else {
+            return
+        }
+        let detail = DiagnosticDetail(
+            panel: panelName,
+            path: state.path,
+            message: state.errorMessage,
+            hostDisplayName: selectedHost?.displayName
+        )
+        pasteboardWriter.writeString(detail.report)
     }
 
     private func contextTransferItems(for item: FileItem, in panel: FilePanelState) -> [FileItem] {
@@ -450,6 +495,15 @@ public final class MainBrowserViewModel: ObservableObject {
 
     private func handleTransferQueueEvent(_ event: TransferQueueEvent) async {
         await transferQueueViewModel.refresh()
+        logger.log(
+            .transferCompletionObserved,
+            message: "Observed transfer status change",
+            metadata: [
+                "file": event.task.fileName,
+                "status": "\(event.task.status)",
+                "direction": "\(event.task.direction)"
+            ]
+        )
         guard event.task.status == .succeeded else {
             return
         }

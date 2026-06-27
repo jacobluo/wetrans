@@ -90,6 +90,7 @@ public struct FilePanelView: View {
     private let state: FilePanelState
     private let action: FilePanelAction?
     private let contextActions: (FileItem) -> [FilePanelContextAction]
+    private let onCopyDebugDetail: (() -> Void)?
     private let onRefresh: () -> Void
     private let onGoUp: () -> Void
     private let onPathSubmit: (String) -> Void
@@ -100,6 +101,7 @@ public struct FilePanelView: View {
         state: FilePanelState,
         action: FilePanelAction? = nil,
         contextActions: @escaping (FileItem) -> [FilePanelContextAction] = { _ in [] },
+        onCopyDebugDetail: (() -> Void)? = nil,
         onRefresh: @escaping () -> Void,
         onGoUp: @escaping () -> Void,
         onPathSubmit: @escaping (String) -> Void = { _ in },
@@ -109,6 +111,7 @@ public struct FilePanelView: View {
         self.state = state
         self.action = action
         self.contextActions = contextActions
+        self.onCopyDebugDetail = onCopyDebugDetail
         self.onRefresh = onRefresh
         self.onGoUp = onGoUp
         self.onPathSubmit = onPathSubmit
@@ -234,11 +237,23 @@ public struct FilePanelView: View {
             ContentUnavailableView("Empty Folder", systemImage: "folder")
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .failed(let message):
-            ContentUnavailableView(
-                "Could Not Load",
-                systemImage: "exclamationmark.triangle",
-                description: Text(message)
-            )
+            VStack(spacing: 10) {
+                ContentUnavailableView(
+                    "Could Not Load",
+                    systemImage: "exclamationmark.triangle",
+                    description: Text(message)
+                )
+                if let onCopyDebugDetail {
+                    Button {
+                        onCopyDebugDetail()
+                    } label: {
+                        Label("Copy Debug Detail", systemImage: "doc.on.doc")
+                    }
+                    .buttonStyle(.borderless)
+                    .help("Copy Debug Detail")
+                    .accessibilityIdentifier("\(state.title) Copy Debug Detail")
+                }
+            }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         case .listing(let listing):
             FilePanelListView(

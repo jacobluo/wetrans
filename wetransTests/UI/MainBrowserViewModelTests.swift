@@ -699,6 +699,76 @@ final class MainBrowserViewModelTests: XCTestCase {
         XCTAssertEqual(pasteboard.strings, ["/var/log/app.log"])
     }
 
+    func testCopyRemoteDebugDetailWritesRedactedFailureToPasteboard() async throws {
+        let host = SavedHost.fixture(displayName: "Prod", lastRemotePath: "/Users/alice/project")
+        let pasteboard = RecordingPasteboardWriter()
+        let viewModel = makeViewModel(
+            hosts: [host],
+            remoteFileSystem: MockRemoteFileSystem(
+                listErrorsByPath: [
+                    "/Users/alice/project": RemoteFileSystemError.permissionDenied("/Users/alice/project")
+                ]
+            ),
+            pasteboardWriter: pasteboard
+        )
+
+        try viewModel.loadHosts()
+        viewModel.select(hostId: host.id)
+        await viewModel.refreshRemote()
+        viewModel.copyRemoteDebugDetail()
+
+        let copied = try XCTUnwrap(pasteboard.strings.last)
+        XCTAssertTrue(copied.contains("panel: Remote"))
+        XCTAssertTrue(copied.contains("host: Prod"))
+        XCTAssertTrue(copied.contains("/Users/<user>/project"))
+        XCTAssertFalse(copied.contains("alice"))
+    }
+
+    func testRemoteRefreshFailureLogsDiagnosticEvent() async throws {
+        let host = SavedHost.fixture(lastRemotePath: "/project")
+        let logger = RecordingDiagnosticLogger()
+        let viewModel = makeViewModel(
+            hosts: [host],
+            remoteFileSystem: MockRemoteFileSystem(
+                listErrorsByPath: ["/project": RemoteFileSystemError.permissionDenied("/project")]
+            ),
+            logger: logger
+        )
+
+        try viewModel.loadHosts()
+        viewModel.select(hostId: host.id)
+        await viewModel.refreshRemote()
+
+        XCTAssertTrue(logger.entries.contains { $0.event == .remoteRefreshFailed })
+    }
+
+    func testUploadingSelectionLogsEnqueuedTransferCount() async throws {
+        let host = SavedHost.fixture(lastRemotePath: "/project", lastLocalPath: "/Users/me/Downloads")
+        let localFile = FileItem(name: "config.yaml", path: "/Users/me/Downloads/config.yaml", isDirectory: false)
+        let logger = RecordingDiagnosticLogger()
+        let transferQueue = TransferQueue(engine: RecordingTransferEngine())
+        let viewModel = makeViewModel(
+            hosts: [host],
+            localFileSystem: FakeLocalFileSystem(listingsByPath: ["/Users/me/Downloads": [localFile]]),
+            remoteFileSystem: MockRemoteFileSystem(listingsByPath: ["/project": []]),
+            transferQueue: transferQueue,
+            logger: logger
+        )
+
+        try viewModel.loadHosts()
+        viewModel.select(hostId: host.id)
+        viewModel.refreshLocal()
+        try await waitUntil {
+            viewModel.localPanel.loadingState == .loaded([localFile])
+        }
+        viewModel.selectLocalItem(localFile)
+        await viewModel.enqueueUploadSelection()
+
+        XCTAssertTrue(logger.entries.contains { entry in
+            entry.event == .transferTasksEnqueued && entry.metadata["count"] == "1"
+        })
+    }
+
     private func makeViewModel(
         hosts: [SavedHost] = [],
         localFileSystem: LocalFileSystem = FakeLocalFileSystem(),
@@ -706,7 +776,8 @@ final class MainBrowserViewModelTests: XCTestCase {
         trustedHostStore: TrustedHostStore = FakeTrustedHostStore(),
         transferQueue: TransferQueue = TransferQueue(engine: RecordingTransferEngine()),
         fileRevealer: FileRevealer = RecordingFileRevealer(),
-        pasteboardWriter: PasteboardWriting = RecordingPasteboardWriter()
+        pasteboardWriter: PasteboardWriting = RecordingPasteboardWriter(),
+        logger: DiagnosticLogging = RecordingDiagnosticLogger()
     ) -> MainBrowserViewModel {
         makeViewModel(
             hostCatalog: FakeHostCatalog(hosts: hosts),
@@ -715,7 +786,8 @@ final class MainBrowserViewModelTests: XCTestCase {
             trustedHostStore: trustedHostStore,
             transferQueue: transferQueue,
             fileRevealer: fileRevealer,
-            pasteboardWriter: pasteboardWriter
+            pasteboardWriter: pasteboardWriter,
+            logger: logger
         )
     }
 
@@ -726,7 +798,8 @@ final class MainBrowserViewModelTests: XCTestCase {
         trustedHostStore: TrustedHostStore = FakeTrustedHostStore(),
         transferQueue: TransferQueue = TransferQueue(engine: RecordingTransferEngine()),
         fileRevealer: FileRevealer = RecordingFileRevealer(),
-        pasteboardWriter: PasteboardWriting = RecordingPasteboardWriter()
+        pasteboardWriter: PasteboardWriting = RecordingPasteboardWriter(),
+        logger: DiagnosticLogging = RecordingDiagnosticLogger()
     ) -> MainBrowserViewModel {
         let sessionManager = HostSessionManager(
             remoteFileSystem: remoteFileSystem,
@@ -741,6 +814,7 @@ final class MainBrowserViewModelTests: XCTestCase {
             transferQueue: transferQueue,
             fileRevealer: fileRevealer,
             pasteboardWriter: pasteboardWriter,
+            logger: logger,
             defaultLocalPath: { "/Users/me/Downloads" }
         )
     }

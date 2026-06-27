@@ -200,6 +200,7 @@ public struct MainBrowserView: View {
                     )
                 ]
             },
+            onCopyDebugDetail: viewModel.copyLocalDebugDetail,
             onRefresh: viewModel.refreshLocal,
             onGoUp: viewModel.goUpLocal,
             onPathSubmit: viewModel.enterLocalPath,
@@ -265,6 +266,7 @@ public struct MainBrowserView: View {
                     )
                 ]
             },
+            onCopyDebugDetail: viewModel.copyRemoteDebugDetail,
             onRefresh: {
                 Task {
                     await viewModel.refreshRemote()

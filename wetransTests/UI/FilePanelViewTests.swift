@@ -68,6 +68,25 @@ final class FilePanelViewTests: XCTestCase {
         XCTAssertNotNil(String(describing: type(of: view.body)))
     }
 
+    func testFilePanelViewCanRenderFailedStateDebugCopyAction() {
+        let state = FilePanelState(
+            title: "Remote",
+            path: "/project",
+            loadingState: .failed("Permission denied")
+        )
+
+        let view = FilePanelView(
+            state: state,
+            onCopyDebugDetail: {},
+            onRefresh: {},
+            onGoUp: {},
+            onSelect: { _, _ in },
+            onOpen: { _ in }
+        )
+
+        XCTAssertNotNil(String(describing: type(of: view.body)))
+    }
+
     func testFilePanelViewCanRenderContextActions() {
         let state = FilePanelState(
             title: "Local",
