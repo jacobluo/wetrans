@@ -84,7 +84,7 @@ swift test --filter RemoteFileSystemRealHostIntegrationTests
 Use an override config:
 
 ```bash
-WETRANS_SFTP_INTEGRATION_FILE=/Users/robiluo/.config/wetrans/real-sftp-integration.json \
+WETRANS_SFTP_INTEGRATION_FILE=/path/to/local-real-sftp-integration.json \
 swift test --filter RemoteFileSystemRealHostIntegrationTests
 ```
 
