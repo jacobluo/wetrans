@@ -129,7 +129,7 @@ public final class LibSSH2DynamicClient: LibSSH2Client {
         }
 
         let handle = path.withCString { pathPointer in
-            symbols.sftpOpenEx(sftp, pathPointer, UInt32(strlen(pathPointer)), 0, 0, LibSSH2Constants.sftpOpenDirectory)
+            symbols.sftpOpenEx(sftp, pathPointer, UInt32(strlen(pathPointer)), 0, 0, LibSSH2DirectoryOpenMode.openDirectory)
         }
         guard let handle else {
             throw mapSFTPPathOpenError(path: path)
@@ -466,13 +466,16 @@ struct LibSSH2PublicKeyAuthFiles: Equatable {
 }
 
 private struct LibSSH2Constants {
-    static let sftpOpenDirectory: Int32 = 2
     static let sftpNoSuchFile: UInt64 = 2
     static let sftpPermissionDenied: UInt64 = 3
     static let sftpFailure: UInt64 = 4
     static let attrSize: UInt64 = 0x0000_0001
     static let attrPermissions: UInt64 = 0x0000_0004
     static let attrAccessModifyTime: UInt64 = 0x0000_0008
+}
+
+enum LibSSH2DirectoryOpenMode {
+    static let openDirectory: Int32 = 1
 }
 
 public enum LibSSH2TransferOpenMode {

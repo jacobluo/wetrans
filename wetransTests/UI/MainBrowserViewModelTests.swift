@@ -114,6 +114,29 @@ final class MainBrowserViewModelTests: XCTestCase {
         XCTAssertEqual(catalog.updatePathCalls.last?.local, "/Users/me/Downloads/folder")
     }
 
+    func testEnterLocalPathUpdatesPathAndRefreshes() async throws {
+        let host = SavedHost.fixture(lastRemotePath: "/project", lastLocalPath: "/Users/me/Downloads")
+        let targetItems = [
+            FileItem(name: "manual.txt", path: "/Users/me/manual/manual.txt", isDirectory: false)
+        ]
+        let catalog = FakeHostCatalog(hosts: [host])
+        let localFileSystem = FakeLocalFileSystem(listingsByPath: [
+            "/Users/me/manual": targetItems
+        ])
+        let viewModel = makeViewModel(hostCatalog: catalog, localFileSystem: localFileSystem)
+
+        try viewModel.loadHosts()
+        viewModel.select(hostId: host.id)
+        viewModel.enterLocalPath("/Users/me/manual")
+
+        try await waitUntil {
+            viewModel.localPanel.loadingState == .loaded(targetItems)
+        }
+        XCTAssertEqual(viewModel.localPanel.path, "/Users/me/manual")
+        XCTAssertEqual(localFileSystem.listCalls, ["/Users/me/manual"])
+        XCTAssertEqual(catalog.updatePathCalls.last?.local, "/Users/me/manual")
+    }
+
     func testRefreshRemoteListsCurrentRemotePath() async throws {
         let host = SavedHost.fixture(lastRemotePath: "/project", lastLocalPath: "/Users/me/Downloads")
         let remoteItems = [
@@ -149,6 +172,27 @@ final class MainBrowserViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.remotePanel.path, "/project/logs")
         XCTAssertEqual(viewModel.remotePanel.loadingState, .loaded(nestedItems))
         XCTAssertEqual(catalog.updatePathCalls.last?.remote, "/project/logs")
+    }
+
+    func testEnterRemotePathUpdatesPathAndRefreshes() async throws {
+        let host = SavedHost.fixture(lastRemotePath: "/project", lastLocalPath: "/Users/me/Downloads")
+        let remoteItems = [
+            FileItem(name: "release.tar.gz", path: "/srv/releases/release.tar.gz", isDirectory: false)
+        ]
+        let catalog = FakeHostCatalog(hosts: [host])
+        let remoteFileSystem = MockRemoteFileSystem(listingsByPath: [
+            "/srv/releases": remoteItems
+        ])
+        let viewModel = makeViewModel(hostCatalog: catalog, remoteFileSystem: remoteFileSystem)
+
+        try viewModel.loadHosts()
+        viewModel.select(hostId: host.id)
+        await viewModel.enterRemotePath("/srv/releases")
+
+        XCTAssertEqual(viewModel.remotePanel.path, "/srv/releases")
+        XCTAssertEqual(viewModel.remotePanel.loadingState, .loaded(remoteItems))
+        XCTAssertEqual(remoteFileSystem.listCalls.map(\.path), ["/srv/releases"])
+        XCTAssertEqual(catalog.updatePathCalls.last?.remote, "/srv/releases")
     }
 
     func testRemoteErrorPreservesPathAndShowsHostKeyMessage() async throws {
@@ -228,6 +272,75 @@ final class MainBrowserViewModelTests: XCTestCase {
         XCTAssertTrue(viewModel.remotePanel.errorMessage.contains("libssh2"))
         XCTAssertTrue(viewModel.remotePanel.errorMessage.contains("brew install libssh2"))
         XCTAssertFalse(viewModel.remotePanel.errorMessage.contains("error 0"))
+    }
+
+    func testRemoteStartupOutputConnectionFailureShowsSpecificDiagnostic() async throws {
+        let host = SavedHost.fixture(lastRemotePath: "/project", lastLocalPath: "/Users/me/Downloads")
+        let remoteFileSystem = MockRemoteFileSystem(
+            listErrorsByPath: [
+                "/project": RemoteFileSystemError.connectionFailed("Received message too long 1298753394")
+            ]
+        )
+        let viewModel = makeViewModel(hosts: [host], remoteFileSystem: remoteFileSystem)
+
+        try viewModel.loadHosts()
+        viewModel.select(hostId: host.id)
+        await viewModel.refreshRemote()
+
+        XCTAssertTrue(viewModel.remotePanel.errorMessage.contains("remote shell printed text"))
+        XCTAssertTrue(viewModel.remotePanel.errorMessage.contains("Detected output prefix: \"Migr\""))
+        XCTAssertTrue(viewModel.remotePanel.errorMessage.contains("~/.bashrc"))
+        XCTAssertFalse(viewModel.remotePanel.errorMessage.contains("Received message too long 1298753394"))
+    }
+
+    func testRemoteSFTPSubsystemTimeoutShowsSuspectedStartupOutputDiagnostic() async throws {
+        let host = SavedHost.fixture(lastRemotePath: "/project", lastLocalPath: "/Users/me/Downloads")
+        let remoteFileSystem = MockRemoteFileSystem(
+            listErrorsByPath: [
+                "/project": RemoteFileSystemError.connectionFailed("Timeout waiting for response from SFTP subsystem")
+            ]
+        )
+        let viewModel = makeViewModel(hosts: [host], remoteFileSystem: remoteFileSystem)
+
+        try viewModel.loadHosts()
+        viewModel.select(hostId: host.id)
+        await viewModel.refreshRemote()
+
+        XCTAssertTrue(viewModel.remotePanel.errorMessage.contains("SFTP did not respond during startup"))
+        XCTAssertTrue(viewModel.remotePanel.errorMessage.contains("ssh <host> true"))
+        XCTAssertTrue(viewModel.remotePanel.errorMessage.contains("Timeout waiting for response from SFTP subsystem"))
+    }
+
+    func testRemoteFXPOpenFailureMessageIsUnchanged() async throws {
+        let host = SavedHost.fixture(lastRemotePath: "/project", lastLocalPath: "/Users/me/Downloads")
+        let remoteFileSystem = MockRemoteFileSystem(
+            listErrorsByPath: [
+                "/project": RemoteFileSystemError.connectionFailed("Unable to send FXP_OPEN*")
+            ]
+        )
+        let viewModel = makeViewModel(hosts: [host], remoteFileSystem: remoteFileSystem)
+
+        try viewModel.loadHosts()
+        viewModel.select(hostId: host.id)
+        await viewModel.refreshRemote()
+
+        XCTAssertEqual(viewModel.remotePanel.errorMessage, "Unable to send FXP_OPEN*")
+    }
+
+    func testUnrelatedRemoteConnectionFailureMessageIsUnchanged() async throws {
+        let host = SavedHost.fixture(lastRemotePath: "/project", lastLocalPath: "/Users/me/Downloads")
+        let remoteFileSystem = MockRemoteFileSystem(
+            listErrorsByPath: [
+                "/project": RemoteFileSystemError.connectionFailed("Unable to open SFTP session")
+            ]
+        )
+        let viewModel = makeViewModel(hosts: [host], remoteFileSystem: remoteFileSystem)
+
+        try viewModel.loadHosts()
+        viewModel.select(hostId: host.id)
+        await viewModel.refreshRemote()
+
+        XCTAssertEqual(viewModel.remotePanel.errorMessage, "Unable to open SFTP session")
     }
 
     func testUploadSelectionEnqueuesSelectedLocalFilesToCurrentRemotePath() async throws {

@@ -111,6 +111,7 @@ public struct MainBrowserView: View {
             },
             onRefresh: viewModel.refreshLocal,
             onGoUp: viewModel.goUpLocal,
+            onPathSubmit: viewModel.enterLocalPath,
             onSelect: { item, intent in
                 viewModel.selectLocalItem(item, intent: intent)
             },
@@ -174,6 +175,11 @@ public struct MainBrowserView: View {
             onGoUp: {
                 Task {
                     await viewModel.goUpRemote()
+                }
+            },
+            onPathSubmit: { path in
+                Task {
+                    await viewModel.enterRemotePath(path)
                 }
             },
             onSelect: { item, intent in

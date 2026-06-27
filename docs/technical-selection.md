@@ -167,6 +167,26 @@ Cons:
 
 Recommendation: allowed for spike validation only; reject as production transfer engine.
 
+### Decision: Remote Startup Output and SFTP Compatibility
+
+Some SSH servers print login banners or environment setup text from shell startup files such as `.bashrc`, `.profile`, `/etc/profile`, or `/etc/bashrc`. If that output is written to the SFTP subsystem stream before binary SFTP packets, standards-based SFTP clients cannot safely treat the stream as valid SFTP. Common clients such as OpenSSH `sftp`, WinSCP, Cyberduck, Transmit, ForkLift, and FileZilla generally fail with packet length or protocol errors rather than silently filtering arbitrary bytes.
+
+Decision:
+
+- Keep the primary remote file implementation as standards-based SFTP through libssh2.
+- Do not replace the production transfer engine with shell-command browsing or transfer as the default behavior.
+- Treat remote non-interactive startup output as a server-side compatibility problem, not as normal SFTP traffic.
+- Add or preserve user-facing diagnostics that identify this case clearly, for example by decoding packet-length-like prefixes such as `Migr` and explaining that the remote shell is printing text before SFTP starts.
+- Recommend that users move banner/setup `echo` output behind an interactive-shell guard so `ssh host true` and SFTP subsystem sessions produce no stdout text.
+- Consider an explicit advanced compatibility mode only as a future design, not as MVP default behavior. Any such mode must be documented as a fallback with reduced guarantees for progress, transfer semantics, cancellation, and protocol fidelity.
+
+Rationale:
+
+- SFTP is a binary protocol; arbitrary prelude text cannot be filtered with full confidence without risking mis-parsing valid protocol bytes.
+- Matching mature client behavior keeps wetrans predictable and easier to debug.
+- Clear diagnostics help users fix the remote environment while preserving the integrity of the main SFTP implementation.
+- Shell-command fallback may be useful for constrained environments, but it is a separate transport choice and should not blur the `RemoteFileSystem` contract without a dedicated design review.
+
 ## 5. SSH Config Handling
 
 Decision:

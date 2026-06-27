@@ -55,12 +55,12 @@ public struct HostSidebarView: View {
 
             Button(action: onConnectHost) {
                 Text("Connect Host")
-                    .font(.system(size: 12, weight: .medium))
-                    .frame(maxWidth: .infinity)
+                    .font(.system(size: 13, weight: .medium))
+                    .frame(maxWidth: .infinity, minHeight: 32)
             }
             .accessibilityIdentifier("Connect Host")
             .buttonStyle(.bordered)
-            .controlSize(.small)
+            .controlSize(.regular)
             .padding(.horizontal, 10)
             .padding(.bottom, 8)
 
@@ -550,6 +550,7 @@ public struct ConnectHostSheetView: View {
 private struct SavedHostsManagementPanel: View {
     @Binding var state: SavedHostsManagementState
     @Binding var editingHost: SavedHost?
+    @State private var hostPendingDeletion: SavedHost?
     let errorMessage: String?
     let onDeleteHost: (SavedHost) -> Void
     let onToggleFavorite: (SavedHost) -> Void
@@ -570,7 +571,9 @@ private struct SavedHostsManagementPanel: View {
 
                 TextField("Search saved hosts", text: $state.searchText)
                     .textFieldStyle(.roundedBorder)
-                    .frame(width: 210)
+                    .font(.system(size: 13))
+                    .frame(width: 240)
+                    .frame(minHeight: 30)
                     .accessibilityIdentifier("Search Saved Hosts")
             }
 
@@ -598,6 +601,21 @@ private struct SavedHostsManagementPanel: View {
             }
         }
         .accessibilityIdentifier("Saved Hosts Management")
+        .alert(
+            hostPendingDeletion.map { "Delete \($0.displayName)?" } ?? "Delete Host?",
+            isPresented: deleteConfirmationPresented,
+            presenting: hostPendingDeletion
+        ) { host in
+            Button("Delete", role: .destructive) {
+                onDeleteHost(host)
+                hostPendingDeletion = nil
+            }
+            Button("Cancel", role: .cancel) {
+                hostPendingDeletion = nil
+            }
+        } message: { _ in
+            Text("This removes the saved host and its stored credentials.")
+        }
     }
 
     private var savedHostList: some View {
@@ -664,7 +682,7 @@ private struct SavedHostsManagementPanel: View {
                 rows: state.detailRows(for: selectedHost),
                 statusText: state.statusText(for: selectedHost),
                 onEdit: { editingHost = selectedHost },
-                onDelete: { onDeleteHost(selectedHost) },
+                onDelete: { hostPendingDeletion = selectedHost },
                 onToggleFavorite: { onToggleFavorite(selectedHost) }
             )
         } else {
@@ -675,6 +693,17 @@ private struct SavedHostsManagementPanel: View {
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+    }
+
+    private var deleteConfirmationPresented: Binding<Bool> {
+        Binding(
+            get: { hostPendingDeletion != nil },
+            set: { isPresented in
+                if !isPresented {
+                    hostPendingDeletion = nil
+                }
+            }
+        )
     }
 }
 
@@ -699,14 +728,23 @@ private struct SavedHostDetailView: View {
 
                 Spacer()
 
-                Button(host.isFavorite ? "Unfavorite" : "Favorite", action: onToggleFavorite)
-                    .controlSize(.small)
+                Button(action: onToggleFavorite) {
+                    Text(host.isFavorite ? "Unfavorite" : "Favorite")
+                        .frame(minWidth: 86, minHeight: 26)
+                }
+                .controlSize(.small)
                     .accessibilityIdentifier("Saved Host Favorite")
-                Button("Edit", action: onEdit)
-                    .controlSize(.small)
+                Button(action: onEdit) {
+                    Text("Edit")
+                        .frame(minWidth: 62, minHeight: 26)
+                }
+                .controlSize(.small)
                     .accessibilityIdentifier("Saved Host Edit")
-                Button("Delete", role: .destructive, action: onDelete)
-                    .controlSize(.small)
+                Button(role: .destructive, action: onDelete) {
+                    Text("Delete")
+                        .frame(minWidth: 70, minHeight: 26)
+                }
+                .controlSize(.small)
                     .accessibilityIdentifier("Saved Host Delete")
             }
 
@@ -1125,9 +1163,13 @@ private struct ConnectHostOptionCard: View {
                 .foregroundStyle(isProminent ? Color(red: 0.114, green: 0.306, blue: 0.847) : .secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
-            Button(buttonTitle, action: action)
-                .buttonStyle(.bordered)
-                .controlSize(.small)
+            Button(action: action) {
+                Text(buttonTitle)
+                    .font(.system(size: 12, weight: .medium))
+                    .frame(minWidth: 116, minHeight: 26)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
                 .accessibilityIdentifier(buttonAccessibilityIdentifier)
         }
         .padding(12)
