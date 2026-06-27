@@ -311,7 +311,7 @@ final class MainBrowserViewModelTests: XCTestCase {
         XCTAssertTrue(viewModel.remotePanel.errorMessage.contains("Timeout waiting for response from SFTP subsystem"))
     }
 
-    func testRemoteFXPOpenFailureShowsSuspectedStartupOutputDiagnostic() async throws {
+    func testRemoteFXPOpenFailureMessageIsUnchanged() async throws {
         let host = SavedHost.fixture(lastRemotePath: "/project", lastLocalPath: "/Users/me/Downloads")
         let remoteFileSystem = MockRemoteFileSystem(
             listErrorsByPath: [
@@ -324,8 +324,7 @@ final class MainBrowserViewModelTests: XCTestCase {
         viewModel.select(hostId: host.id)
         await viewModel.refreshRemote()
 
-        XCTAssertTrue(viewModel.remotePanel.errorMessage.contains("SFTP did not respond during startup"))
-        XCTAssertTrue(viewModel.remotePanel.errorMessage.contains("Unable to send FXP_OPEN*"))
+        XCTAssertEqual(viewModel.remotePanel.errorMessage, "Unable to send FXP_OPEN*")
     }
 
     func testUnrelatedRemoteConnectionFailureMessageIsUnchanged() async throws {

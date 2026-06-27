@@ -63,7 +63,6 @@ public struct SFTPStartupOutputDiagnostic: Equatable, Sendable {
     private static func isSuspectedStartupOutputMessage(_ message: String) -> Bool {
         let normalized = message.lowercased()
         return normalized.contains("timeout waiting for response from sftp subsystem")
-            || normalized.contains("unable to send fxp_open")
     }
 
     private static func printablePrefix(from length: UInt32) -> String? {
