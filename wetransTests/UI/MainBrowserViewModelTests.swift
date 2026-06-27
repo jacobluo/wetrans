@@ -293,6 +293,41 @@ final class MainBrowserViewModelTests: XCTestCase {
         XCTAssertFalse(viewModel.remotePanel.errorMessage.contains("Received message too long 1298753394"))
     }
 
+    func testRemoteSFTPSubsystemTimeoutShowsSuspectedStartupOutputDiagnostic() async throws {
+        let host = SavedHost.fixture(lastRemotePath: "/project", lastLocalPath: "/Users/me/Downloads")
+        let remoteFileSystem = MockRemoteFileSystem(
+            listErrorsByPath: [
+                "/project": RemoteFileSystemError.connectionFailed("Timeout waiting for response from SFTP subsystem")
+            ]
+        )
+        let viewModel = makeViewModel(hosts: [host], remoteFileSystem: remoteFileSystem)
+
+        try viewModel.loadHosts()
+        viewModel.select(hostId: host.id)
+        await viewModel.refreshRemote()
+
+        XCTAssertTrue(viewModel.remotePanel.errorMessage.contains("SFTP did not respond during startup"))
+        XCTAssertTrue(viewModel.remotePanel.errorMessage.contains("ssh <host> true"))
+        XCTAssertTrue(viewModel.remotePanel.errorMessage.contains("Timeout waiting for response from SFTP subsystem"))
+    }
+
+    func testRemoteFXPOpenFailureShowsSuspectedStartupOutputDiagnostic() async throws {
+        let host = SavedHost.fixture(lastRemotePath: "/project", lastLocalPath: "/Users/me/Downloads")
+        let remoteFileSystem = MockRemoteFileSystem(
+            listErrorsByPath: [
+                "/project": RemoteFileSystemError.connectionFailed("Unable to send FXP_OPEN*")
+            ]
+        )
+        let viewModel = makeViewModel(hosts: [host], remoteFileSystem: remoteFileSystem)
+
+        try viewModel.loadHosts()
+        viewModel.select(hostId: host.id)
+        await viewModel.refreshRemote()
+
+        XCTAssertTrue(viewModel.remotePanel.errorMessage.contains("SFTP did not respond during startup"))
+        XCTAssertTrue(viewModel.remotePanel.errorMessage.contains("Unable to send FXP_OPEN*"))
+    }
+
     func testUnrelatedRemoteConnectionFailureMessageIsUnchanged() async throws {
         let host = SavedHost.fixture(lastRemotePath: "/project", lastLocalPath: "/Users/me/Downloads")
         let remoteFileSystem = MockRemoteFileSystem(

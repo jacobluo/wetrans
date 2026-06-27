@@ -1,23 +1,44 @@
 import Foundation
 
 public struct SFTPStartupOutputDiagnostic: Equatable, Sendable {
-    public let detectedOutputPrefix: String
+    public let detectedOutputPrefix: String?
+    private let originalMessage: String
 
     public init?(message: String) {
-        guard let length = Self.packetLengthValue(in: message),
-              let prefix = Self.printablePrefix(from: length)
-        else {
+        if let length = Self.packetLengthValue(in: message) {
+            guard let prefix = Self.printablePrefix(from: length) else {
+                return nil
+            }
+            self.detectedOutputPrefix = prefix
+            self.originalMessage = message
+            return
+        }
+
+        guard Self.isSuspectedStartupOutputMessage(message) else {
             return nil
         }
-        self.detectedOutputPrefix = prefix
+        self.detectedOutputPrefix = nil
+        self.originalMessage = message
     }
 
     public var userMessage: String {
-        """
-        SFTP could not start because the remote shell printed text before the SFTP protocol began.
+        if let detectedOutputPrefix {
+            return """
+            SFTP could not start because the remote shell printed text before the SFTP protocol began.
 
-        Detected output prefix: "\(detectedOutputPrefix)"
+            Detected output prefix: "\(detectedOutputPrefix)"
 
+            Move login/setup echo output behind an interactive-shell guard, then retry.
+            Check files such as ~/.bashrc, ~/.profile, /etc/profile, or /etc/bashrc.
+            """
+        }
+
+        return """
+        SFTP did not respond during startup or directory browsing. This can happen when the remote shell prints text before the SFTP protocol begins.
+
+        Remote diagnostic: \(originalMessage)
+
+        Check whether `ssh <host> true` prints any text.
         Move login/setup echo output behind an interactive-shell guard, then retry.
         Check files such as ~/.bashrc, ~/.profile, /etc/profile, or /etc/bashrc.
         """
@@ -37,6 +58,12 @@ public struct SFTPStartupOutputDiagnostic: Equatable, Sendable {
             _ = scanner.scanUpToCharacters(from: .decimalDigits)
         }
         return nil
+    }
+
+    private static func isSuspectedStartupOutputMessage(_ message: String) -> Bool {
+        let normalized = message.lowercased()
+        return normalized.contains("timeout waiting for response from sftp subsystem")
+            || normalized.contains("unable to send fxp_open")
     }
 
     private static func printablePrefix(from length: UInt32) -> String? {
