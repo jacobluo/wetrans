@@ -1,8 +1,25 @@
 import SwiftUI
 
+public enum MainBrowserLayout {
+    public static let sectionSpacing: CGFloat = 8
+    public static let resizeHandleHeight: CGFloat = 8
+    public static let minimumFilePanelsHeight: CGFloat = 300
+    public static let verticalGapBetweenFilePanelsAndQueue: CGFloat = resizeHandleHeight
+
+    public static func queueHeight(for availableHeight: CGFloat, requestedQueueHeight: CGFloat) -> CGFloat {
+        let maxQueueHeight = max(
+            TransferQueueLayout.expandedMinHeight,
+            availableHeight - minimumFilePanelsHeight - resizeHandleHeight
+        )
+        return min(max(requestedQueueHeight, TransferQueueLayout.expandedMinHeight), maxQueueHeight)
+    }
+}
+
 public struct MainBrowserView: View {
     @ObservedObject private var viewModel: MainBrowserViewModel
     private let onConnectHost: () -> Void
+    @State private var transferQueueHeight = TransferQueueLayout.expandedIdealHeight
+    @State private var transferQueueHeightAtDragStart: CGFloat?
 
     public init(viewModel: MainBrowserViewModel, onConnectHost: @escaping () -> Void) {
         self.viewModel = viewModel
@@ -14,22 +31,9 @@ public struct MainBrowserView: View {
             HostSidebarView(viewModel: viewModel.sidebarViewModel, onConnectHost: onConnectHost)
                 .frame(width: 236)
 
-            VStack(spacing: 8) {
-                HSplitView {
-                    localPanel
-                    remotePanel
-                }
-                .frame(minHeight: 360)
-
-                TransferQueueSummaryView(viewModel: viewModel.transferQueueViewModel)
-                    .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 6, style: .continuous)
-                            .stroke(Color(nsColor: .separatorColor).opacity(0.65), lineWidth: 1)
-                    }
-            }
-            .padding(10)
-            .background(Color(nsColor: .windowBackgroundColor))
+            workbench
+                .padding(10)
+                .background(Color(nsColor: .windowBackgroundColor))
         }
         .background(Color(nsColor: .windowBackgroundColor))
         .task {
@@ -65,12 +69,96 @@ public struct MainBrowserView: View {
         }
     }
 
+    @ViewBuilder
+    private var workbench: some View {
+        if viewModel.transferQueueViewModel.isExpanded {
+            GeometryReader { proxy in
+                expandedWorkbench(availableHeight: proxy.size.height)
+            }
+        } else {
+            VStack(spacing: MainBrowserLayout.sectionSpacing) {
+                filePanels
+                    .frame(minHeight: 360)
+
+                transferQueue
+            }
+        }
+    }
+
+    private func expandedWorkbench(availableHeight: CGFloat) -> some View {
+        let queueHeight = MainBrowserLayout.queueHeight(
+            for: availableHeight,
+            requestedQueueHeight: transferQueueHeight
+        )
+        let filePanelsHeight = max(
+            MainBrowserLayout.minimumFilePanelsHeight,
+            availableHeight - queueHeight - MainBrowserLayout.resizeHandleHeight
+        )
+
+        return VStack(spacing: 0) {
+            filePanels
+                .frame(height: filePanelsHeight)
+
+            resizeHandle(availableHeight: availableHeight)
+
+            transferQueue
+                .frame(height: queueHeight)
+        }
+    }
+
+    private var filePanels: some View {
+        HSplitView {
+            localPanel
+            remotePanel
+        }
+        .frame(maxHeight: .infinity)
+    }
+
+    private var transferQueue: some View {
+        TransferQueueSummaryView(viewModel: viewModel.transferQueueViewModel)
+            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .stroke(Color(nsColor: .separatorColor).opacity(0.65), lineWidth: 1)
+            }
+    }
+
+    private func resizeHandle(availableHeight: CGFloat) -> some View {
+        Rectangle()
+            .fill(Color.clear)
+            .frame(height: MainBrowserLayout.resizeHandleHeight)
+            .overlay {
+                Divider()
+            }
+            .contentShape(Rectangle())
+            .help("Resize Transfer Queue")
+            .gesture(
+                DragGesture(minimumDistance: 1)
+                    .onChanged { value in
+                        let startHeight = transferQueueHeightAtDragStart ?? transferQueueHeight
+                        transferQueueHeightAtDragStart = startHeight
+                        transferQueueHeight = MainBrowserLayout.queueHeight(
+                            for: availableHeight,
+                            requestedQueueHeight: startHeight - value.translation.height
+                        )
+                    }
+                    .onEnded { value in
+                        let startHeight = transferQueueHeightAtDragStart ?? transferQueueHeight
+                        transferQueueHeight = MainBrowserLayout.queueHeight(
+                            for: availableHeight,
+                            requestedQueueHeight: startHeight - value.translation.height
+                        )
+                        transferQueueHeightAtDragStart = nil
+                    }
+            )
+    }
+
     private var localPanel: some View {
         FilePanelView(
             state: viewModel.localPanel,
             action: FilePanelAction(
                 title: "Upload",
-                systemImage: "arrow.up.circle",
+                systemImage: "arrow.up.to.line",
                 isEnabled: viewModel.canUploadSelection,
                 perform: {
                     Task {
@@ -124,7 +212,7 @@ public struct MainBrowserView: View {
             state: viewModel.remotePanel,
             action: FilePanelAction(
                 title: "Download",
-                systemImage: "arrow.down.circle",
+                systemImage: "arrow.down.to.line",
                 isEnabled: viewModel.canDownloadSelection,
                 perform: {
                     Task {

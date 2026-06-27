@@ -8,6 +8,11 @@ final class ConnectHostViewModelTests: XCTestCase {
         XCTAssertLessThanOrEqual(ConnectHostLayout.headerSpacing, 10)
     }
 
+    func testSavedHostEditorActionsUseStandardButtonSize() {
+        XCTAssertGreaterThanOrEqual(ConnectHostLayout.savedHostActionButtonMinWidth, 70)
+        XCTAssertEqual(ConnectHostLayout.savedHostActionButtonMinHeight, 26)
+    }
+
     func testSavedHostsManagementStateSelectsFirstHostAndFiltersByHostMetadata() {
         let dev = SavedHost(
             source: .sshConfigGenerated,

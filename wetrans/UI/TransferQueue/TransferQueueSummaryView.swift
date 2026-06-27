@@ -1,6 +1,12 @@
 import AppKit
 import SwiftUI
 
+public enum TransferQueueLayout {
+    public static let isVerticallyResizable = true
+    public static let expandedMinHeight: CGFloat = 150
+    public static let expandedIdealHeight: CGFloat = 210
+}
+
 public struct TransferQueueSummaryView: View {
     @ObservedObject private var viewModel: TransferQueueViewModel
 
@@ -82,7 +88,7 @@ public struct TransferQueueSummaryView: View {
                         }
                     }
                 }
-                .frame(maxHeight: 108)
+                .frame(minHeight: 86, maxHeight: .infinity)
             }
 
             Divider()

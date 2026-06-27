@@ -49,6 +49,43 @@ public enum FilePanelInteractionPolicy {
     }
 }
 
+public enum FilePanelToolbarItem: Equatable, Sendable {
+    case goUp
+    case refresh
+    case transfer
+}
+
+public enum FilePanelLayout {
+    public static let toolbarButtonSide: CGFloat = 24
+    public static let toolbarButtonCornerRadius: CGFloat = 5
+    public static let transferActionShowsTitle = false
+    public static let tableContentMinWidth: CGFloat = 640
+    public static let usesSeparateHorizontalAndVerticalScrolling = true
+    public static let toolbarOrder: [FilePanelToolbarItem] = [.goUp, .refresh, .transfer]
+
+    public static func systemImage(for item: FilePanelToolbarItem, transferSystemImage: String) -> String {
+        switch item {
+        case .goUp:
+            return "arrow.up"
+        case .refresh:
+            return "arrow.clockwise"
+        case .transfer:
+            return transferSystemImage
+        }
+    }
+
+    public static func helpText(for item: FilePanelToolbarItem, transferTitle: String) -> String {
+        switch item {
+        case .goUp:
+            return "Go to Parent Directory"
+        case .refresh:
+            return "Refresh"
+        case .transfer:
+            return transferTitle
+        }
+    }
+}
+
 public struct FilePanelView: View {
     private let state: FilePanelState
     private let action: FilePanelAction?
@@ -84,9 +121,10 @@ public struct FilePanelView: View {
             header
             Divider()
             content
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             statusLine
         }
-        .frame(minWidth: 320)
+        .frame(minWidth: 320, maxHeight: .infinity)
         .background(.background)
         .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
         .overlay {
@@ -112,39 +150,75 @@ public struct FilePanelView: View {
 
             Spacer(minLength: 8)
 
-            if let action {
-                Button(action: action.perform) {
-                    Label(action.title, systemImage: action.systemImage)
-                        .labelStyle(.titleAndIcon)
-                        .frame(minWidth: 108, minHeight: 28)
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.regular)
-                .disabled(!action.isEnabled)
-                .help(action.title)
-                .accessibilityIdentifier("\(state.title) \(action.title)")
+            ForEach(FilePanelLayout.toolbarOrder, id: \.self) { item in
+                toolbarButton(for: item)
             }
-
-            Button(action: onGoUp) {
-                Image(systemName: "arrow.up")
-                    .frame(minWidth: 30, minHeight: 28)
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.regular)
-            .help("Go Up")
-            .accessibilityIdentifier("\(state.title) Go Up")
-
-            Button(action: onRefresh) {
-                Image(systemName: "arrow.clockwise")
-                    .frame(minWidth: 30, minHeight: 28)
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.regular)
-            .help("Refresh")
-            .accessibilityIdentifier("\(state.title) Refresh")
         }
         .padding(.horizontal, 12)
         .frame(height: 58)
+    }
+
+    @ViewBuilder
+    private func toolbarButton(for item: FilePanelToolbarItem) -> some View {
+        switch item {
+        case .goUp:
+            iconButton(
+                systemImage: FilePanelLayout.systemImage(for: item, transferSystemImage: ""),
+                help: FilePanelLayout.helpText(for: item, transferTitle: ""),
+                accessibilityIdentifier: "\(state.title) Go Up",
+                isEnabled: true,
+                action: onGoUp
+            )
+        case .refresh:
+            iconButton(
+                systemImage: FilePanelLayout.systemImage(for: item, transferSystemImage: ""),
+                help: FilePanelLayout.helpText(for: item, transferTitle: ""),
+                accessibilityIdentifier: "\(state.title) Refresh",
+                isEnabled: true,
+                action: onRefresh
+            )
+        case .transfer:
+            if let action {
+                iconButton(
+                    systemImage: FilePanelLayout.systemImage(for: item, transferSystemImage: action.systemImage),
+                    help: FilePanelLayout.helpText(for: item, transferTitle: action.title),
+                    accessibilityIdentifier: "\(state.title) \(action.title)",
+                    isEnabled: action.isEnabled,
+                    action: action.perform
+                )
+            }
+        }
+    }
+
+    private func iconButton(
+        systemImage: String,
+        help: String,
+        accessibilityIdentifier: String,
+        isEnabled: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button {
+            guard isEnabled else {
+                return
+            }
+            action()
+        } label: {
+            Image(systemName: systemImage)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(isEnabled ? Color.primary : Color.secondary.opacity(0.45))
+                .frame(width: FilePanelLayout.toolbarButtonSide, height: FilePanelLayout.toolbarButtonSide)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .frame(width: FilePanelLayout.toolbarButtonSide, height: FilePanelLayout.toolbarButtonSide)
+        .background(isEnabled ? Color(nsColor: .controlBackgroundColor) : Color(nsColor: .controlBackgroundColor).opacity(0.45))
+        .clipShape(RoundedRectangle(cornerRadius: FilePanelLayout.toolbarButtonCornerRadius, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: FilePanelLayout.toolbarButtonCornerRadius, style: .continuous)
+                .stroke(Color(nsColor: .separatorColor).opacity(isEnabled ? 0.7 : 0.35), lineWidth: 1)
+        }
+        .help(help)
+        .accessibilityIdentifier(accessibilityIdentifier)
     }
 
     @ViewBuilder
@@ -260,38 +334,49 @@ private struct FilePanelListView: View {
     let onOpen: (FileItem) -> Void
 
     var body: some View {
-        VStack(spacing: 0) {
-            tableHeader
-            ScrollView {
-                LazyVStack(spacing: 0) {
-                    ForEach(listing.items) { item in
-                        Button {
-                            onSelect(item, FilePanelInteractionPolicy.currentSelectionIntent())
-                        } label: {
-                            FileItemRow(panelTitle: panelTitle, item: item, isSelected: selectedItemIds.contains(item.id))
-                        }
-                        .buttonStyle(.plain)
-                        .contentShape(Rectangle())
-                        .simultaneousGesture(
-                            TapGesture(count: 2).onEnded {
-                                onOpen(item)
-                            }
-                        )
-                        .contextMenu {
-                            ForEach(contextActions(item)) { action in
+        GeometryReader { proxy in
+            ScrollView(.horizontal) {
+                VStack(spacing: 0) {
+                    tableHeader
+                    ScrollView(.vertical) {
+                        LazyVStack(spacing: 0) {
+                            ForEach(listing.items) { item in
                                 Button {
-                                    action.perform()
+                                    onSelect(item, FilePanelInteractionPolicy.currentSelectionIntent())
                                 } label: {
-                                    Label(action.title, systemImage: action.systemImage)
+                                    FileItemRow(panelTitle: panelTitle, item: item, isSelected: selectedItemIds.contains(item.id))
                                 }
-                                .disabled(!action.isEnabled)
+                                .buttonStyle(.plain)
+                                .contentShape(Rectangle())
+                                .simultaneousGesture(
+                                    TapGesture(count: 2).onEnded {
+                                        onOpen(item)
+                                    }
+                                )
+                                .contextMenu {
+                                    ForEach(contextActions(item)) { action in
+                                        Button {
+                                            action.perform()
+                                        } label: {
+                                            Label(action.title, systemImage: action.systemImage)
+                                        }
+                                        .disabled(!action.isEnabled)
+                                    }
+                                }
                             }
                         }
+                        .padding(.vertical, 3)
                     }
+                    .frame(maxHeight: .infinity)
                 }
-                .padding(.vertical, 3)
+                .frame(
+                    minWidth: max(FilePanelLayout.tableContentMinWidth, proxy.size.width),
+                    minHeight: proxy.size.height,
+                    alignment: .topLeading
+                )
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var tableHeader: some View {
