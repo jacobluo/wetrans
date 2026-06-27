@@ -211,7 +211,10 @@ public final class LibSSH2DynamicClient: LibSSH2Client {
                         throw RemoteFileSystemError.permissionDenied(directory)
                     default:
                         throw RemoteFileSystemError.connectionFailed(
-                            lastErrorMessage(fallback: "Unable to create remote directory \(directory)")
+                            lastErrorMessage(
+                                fallback: "Unable to create remote directory \(directory)",
+                                sftpStatus: symbols.sftpLastError(sftp)
+                            )
                         )
                     }
                 }
@@ -276,7 +279,10 @@ public final class LibSSH2DynamicClient: LibSSH2Client {
                     let written = symbols.sftpWrite(remoteHandle, pointer, data.count - writtenTotal)
                     guard written >= 0 else {
                         throw RemoteFileSystemError.connectionFailed(
-                            lastErrorMessage(fallback: "Unable to write remote file \(request.remotePath)")
+                            lastErrorMessage(
+                                fallback: "Unable to write remote file \(request.remotePath)",
+                                sftpStatus: symbols.sftpLastError(sftp)
+                            )
                         )
                     }
                     writtenTotal += written
@@ -343,7 +349,10 @@ public final class LibSSH2DynamicClient: LibSSH2Client {
             }
             guard count > 0 else {
                 throw RemoteFileSystemError.connectionFailed(
-                    lastErrorMessage(fallback: "Unable to read remote file \(request.remotePath)")
+                    lastErrorMessage(
+                        fallback: "Unable to read remote file \(request.remotePath)",
+                        sftpStatus: symbols.sftpLastError(sftp)
+                    )
                 )
             }
 
@@ -379,7 +388,7 @@ public final class LibSSH2DynamicClient: LibSSH2Client {
         }
     }
 
-    private func lastErrorMessage(fallback: String) -> String {
+    private func lastErrorMessage(fallback: String, sftpStatus: UInt64? = nil) -> String {
         guard let symbols, let session else {
             return fallback
         }
@@ -388,10 +397,20 @@ public final class LibSSH2DynamicClient: LibSSH2Client {
         var messageLength: Int32 = 0
         let code = symbols.sessionLastError(session, &messagePointer, &messageLength, 0)
         guard let messagePointer, messageLength > 0 else {
-            return "\(fallback) (libssh2 error \(code))"
+            return LibSSH2ErrorContext.message(
+                fallback: fallback,
+                libraryMessage: nil,
+                code: code,
+                sftpStatus: sftpStatus
+            )
         }
         let data = Data(bytes: messagePointer, count: Int(messageLength))
-        return String(data: data, encoding: .utf8) ?? "\(fallback) (libssh2 error \(code))"
+        return LibSSH2ErrorContext.message(
+            fallback: fallback,
+            libraryMessage: String(data: data, encoding: .utf8),
+            code: code,
+            sftpStatus: sftpStatus
+        )
     }
 
     private func mapSFTPPathOpenError(path: String) -> Error {
@@ -405,7 +424,9 @@ public final class LibSSH2DynamicClient: LibSSH2Client {
         case LibSSH2Constants.sftpNoSuchFile, LibSSH2Constants.sftpFailure:
             return RemoteFileSystemError.notDirectory(path)
         default:
-            return RemoteFileSystemError.connectionFailed(lastErrorMessage(fallback: "Unable to open SFTP directory \(path)"))
+            return RemoteFileSystemError.connectionFailed(
+                lastErrorMessage(fallback: "Unable to open SFTP directory \(path)", sftpStatus: symbols.sftpLastError(sftp))
+            )
         }
     }
 
@@ -418,7 +439,9 @@ public final class LibSSH2DynamicClient: LibSSH2Client {
         case LibSSH2Constants.sftpPermissionDenied:
             return RemoteFileSystemError.permissionDenied(path)
         default:
-            return RemoteFileSystemError.connectionFailed(lastErrorMessage(fallback: "Unable to \(operation): \(path)"))
+            return RemoteFileSystemError.connectionFailed(
+                lastErrorMessage(fallback: "Unable to \(operation): \(path)", sftpStatus: symbols.sftpLastError(sftp))
+            )
         }
     }
 
@@ -511,6 +534,48 @@ struct LibSSH2PublicKeyAuthFiles: Equatable {
     init(identityFile: String) {
         self.publicKeyFile = nil
         self.privateKeyFile = (identityFile as NSString).expandingTildeInPath
+    }
+}
+
+public enum LibSSH2ErrorContext {
+    public static func message(
+        fallback: String,
+        libraryMessage: String?,
+        code: Int32,
+        sftpStatus: UInt64? = nil
+    ) -> String {
+        let suffix = sftpStatus.flatMap(Self.sftpStatusSuffix) ?? ""
+        guard let libraryMessage = libraryMessage?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !libraryMessage.isEmpty
+        else {
+            return "\(fallback) (libssh2 error \(code))\(suffix)"
+        }
+        guard libraryMessage != fallback else {
+            return "\(fallback)\(suffix)"
+        }
+        return "\(fallback): \(libraryMessage)\(suffix)"
+    }
+
+    private static func sftpStatusSuffix(_ status: UInt64) -> String? {
+        guard status > 0 else {
+            return nil
+        }
+        return " (SFTP status \(status): \(sftpStatusName(status)))"
+    }
+
+    private static func sftpStatusName(_ status: UInt64) -> String {
+        switch status {
+        case LibSSH2Constants.sftpNoSuchFile:
+            return "no such file"
+        case LibSSH2Constants.sftpPermissionDenied:
+            return "permission denied"
+        case LibSSH2Constants.sftpFailure:
+            return "failure"
+        case LibSSH2Constants.sftpFileAlreadyExists:
+            return "file already exists"
+        default:
+            return "unknown"
+        }
     }
 }
 
