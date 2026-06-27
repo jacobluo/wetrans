@@ -15,8 +15,8 @@ swift package resolve
 cat <<'EOF'
 Setup complete.
 
-Required real integration checks:
+Required integration checks:
 - Install libssh2 if it is not available on this Mac.
-- Ensure the committed openclaw-vm identity file path exists locally.
-- Run scripts/verify to execute the real runtime probe and real SFTP integration test.
+- Install and start Docker for the default local OpenSSH SFTP E2E fixture.
+- Run scripts/verify to execute lint, build, tests, local Docker SFTP E2E, and app smoke.
 EOF

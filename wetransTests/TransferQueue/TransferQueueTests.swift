@@ -131,6 +131,23 @@ final class TransferQueueTests: XCTestCase {
         XCTAssertEqual(startedTaskIds, [task.id, task.id])
     }
 
+    func testRemoteFileSystemErrorsUseReadableQueueMessages() async throws {
+        let task = makeTask(fileName: "receipt.pdf")
+        let engine = ScriptedTransferEngine(behaviors: [
+            task.id: .failWithRemoteError(.permissionDenied("/home/ubuntu/receipt.pdf"))
+        ])
+        let queue = TransferQueue(engine: engine, historyStore: InMemoryTransferHistoryStore(), now: fixedNow)
+
+        await queue.enqueue([task])
+
+        try await waitUntil {
+            await queue.snapshot().first?.status == .failed
+        }
+        let snapshot = await queue.snapshot()
+        let failed = try XCTUnwrap(snapshot.first)
+        XCTAssertEqual(failed.errorMessage, "Permission denied: /home/ubuntu/receipt.pdf")
+    }
+
     func testStartupMarksPreviouslyRunningTasksFailed() async throws {
         let running = makeTask(status: .running, startedAt: Date(timeIntervalSince1970: 1_700_000_000))
         let succeeded = makeTask(status: .succeeded, completedAt: Date(timeIntervalSince1970: 1_700_000_100))
@@ -229,6 +246,7 @@ final class TransferQueueTests: XCTestCase {
 private enum EngineBehavior: Sendable {
     case succeed([TransferProgress])
     case fail(String)
+    case failWithRemoteError(RemoteFileSystemError)
     case block
 }
 
@@ -276,6 +294,8 @@ private actor ScriptedTransferEngine: TransferEngine {
             }
         case .fail(let message):
             throw ScriptedEngineError(message: message)
+        case .failWithRemoteError(let error):
+            throw error
         case .block:
             while true {
                 try Task.checkCancellation()

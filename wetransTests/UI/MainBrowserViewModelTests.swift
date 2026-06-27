@@ -3,6 +3,20 @@ import XCTest
 
 @MainActor
 final class MainBrowserViewModelTests: XCTestCase {
+    func testDefaultInitializerUsesHomeDirectoryForInitialLocalPath() {
+        let sessionManager = HostSessionManager(
+            remoteFileSystem: MockRemoteFileSystem(),
+            credentialStore: InMemoryCredentialStore()
+        )
+        let viewModel = MainBrowserViewModel(
+            hostCatalog: FakeHostCatalog(hosts: []),
+            hostSessionManager: sessionManager,
+            localFileSystem: FakeLocalFileSystem()
+        )
+
+        XCTAssertEqual(viewModel.localPanel.path, FileManager.default.homeDirectoryForCurrentUser.path)
+    }
+
     func testSingleClickLocalSelectionReplacesPreviousSelection() {
         let first = FileItem(name: "a.txt", path: "/Users/me/Downloads/a.txt", isDirectory: false)
         let second = FileItem(name: "b.txt", path: "/Users/me/Downloads/b.txt", isDirectory: false)
@@ -347,10 +361,16 @@ final class MainBrowserViewModelTests: XCTestCase {
         let host = SavedHost.fixture(lastRemotePath: "/project", lastLocalPath: "/Users/me/Downloads")
         let localFile = FileItem(name: "config.yaml", path: "/Users/me/Downloads/config.yaml", isDirectory: false, size: 12)
         let localDirectory = FileItem(name: "folder", path: "/Users/me/Downloads/folder", isDirectory: true)
+        let nestedFile = FileItem(name: "nested.txt", path: "/Users/me/Downloads/folder/nested.txt", isDirectory: false, size: 7)
         let transferQueue = TransferQueue(engine: RecordingTransferEngine())
         let viewModel = makeViewModel(
             hosts: [host],
-            localFileSystem: FakeLocalFileSystem(listingsByPath: ["/Users/me/Downloads": [localFile, localDirectory]]),
+            localFileSystem: FakeLocalFileSystem(
+                listingsByPath: [
+                    "/Users/me/Downloads": [localFile, localDirectory],
+                    "/Users/me/Downloads/folder": [nestedFile]
+                ]
+            ),
             remoteFileSystem: MockRemoteFileSystem(listingsByPath: ["/project": []]),
             transferQueue: transferQueue
         )
@@ -367,7 +387,7 @@ final class MainBrowserViewModelTests: XCTestCase {
         await viewModel.enqueueUploadSelection()
 
         let tasks = await transferQueue.snapshot()
-        XCTAssertEqual(tasks.count, 1)
+        XCTAssertEqual(tasks.count, 2)
         XCTAssertEqual(tasks[0].hostId, host.id)
         XCTAssertEqual(tasks[0].hostDisplayName, "dev")
         XCTAssertEqual(tasks[0].direction, .upload)
@@ -375,6 +395,10 @@ final class MainBrowserViewModelTests: XCTestCase {
         XCTAssertEqual(tasks[0].remotePath, "/project/config.yaml")
         XCTAssertEqual(tasks[0].fileName, "config.yaml")
         XCTAssertEqual(tasks[0].totalBytes, 12)
+        XCTAssertEqual(tasks[1].localPath, "/Users/me/Downloads/folder/nested.txt")
+        XCTAssertEqual(tasks[1].remotePath, "/project/folder/nested.txt")
+        XCTAssertEqual(tasks[1].fileName, "nested.txt")
+        XCTAssertEqual(tasks[1].totalBytes, 7)
     }
 
     func testUploadSelectionEnqueuesAllSelectedLocalFiles() async throws {
@@ -558,34 +582,44 @@ final class MainBrowserViewModelTests: XCTestCase {
         ])
     }
 
-    func testContextUploadRejectsDirectory() async throws {
+    func testContextUploadEnqueuesClickedDirectory() async throws {
         let host = SavedHost.fixture(lastRemotePath: "/project", lastLocalPath: "/Users/me/Downloads")
         let directory = FileItem(name: "folder", path: "/Users/me/Downloads/folder", isDirectory: true)
+        let nestedFile = FileItem(name: "nested.txt", path: "/Users/me/Downloads/folder/nested.txt", isDirectory: false, size: 7)
         let transferQueue = TransferQueue(engine: RecordingTransferEngine())
-        let viewModel = makeViewModel(hosts: [host], transferQueue: transferQueue)
+        let viewModel = makeViewModel(
+            hosts: [host],
+            localFileSystem: FakeLocalFileSystem(listingsByPath: ["/Users/me/Downloads/folder": [nestedFile]]),
+            transferQueue: transferQueue
+        )
 
         try viewModel.loadHosts()
         viewModel.select(hostId: host.id)
         await viewModel.enqueueUpload(directory)
 
-        XCTAssertTrue(viewModel.localPanel.errorMessage.contains("Select a file to upload"))
         let tasks = await transferQueue.snapshot()
-        XCTAssertEqual(tasks, [])
+        XCTAssertEqual(tasks.map(\.localPath), ["/Users/me/Downloads/folder/nested.txt"])
+        XCTAssertEqual(tasks.map(\.remotePath), ["/project/folder/nested.txt"])
     }
 
-    func testContextDownloadRejectsDirectory() async throws {
+    func testContextDownloadEnqueuesClickedDirectory() async throws {
         let host = SavedHost.fixture(lastRemotePath: "/var/log", lastLocalPath: "/Users/me/Downloads")
         let directory = FileItem(name: "logs", path: "/var/log/logs", isDirectory: true)
+        let nestedFile = FileItem(name: "app.log", path: "/var/log/logs/app.log", isDirectory: false, size: 42)
         let transferQueue = TransferQueue(engine: RecordingTransferEngine())
-        let viewModel = makeViewModel(hosts: [host], transferQueue: transferQueue)
+        let viewModel = makeViewModel(
+            hosts: [host],
+            remoteFileSystem: MockRemoteFileSystem(listingsByPath: ["/var/log/logs": [nestedFile]]),
+            transferQueue: transferQueue
+        )
 
         try viewModel.loadHosts()
         viewModel.select(hostId: host.id)
         await viewModel.enqueueDownload(directory)
 
-        XCTAssertTrue(viewModel.remotePanel.errorMessage.contains("Select a file to download"))
         let tasks = await transferQueue.snapshot()
-        XCTAssertEqual(tasks, [])
+        XCTAssertEqual(tasks.map(\.remotePath), ["/var/log/logs/app.log"])
+        XCTAssertEqual(tasks.map(\.localPath), ["/Users/me/Downloads/logs/app.log"])
     }
 
     func testSuccessfulUploadRefreshesVisibleRemoteDirectory() async throws {

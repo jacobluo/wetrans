@@ -131,7 +131,7 @@ This spike does not yet prove real SSH authentication or SFTP directory listing;
 
 ### Adapter Slice: Real Connect and Directory Listing
 
-The next adapter slice adds a real libssh2-backed client behind `RemoteFileSystem` for TCP connect, SSH handshake, host-key fingerprint extraction, password/key authentication, SFTP initialization, and single-directory listing. Unit tests still use fake clients; real server verification now runs by default through `RemoteFileSystemRealHostIntegrationTests`, with `WETRANS_SFTP_INTEGRATION_FILE` available for local config overrides.
+The next adapter slice adds a real libssh2-backed client behind `RemoteFileSystem` for TCP connect, SSH handshake, host-key fingerprint extraction, password/key authentication, SFTP initialization, and single-directory listing. Unit tests still use fake clients; SFTP verification now runs by default through a local Docker OpenSSH fixture and `RemoteFileSystemRealHostIntegrationTests`, with `WETRANS_SFTP_INTEGRATION_FILE` available for explicit external-host overrides.
 
 Upload, download, cancellation, and queue behavior remain future transfer-queue work.
 

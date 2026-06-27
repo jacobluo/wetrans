@@ -855,7 +855,7 @@ AppKit should own:
 
 - Future high-fidelity file tables.
 - Future outline/list interactions.
-- Future drag and drop.
+- Future drag and drop after directory transfer hardening and E2E default-path coverage are stable.
 - Future Finder-grade multi-select.
 - Context menus and desktop integrations where SwiftUI benefits from AppKit bridges.
 - Future precise keyboard behavior.
@@ -1095,7 +1095,7 @@ Error messages should:
 
 ### 16.3 P1 Features
 
-- Drag-and-drop upload/download.
+- Directory upload/download.
 - File conflict handling.
 - Retry failed transfers.
 - Copy remote path.
@@ -1103,7 +1103,6 @@ Error messages should:
 
 ### 16.4 P2 Features
 
-- Folder upload/download.
 - Pause/resume.
 - Resumable transfers.
 - Directory sync.
@@ -1236,11 +1235,12 @@ Outcome:
 
 Scope:
 
-- Drag-and-drop polish if ready.
+- Directory upload/download.
 - Context menus.
 - Better empty/loading/error states.
 - Logs and debug details.
 - App signing and packaging.
+- Default E2E path covering real-host SFTP connect/list/upload/download and packaged app smoke.
 - Basic onboarding copy.
 
 Outcome:

@@ -32,6 +32,34 @@ final class LibSSH2DynamicClientTests: XCTestCase {
         XCTAssertEqual(LibSSH2DirectoryOpenMode.openDirectory, 1)
     }
 
+    func testLibSSH2ErrorMessageKeepsOperationContextWhenLibraryProvidesGenericMessage() {
+        let message = LibSSH2ErrorContext.message(
+            fallback: "Unable to write remote file /remote/滴滴出行行程报销单.pdf",
+            libraryMessage: "SFTP Protocol Error",
+            code: -31,
+            sftpStatus: nil
+        )
+
+        XCTAssertEqual(
+            message,
+            "Unable to write remote file /remote/滴滴出行行程报销单.pdf: SFTP Protocol Error"
+        )
+    }
+
+    func testLibSSH2ErrorMessageIncludesSFTPStatusWhenAvailable() {
+        let message = LibSSH2ErrorContext.message(
+            fallback: "Unable to write remote file /remote/滴滴出行行程报销单.pdf",
+            libraryMessage: "SFTP Protocol Error",
+            code: -31,
+            sftpStatus: 4
+        )
+
+        XCTAssertEqual(
+            message,
+            "Unable to write remote file /remote/滴滴出行行程报销单.pdf: SFTP Protocol Error (SFTP status 4: failure)"
+        )
+    }
+
     func testPublicKeyAuthUsesPrivateKeyWithoutSeparatePublicKeyFile() {
         let files = LibSSH2PublicKeyAuthFiles(identityFile: "/Users/me/.ssh/id_ed25519")
 

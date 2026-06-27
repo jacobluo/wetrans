@@ -96,6 +96,13 @@ public final class LibSSH2RemoteFileSystem: RemoteFileSystem, @unchecked Sendabl
         return try client.listDirectory(path)
     }
 
+    public func ensureDirectory(_ path: String, in session: RemoteSession) async throws {
+        guard let client = clientsLock.withLock({ clientsBySessionId[session.id] }) else {
+            throw RemoteFileSystemError.disconnected
+        }
+        try client.ensureDirectory(path)
+    }
+
     public func upload(
         _ request: UploadRequest,
         in session: RemoteSession,

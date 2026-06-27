@@ -2,11 +2,11 @@
 
 ## Purpose
 
-wetrans can browse files, maintain a global transfer queue, and execute SFTP transfers. This slice adds the first user-facing transfer actions in the three-pane browser: upload selected local files and download selected remote files.
+wetrans can browse files, maintain a global transfer queue, and execute SFTP transfers. This slice added the first user-facing transfer actions in the three-pane browser: upload selected local files and download selected remote files. Directory selections are now covered by `directory-transfers-spec.md`.
 
 ## Product Boundary
 
-This slice creates one `TransferTask` per selected file and enqueues those tasks into the global queue. It does not implement drag-and-drop, conflict handling, folder transfer, or expanded queue management.
+This slice created one `TransferTask` per selected file and enqueued those tasks into the global queue. It does not implement drag-and-drop, conflict handling, or expanded queue management. Folder transfer behavior is now implemented by `directory-transfers-spec.md`.
 
 ## In Scope
 
@@ -17,7 +17,7 @@ This slice creates one `TransferTask` per selected file and enqueues those tasks
 - Create one transfer task per selected file.
 - Use selected host id and display name on every task.
 - Use local and remote panel paths to calculate destination paths.
-- Ignore selected directories for MVP transfers.
+- Directory selections are recursively expanded by the later directory transfer slice.
 - Refresh transfer queue summary after enqueue.
 - Show a readable browser error when no host or no files are selected.
 
@@ -25,7 +25,7 @@ This slice creates one `TransferTask` per selected file and enqueues those tasks
 
 - Drag-and-drop transfer.
 - Context menus.
-- Folder upload/download.
+- Directory upload/download in this original slice; see `directory-transfers-spec.md`.
 - File conflict prompts.
 - Expanded queue table actions.
 - Automatic refresh after task completion.
@@ -35,13 +35,13 @@ This slice creates one `TransferTask` per selected file and enqueues those tasks
 Local panel:
 
 - shows an upload button when a host is selected
-- button is enabled only when at least one local file is selected
+- button is enabled when at least one local file or directory is selected
 - clicking upload enqueues upload tasks to the current remote path
 
 Remote panel:
 
 - shows a download button when a host is selected
-- button is enabled only when at least one remote file is selected
+- button is enabled when at least one remote file or directory is selected
 - clicking download enqueues download tasks to the current local path
 
 ## Task Mapping
@@ -67,7 +67,7 @@ local task path: /Users/me/Downloads/app.log
 - Clicking a file selects it in its panel.
 - Upload action enqueues one task per selected local file.
 - Download action enqueues one task per selected remote file.
-- Directories are ignored for upload/download task creation.
+- Directories are recursively expanded by `DirectoryTransferPlanner`.
 - Tasks use the currently selected host metadata.
 - Tasks use correct local and remote paths.
 - Queue summary updates after enqueue.

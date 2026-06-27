@@ -16,6 +16,11 @@ public final class MockRemoteFileSystem: RemoteFileSystem, @unchecked Sendable {
         public let session: RemoteSession
     }
 
+    public struct EnsureDirectoryCall: Equatable {
+        public let path: String
+        public let session: RemoteSession
+    }
+
     public var listingsByPath: [String: [FileItem]]
     public var connectError: Error?
     public var listErrorsByPath: [String: Error]
@@ -23,8 +28,10 @@ public final class MockRemoteFileSystem: RemoteFileSystem, @unchecked Sendable {
     public var downloadProgressEvents: [TransferProgress]
     public var uploadError: Error?
     public var downloadError: Error?
+    public var ensureDirectoryError: Error?
     public private(set) var connectCalls: [ConnectionSpec] = []
     public private(set) var listCalls: [ListCall] = []
+    public private(set) var ensureDirectoryCalls: [EnsureDirectoryCall] = []
     public private(set) var uploadCalls: [UploadCall] = []
     public private(set) var downloadCalls: [DownloadCall] = []
     public private(set) var disconnectedSessions: [RemoteSession] = []
@@ -59,6 +66,13 @@ public final class MockRemoteFileSystem: RemoteFileSystem, @unchecked Sendable {
             throw error
         }
         return listingsByPath[path] ?? []
+    }
+
+    public func ensureDirectory(_ path: String, in session: RemoteSession) async throws {
+        ensureDirectoryCalls.append(EnsureDirectoryCall(path: path, session: session))
+        if let ensureDirectoryError {
+            throw ensureDirectoryError
+        }
     }
 
     public func upload(

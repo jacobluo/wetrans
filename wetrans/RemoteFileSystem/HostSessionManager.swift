@@ -14,8 +14,7 @@ public final class HostSessionManager: @unchecked Sendable {
         remoteFileSystem: RemoteFileSystem,
         credentialStore: CredentialStore,
         defaultLocalPath: @escaping () -> String = {
-            FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first?.path
-                ?? FileManager.default.homeDirectoryForCurrentUser.path
+            FileManager.default.homeDirectoryForCurrentUser.path
         },
         now: @escaping @Sendable () -> Date = Date.init
     ) {
@@ -50,14 +49,18 @@ public final class HostSessionManager: @unchecked Sendable {
     }
 
     public func listRemoteDirectory(for host: SavedHost) async throws -> [FileItem] {
-        let cachedSession = lock.withLock {
-            sessions[host.id]
-        }
-        let activeSession = try await session(for: host)
         let path = lock.withLock {
             let hostState = stateUnlocked(for: host.id) ?? makeInitialStateUnlocked(for: host)
             return hostState.currentRemotePath
         }
+        return try await listRemoteDirectory(path: path, for: host)
+    }
+
+    public func listRemoteDirectory(path: String, for host: SavedHost) async throws -> [FileItem] {
+        let cachedSession = lock.withLock {
+            sessions[host.id]
+        }
+        let activeSession = try await session(for: host)
         do {
             return try await listRemoteDirectory(path, session: activeSession, host: host)
         } catch RemoteFileSystemError.connectionFailed where cachedSession?.id == activeSession.id {

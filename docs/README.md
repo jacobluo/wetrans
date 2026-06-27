@@ -24,6 +24,10 @@ This directory contains the project-level product and engineering documents for 
   - Canonical overall implementation plan.
   - Defines milestone order and which milestones need focused Superpowers specs.
 
+- `real-host-sftp-smoke.md`
+  - Real-host SFTP E2E guide.
+  - Documents the non-secret fixture format, secret handling, and the default connect/list/upload/download verification path.
+
 ## Superpowers Specs
 
 Focused feature specs live under:
@@ -34,12 +38,36 @@ docs/superpowers/specs/
 
 These specs are narrower than the project-level PRD. They should describe one implementable feature slice, including user flow, UI states, module interactions, errors, and acceptance criteria.
 
-Planned focused specs:
+Current focused specs include:
 
 - `docs/superpowers/specs/host-onboarding-and-management-spec.md`
-- `docs/superpowers/specs/credential-and-host-key-spec.md`
+- `docs/superpowers/specs/credential-and-host-key-security-spec.md`
 - `docs/superpowers/specs/file-browsing-spec.md`
 - `docs/superpowers/specs/transfer-queue-spec.md`
+- `docs/superpowers/specs/directory-transfers-spec.md`
+- `docs/superpowers/specs/e2e-default-path-spec.md`
+
+Implementation plans live under:
+
+```text
+docs/superpowers/plans/
+```
+
+## Verification
+
+Default verification is driven by repository scripts:
+
+```bash
+scripts/verify
+```
+
+The E2E layer is available directly:
+
+```bash
+scripts/e2e
+```
+
+`scripts/e2e` starts a temporary local Docker OpenSSH fixture, runs SFTP connect/list/upload/download checks through libssh2, then performs packaged app build/run smoke through the native Accessibility runner. External SFTP hosts are opt-in through `WETRANS_SFTP_INTEGRATION_FILE`; full UI scenarios remain opt-in through `WETRANS_E2E_RUN_FULL=1`.
 
 ## Current Decisions
 
@@ -47,6 +75,6 @@ Planned focused specs:
 - Stack is SwiftUI + AppKit.
 - SSH Config generates saved hosts; it is not a runtime reference.
 - P0 does not support ProxyJump, SSH Agent, complex ProxyCommand, or keyboard-interactive auth.
-- MVP supports multi-file upload/download with bounded concurrency.
+- MVP supports multi-file and directory upload/download with bounded concurrency.
 - Default transfer limits are 3 global running tasks and 2 running tasks per host.
 - Secrets live in Keychain, not JSON.

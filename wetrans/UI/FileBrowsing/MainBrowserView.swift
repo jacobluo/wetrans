@@ -175,7 +175,7 @@ public struct MainBrowserView: View {
                         id: "upload-\(item.id)",
                         title: "Upload",
                         systemImage: "arrow.up.circle",
-                        isEnabled: viewModel.selectedHost != nil && !item.isDirectory,
+                        isEnabled: viewModel.selectedHost != nil,
                         perform: {
                             Task {
                                 await viewModel.enqueueUpload(item)
@@ -237,7 +237,7 @@ public struct MainBrowserView: View {
                         id: "download-\(item.id)",
                         title: "Download",
                         systemImage: "arrow.down.circle",
-                        isEnabled: viewModel.selectedHost != nil && !item.isDirectory,
+                        isEnabled: viewModel.selectedHost != nil,
                         perform: {
                             Task {
                                 await viewModel.enqueueDownload(item)

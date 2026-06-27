@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ "${1:-}" == "--" ]]; then
+  shift
+fi
+
+if [[ "$#" -eq 0 ]]; then
+  cat >&2 <<'EOF'
+usage: scripts/local-sftp-fixture -- <command> [args...]
+
+Starts a temporary local Docker OpenSSH server, writes a SFTP integration
+config, exports WETRANS_SFTP_INTEGRATION_FILE and WETRANS_SFTP_FIXTURE_PASSWORD,
+runs the command, then cleans up the container and temporary files.
+EOF
+  exit 2
+fi
+
+if ! command -v docker >/dev/null 2>&1; then
+  echo "Docker is required for local SFTP E2E. Install/start Docker, then rerun scripts/e2e." >&2
+  exit 2
+fi
+
+if ! docker info >/dev/null 2>&1; then
+  echo "Docker is required for local SFTP E2E. Install/start Docker, then rerun scripts/e2e." >&2
+  exit 2
+fi
+
+IMAGE="${WETRANS_SFTP_DOCKER_IMAGE:-lscr.io/linuxserver/openssh-server:latest}"
+USER_NAME="wetrans"
+WORKDIR="$(mktemp -d "${TMPDIR:-/tmp}/wetrans-sftp-fixture.XXXXXX")"
+CONTAINER="wetrans-openssh-e2e-$(uuidgen | tr '[:upper:]' '[:lower:]')"
+PRIVATE_KEY="$WORKDIR/id_ed25519"
+PUBLIC_KEY="$PRIVATE_KEY.pub"
+CONFIG_FILE="$WORKDIR/sftp-integration.json"
+PASSWORD="$(uuidgen | tr -d '-')"
+
+cleanup() {
+  docker rm -f "$CONTAINER" >/dev/null 2>&1 || true
+  rm -rf "$WORKDIR"
+}
+trap cleanup EXIT INT TERM
+
+ssh-keygen -q -t ed25519 -N "" -f "$PRIVATE_KEY"
+chmod 600 "$PRIVATE_KEY"
+mkdir -p "$WORKDIR/config"
+
+docker run -d --rm \
+  --name "$CONTAINER" \
+  -p 127.0.0.1::2222 \
+  -e PUID="$(id -u)" \
+  -e PGID="$(id -g)" \
+  -e TZ="${TZ:-Etc/UTC}" \
+  -e USER_NAME="$USER_NAME" \
+  -e PUBLIC_KEY_FILE=/tmp/wetrans_fixture_key.pub \
+  -e PASSWORD_ACCESS=true \
+  -e USER_PASSWORD="$PASSWORD" \
+  -e SUDO_ACCESS=false \
+  -e LOG_STDOUT=true \
+  -v "$WORKDIR/config:/config" \
+  -v "$PUBLIC_KEY:/tmp/wetrans_fixture_key.pub:ro" \
+  "$IMAGE" >/dev/null
+
+PORT=""
+for _ in {1..80}; do
+  PORT="$(docker port "$CONTAINER" 2222/tcp 2>/dev/null | awk -F: 'NR == 1 {print $NF}')"
+  if [[ -n "$PORT" ]] && nc -z 127.0.0.1 "$PORT" >/dev/null 2>&1; then
+    break
+  fi
+  sleep 0.5
+done
+
+if [[ -z "$PORT" ]] || ! nc -z 127.0.0.1 "$PORT" >/dev/null 2>&1; then
+  echo "Local Docker OpenSSH fixture did not become reachable." >&2
+  docker logs "$CONTAINER" >&2 || true
+  exit 1
+fi
+
+cat >"$CONFIG_FILE" <<JSON
+{
+  "hosts": [
+    {
+      "name": "local-openssh-key",
+      "hostname": "127.0.0.1",
+      "port": $PORT,
+      "username": "$USER_NAME",
+      "identityFile": "$PRIVATE_KEY",
+      "listPath": "."
+    },
+    {
+      "name": "local-openssh-password",
+      "hostname": "127.0.0.1",
+      "port": $PORT,
+      "username": "$USER_NAME",
+      "passwordEnv": "WETRANS_SFTP_FIXTURE_PASSWORD",
+      "listPath": "."
+    }
+  ]
+}
+JSON
+
+WETRANS_SFTP_INTEGRATION_FILE="$CONFIG_FILE" \
+WETRANS_SFTP_FIXTURE_PASSWORD="$PASSWORD" \
+"$@"

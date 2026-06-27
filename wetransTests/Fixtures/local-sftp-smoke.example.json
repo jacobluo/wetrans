@@ -1,0 +1,20 @@
+{
+  "hosts": [
+    {
+      "name": "local-openssh-key",
+      "hostname": "127.0.0.1",
+      "port": 2222,
+      "username": "wetrans",
+      "identityFile": "/tmp/wetrans-sftp-fixture/id_ed25519",
+      "listPath": "."
+    },
+    {
+      "name": "local-openssh-password",
+      "hostname": "127.0.0.1",
+      "port": 2222,
+      "username": "wetrans",
+      "passwordEnv": "WETRANS_SFTP_FIXTURE_PASSWORD",
+      "listPath": "."
+    }
+  ]
+}
