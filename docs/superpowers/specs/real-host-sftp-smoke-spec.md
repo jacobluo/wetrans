@@ -29,7 +29,6 @@ This host is a development integration target. Its private key and passphrase mu
 - Upload/download transfer checks.
 - Storing or reading app Keychain credentials.
 - Committing passwords, passphrases, private key contents, or `.env` files.
-- `xfh-cmg-es` coverage. Add it back only after the one-host path is stable.
 
 ## Config Format
 
