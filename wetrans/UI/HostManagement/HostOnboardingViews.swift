@@ -239,6 +239,8 @@ public enum ConnectHostLayout {
     public static let optionCardSpacing: CGFloat = 12
     public static let optionCardHeight: CGFloat = 118
     public static let sheetPadding: CGFloat = 20
+    public static let savedHostActionButtonMinWidth: CGFloat = 70
+    public static let savedHostActionButtonMinHeight: CGFloat = 26
 }
 
 public struct ConnectHostDialogView: View {
@@ -808,9 +810,22 @@ private struct SavedHostInlineEditorView: View {
 
                 Spacer()
 
-                Button("Cancel", action: onCancel)
+                Button(action: onCancel) {
+                    Text("Cancel")
+                        .frame(
+                            minWidth: ConnectHostLayout.savedHostActionButtonMinWidth,
+                            minHeight: ConnectHostLayout.savedHostActionButtonMinHeight
+                        )
+                }
                     .controlSize(.small)
-                Button("Save", action: onSave)
+                    .accessibilityIdentifier("Saved Host Cancel")
+                Button(action: onSave) {
+                    Text("Save")
+                        .frame(
+                            minWidth: ConnectHostLayout.savedHostActionButtonMinWidth,
+                            minHeight: ConnectHostLayout.savedHostActionButtonMinHeight
+                        )
+                }
                     .controlSize(.small)
                     .keyboardShortcut(.defaultAction)
                     .accessibilityIdentifier("Saved Host Save")

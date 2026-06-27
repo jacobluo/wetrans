@@ -8,6 +8,24 @@ final class FilePanelViewTests: XCTestCase {
         XCTAssertTrue(FilePanelInteractionPolicy.usesImmediateSelectionControl)
     }
 
+    func testFilePanelToolbarUsesCompactIconButtonsInDesignOrder() {
+        XCTAssertEqual(FilePanelLayout.toolbarButtonSide, 24)
+        XCTAssertEqual(FilePanelLayout.toolbarButtonCornerRadius, 5)
+        XCTAssertFalse(FilePanelLayout.transferActionShowsTitle)
+        XCTAssertEqual(FilePanelLayout.toolbarOrder, [.goUp, .refresh, .transfer])
+        XCTAssertEqual(FilePanelLayout.systemImage(for: .goUp, transferSystemImage: "arrow.down.to.line"), "arrow.up")
+        XCTAssertEqual(FilePanelLayout.systemImage(for: .refresh, transferSystemImage: "arrow.down.to.line"), "arrow.clockwise")
+        XCTAssertEqual(FilePanelLayout.systemImage(for: .transfer, transferSystemImage: "arrow.down.to.line"), "arrow.down.to.line")
+        XCTAssertEqual(FilePanelLayout.helpText(for: .goUp, transferTitle: "Download"), "Go to Parent Directory")
+        XCTAssertEqual(FilePanelLayout.helpText(for: .refresh, transferTitle: "Download"), "Refresh")
+        XCTAssertEqual(FilePanelLayout.helpText(for: .transfer, transferTitle: "Download"), "Download")
+    }
+
+    func testFilePanelListSupportsHorizontalScrollingForWideRows() {
+        XCTAssertGreaterThanOrEqual(FilePanelLayout.tableContentMinWidth, 640)
+        XCTAssertTrue(FilePanelLayout.usesSeparateHorizontalAndVerticalScrolling)
+    }
+
     func testFilePanelViewCanRenderLoadedState() {
         let state = FilePanelState(
             title: "Local",
@@ -131,6 +149,22 @@ final class FilePanelViewTests: XCTestCase {
 
         let view = TransferQueueSummaryView(viewModel: viewModel)
         XCTAssertTrue(String(describing: type(of: view.body)).contains("VStack"))
+    }
+
+    func testTransferQueueLayoutCanBeVerticallyResized() {
+        XCTAssertTrue(TransferQueueLayout.isVerticallyResizable)
+        XCTAssertGreaterThanOrEqual(TransferQueueLayout.expandedMinHeight, 150)
+        XCTAssertGreaterThanOrEqual(TransferQueueLayout.expandedIdealHeight, TransferQueueLayout.expandedMinHeight)
+        XCTAssertGreaterThanOrEqual(
+            MainBrowserLayout.queueHeight(for: 1_000, requestedQueueHeight: 520),
+            500
+        )
+        XCTAssertEqual(MainBrowserLayout.sectionSpacing, 8)
+        XCTAssertEqual(MainBrowserLayout.resizeHandleHeight, 8)
+        XCTAssertLessThanOrEqual(
+            MainBrowserLayout.verticalGapBetweenFilePanelsAndQueue,
+            MainBrowserLayout.sectionSpacing + MainBrowserLayout.resizeHandleHeight
+        )
     }
 }
 
