@@ -99,7 +99,7 @@ git commit -m "test: add real host transfer e2e"
 **Files:**
 - Modify: `scripts/e2e`
 
-- [ ] **Step 1: Write failing script expectation**
+- [x] **Step 1: Write failing script expectation**
 
 Update `scripts/e2e` so the default path runs:
 
@@ -111,7 +111,7 @@ swift run wetrans-e2e smoke
 
 Keep the existing `WETRANS_E2E_RUN_FULL=1` block after smoke.
 
-- [ ] **Step 2: Run script**
+- [x] **Step 2: Run script**
 
 Run:
 
@@ -121,11 +121,11 @@ scripts/e2e
 
 Expected before implementation: FAIL or omit the new transfer test because the script has not yet been updated.
 
-- [ ] **Step 3: Implement script order**
+- [x] **Step 3: Implement script order**
 
 Put real-host SFTP E2E first, then app build/run smoke. This keeps network/credential failures separate from packaged app launch failures.
 
-- [ ] **Step 4: Verify script**
+- [x] **Step 4: Verify script**
 
 Run:
 
@@ -135,7 +135,7 @@ scripts/e2e
 
 Expected: PASS with real-host tests and app smoke.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 Commit with:
 
