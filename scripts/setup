@@ -15,8 +15,8 @@ swift package resolve
 cat <<'EOF'
 Setup complete.
 
-Optional for real libssh2 probes:
+Required real integration checks:
 - Install libssh2 if it is not available on this Mac.
-- Set WETRANS_RUN_LIBSSH2_REAL_PROBE=1 to run the real runtime probe.
-- Set WETRANS_RUN_SFTP_INTEGRATION=1 to run the real SFTP integration test.
+- Ensure the committed openclaw-vm identity file path exists locally.
+- Run scripts/verify to execute the real runtime probe and real SFTP integration test.
 EOF

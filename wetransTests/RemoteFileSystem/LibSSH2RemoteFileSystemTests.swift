@@ -1,3 +1,4 @@
+import Foundation
 import XCTest
 @testable import wetrans
 
@@ -220,88 +221,114 @@ final class LibSSH2RemoteFileSystemTests: XCTestCase {
     }
 }
 
-final class LibSSH2RemoteFileSystemIntegrationTests: XCTestCase {
-    func testRealSFTPConnectAndListWhenEnabled() async throws {
+final class RemoteFileSystemRealHostIntegrationTests: XCTestCase {
+    func testCommittedFixtureDecodesOpenclawVM() throws {
+        let config = try SFTPIntegrationConfig.load(from: Self.defaultConfigURL())
+
+        XCTAssertEqual(config.hosts.map(\.name), ["openclaw-vm"])
+        XCTAssertEqual(config.hosts[0].hostname, "43.164.133.39")
+        XCTAssertEqual(config.hosts[0].username, "ubuntu")
+        XCTAssertEqual(config.hosts[0].identityFile, "~/.ssh/openclaw_vm")
+        XCTAssertEqual(config.hosts[0].listPath, ".")
+        XCTAssertFalse(config.hosts[0].identityFile.contains("BEGIN "))
+    }
+
+    func testConfiguredRealHostsConnectAndList() async throws {
         let environment = ProcessInfo.processInfo.environment
-        guard environment["WETRANS_RUN_SFTP_INTEGRATION"] == "1" else {
-            throw XCTSkip("Set WETRANS_RUN_SFTP_INTEGRATION=1 to run the real SFTP integration test.")
-        }
-        guard let hostname = environment["WETRANS_SFTP_HOST"], !hostname.isEmpty,
-              let portText = environment["WETRANS_SFTP_PORT"], let port = Int(portText),
-              let username = environment["WETRANS_SFTP_USER"], !username.isEmpty,
-              let listPath = environment["WETRANS_SFTP_LIST_PATH"], !listPath.isEmpty else {
-            throw XCTSkip("Set WETRANS_SFTP_HOST, WETRANS_SFTP_PORT, WETRANS_SFTP_USER, and WETRANS_SFTP_LIST_PATH.")
+        let configURL = try Self.configURL(environment: environment)
+        let config = try SFTPIntegrationConfig.load(from: configURL)
+        guard !config.hosts.isEmpty else {
+            XCTFail("SFTP integration config has no hosts: \(configURL.path)")
+            return
         }
 
-        let auth: ConnectionAuth
-        if let password = environment["WETRANS_SFTP_PASSWORD"] {
-            auth = .password(password)
-        } else if let identityFile = environment["WETRANS_SFTP_IDENTITY_FILE"] {
-            auth = .sshKey(
-                identityFile: identityFile,
-                passphrase: environment["WETRANS_SFTP_KEY_PASSPHRASE"]
-            )
-        } else {
-            throw XCTSkip("Set WETRANS_SFTP_PASSWORD or WETRANS_SFTP_IDENTITY_FILE.")
+        var failures: [String] = []
+        for host in config.hosts {
+            do {
+                try await smoke(host: host, environment: environment)
+            } catch {
+                failures.append(String(describing: error))
+            }
         }
 
+        XCTAssertTrue(failures.isEmpty, failures.joined(separator: "\n"))
+    }
+
+    private func connect(
+        adapter: LibSSH2RemoteFileSystem,
+        spec: ConnectionSpec,
+        trustedStore: TrustedHostStore,
+        host: SFTPIntegrationHost,
+        hostId: UUID
+    ) async throws -> RemoteSession {
+        do {
+            return try await adapter.connect(spec)
+        } catch RemoteFileSystemError.hostKeyRequiresTrust(let candidate) where host.trustedHostKey(hostId: hostId) == nil {
+            try trustedStore.trust(candidate)
+            return try await adapter.connect(spec)
+        }
+    }
+
+    private func smoke(host: SFTPIntegrationHost, environment: [String: String]) async throws {
         let hostId = UUID()
         let spec = ConnectionSpec(
             hostId: hostId,
-            displayName: hostname,
-            hostname: hostname,
-            port: port,
-            username: username,
-            auth: auth,
-            defaultRemotePath: listPath
+            displayName: host.name,
+            hostname: host.hostname,
+            port: host.port,
+            username: host.username,
+            auth: .sshKey(
+                identityFile: host.expandedIdentityFile,
+                passphrase: host.passphrase(environment: environment)
+            ),
+            defaultRemotePath: host.listPath
         )
         let trustedStore = FileTrustedHostStore(applicationSupportDirectory: temporaryDirectory())
-        if let fingerprint = environment["WETRANS_SFTP_HOST_FINGERPRINT"],
-           let keyType = environment["WETRANS_SFTP_HOST_KEY_TYPE"] {
-            let now = Date()
-            try trustedStore.trust(
-                TrustedHostKey(
-                    hostId: hostId,
-                    hostname: hostname,
-                    port: port,
-                    keyType: keyType,
-                    fingerprintSHA256: fingerprint,
-                    firstTrustedAt: now,
-                    lastVerifiedAt: now
-                )
-            )
+        if let trustedKey = host.trustedHostKey(hostId: hostId) {
+            try trustedStore.trust(trustedKey)
         }
 
         let adapter = LibSSH2RemoteFileSystem(trustedHostStore: trustedStore)
         let session: RemoteSession
         do {
-            session = try await adapter.connect(spec)
-        } catch RemoteFileSystemError.hostKeyRequiresTrust(let candidate) {
-            try trustedStore.trust(candidate)
-            session = try await adapter.connect(spec)
+            session = try await connect(
+                adapter: adapter,
+                spec: spec,
+                trustedStore: trustedStore,
+                host: host,
+                hostId: hostId
+            )
+        } catch {
+            throw SFTPIntegrationError(host: host, operation: "connect", underlying: error)
         }
-        _ = try await adapter.listDirectory(listPath, in: session)
 
-        if let transferDirectory = environment["WETRANS_SFTP_TRANSFER_DIR"], !transferDirectory.isEmpty {
-            let payload = Data("wetrans integration \(UUID().uuidString)".utf8)
-            let fileName = "wetrans-\(UUID().uuidString).txt"
-            let uploadURL = temporaryDirectory().appendingPathComponent(fileName)
-            let downloadURL = temporaryDirectory().appendingPathComponent(fileName)
-            try payload.write(to: uploadURL)
-            let remotePath = LibSSH2Path.join(directory: transferDirectory, name: fileName)
-
-            try await adapter.upload(
-                UploadRequest(localPath: uploadURL.path, remotePath: remotePath),
-                in: session
-            ) { _ in }
-            try await adapter.download(
-                DownloadRequest(remotePath: remotePath, localPath: downloadURL.path),
-                in: session
-            ) { _ in }
-
-            XCTAssertEqual(try Data(contentsOf: downloadURL), payload)
+        do {
+            _ = try await adapter.listDirectory(host.listPath, in: session)
+        } catch {
+            await adapter.disconnect(session)
+            throw SFTPIntegrationError(host: host, operation: "list \(host.listPath)", underlying: error)
         }
+
         await adapter.disconnect(session)
+    }
+
+    private static func defaultConfigURL() -> URL {
+        guard let url = Bundle.module.url(
+            forResource: "real-host-smoke.example",
+            withExtension: "json",
+            subdirectory: "Fixtures"
+        ) else {
+            XCTFail("Missing bundled real SFTP integration fixture")
+            return URL(fileURLWithPath: "/missing-real-sftp-integration-fixture.json")
+        }
+        return url
+    }
+
+    private static func configURL(environment: [String: String]) throws -> URL {
+        if let path = environment["WETRANS_SFTP_INTEGRATION_FILE"], !path.isEmpty {
+            return URL(fileURLWithPath: (path as NSString).expandingTildeInPath)
+        }
+        return defaultConfigURL()
     }
 
     private func temporaryDirectory() -> URL {
@@ -309,6 +336,64 @@ final class LibSSH2RemoteFileSystemIntegrationTests: XCTestCase {
             .appendingPathComponent("wetrans-sftp-integration-\(UUID().uuidString)", isDirectory: true)
         try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
         return url
+    }
+}
+
+private struct SFTPIntegrationConfig: Decodable {
+    let hosts: [SFTPIntegrationHost]
+
+    static func load(from url: URL) throws -> SFTPIntegrationConfig {
+        let data = try Data(contentsOf: url)
+        return try JSONDecoder().decode(SFTPIntegrationConfig.self, from: data)
+    }
+}
+
+private struct SFTPIntegrationHost: Decodable {
+    let name: String
+    let hostname: String
+    let port: Int
+    let username: String
+    let identityFile: String
+    let listPath: String
+    let passphraseEnv: String?
+    let hostKeyType: String?
+    let hostKeyFingerprintSHA256: String?
+
+    var expandedIdentityFile: String {
+        (identityFile as NSString).expandingTildeInPath
+    }
+
+    func passphrase(environment: [String: String]) -> String? {
+        guard let passphraseEnv, !passphraseEnv.isEmpty else {
+            return nil
+        }
+        return environment[passphraseEnv].flatMap { $0.isEmpty ? nil : $0 }
+    }
+
+    func trustedHostKey(hostId: UUID) -> TrustedHostKey? {
+        guard let hostKeyType, let hostKeyFingerprintSHA256 else {
+            return nil
+        }
+        let now = Date()
+        return TrustedHostKey(
+            hostId: hostId,
+            hostname: hostname,
+            port: port,
+            keyType: hostKeyType,
+            fingerprintSHA256: hostKeyFingerprintSHA256,
+            firstTrustedAt: now,
+            lastVerifiedAt: now
+        )
+    }
+}
+
+private struct SFTPIntegrationError: Error, CustomStringConvertible {
+    let host: SFTPIntegrationHost
+    let operation: String
+    let underlying: Error
+
+    var description: String {
+        "Real SFTP integration failed for \(host.name) (\(host.username)@\(host.hostname):\(host.port), path \(host.listPath)) during \(operation): \(underlying)"
     }
 }
 

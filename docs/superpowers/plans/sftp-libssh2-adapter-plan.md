@@ -202,13 +202,13 @@ swift build
 
 Expected: PASS.
 
-- [x] **Step 3: Optional real probe command**
+- [x] **Step 3: Required real probe command**
 
 ```bash
-WETRANS_RUN_LIBSSH2_REAL_PROBE=1 swift test --filter LibSSH2RuntimeRealProbeTests
+swift test --filter LibSSH2RuntimeRealProbeTests
 ```
 
-Expected: skipped by default; PASS only with `WETRANS_RUN_LIBSSH2_REAL_PROBE=1` on machines with a loadable libssh2.
+Expected: PASS on machines with a loadable libssh2.
 
 - [x] **Step 4: Mark plan complete and commit**
 

@@ -47,11 +47,24 @@ public final class HostSessionManager: @unchecked Sendable {
     }
 
     public func listRemoteDirectory(for host: SavedHost) async throws -> [FileItem] {
-        let session = try await session(for: host)
+        let cachedSession = lock.withLock {
+            sessions[host.id]
+        }
+        let activeSession = try await session(for: host)
         let path = lock.withLock {
             let hostState = stateUnlocked(for: host.id) ?? makeInitialStateUnlocked(for: host)
             return hostState.currentRemotePath
         }
+        do {
+            return try await listRemoteDirectory(path, session: activeSession, host: host)
+        } catch RemoteFileSystemError.connectionFailed where cachedSession?.id == activeSession.id {
+            await removeCachedSession(activeSession, for: host.id)
+            let retrySession = try await session(for: host)
+            return try await listRemoteDirectory(path, session: retrySession, host: host)
+        }
+    }
+
+    private func listRemoteDirectory(_ path: String, session: RemoteSession, host: SavedHost) async throws -> [FileItem] {
         let items = try await remoteFileSystem.listDirectory(path, in: session)
         lock.withLock {
             var hostState = stateUnlocked(for: host.id) ?? makeInitialStateUnlocked(for: host)
@@ -60,6 +73,28 @@ public final class HostSessionManager: @unchecked Sendable {
             states[host.id] = hostState
         }
         return items
+    }
+
+    private func removeCachedSession(_ session: RemoteSession, for hostId: UUID) async {
+        let removedSession = lock.withLock {
+            guard sessions[hostId]?.id == session.id else {
+                return nil as RemoteSession?
+            }
+            return sessions.removeValue(forKey: hostId)
+        }
+        guard let removedSession else {
+            return
+        }
+
+        await remoteFileSystem.disconnect(removedSession)
+
+        lock.withLock {
+            if var hostState = states[hostId] {
+                hostState.isConnected = false
+                hostState.lastActiveAt = Date()
+                states[hostId] = hostState
+            }
+        }
     }
 
     public func disconnect(hostId: UUID) async {

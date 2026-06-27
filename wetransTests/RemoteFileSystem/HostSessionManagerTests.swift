@@ -36,6 +36,72 @@ final class HostSessionManagerTests: XCTestCase {
         XCTAssertEqual(remoteFileSystem.listCalls.count, 2)
     }
 
+    func testRemoteListingReconnectsOnceWhenCachedSessionFails() async throws {
+        let host = SavedHost.fixture(lastRemotePath: "/project")
+        let initialItems = [
+            FileItem(name: "README.md", path: "/project/README.md", isDirectory: false)
+        ]
+        let recoveredItems = [
+            FileItem(name: "app.log", path: "/project/app.log", isDirectory: false)
+        ]
+        let remoteFileSystem = SequencedListRemoteFileSystem(
+            listResults: [
+                .success(initialItems),
+                .failure(RemoteFileSystemError.connectionFailed("Unable to send FXP_OPEN*")),
+                .success(recoveredItems)
+            ]
+        )
+        let manager = HostSessionManager(
+            remoteFileSystem: remoteFileSystem,
+            credentialStore: InMemoryCredentialStore(),
+            defaultLocalPath: { "/Users/me/Downloads" }
+        )
+
+        let firstItems = try await manager.listRemoteDirectory(for: host)
+        let items = try await manager.listRemoteDirectory(for: host)
+
+        let snapshot = await remoteFileSystem.snapshot()
+        XCTAssertEqual(firstItems, initialItems)
+        XCTAssertEqual(items, recoveredItems)
+        XCTAssertEqual(snapshot.connectCount, 2)
+        XCTAssertEqual(snapshot.disconnectCount, 1)
+        XCTAssertEqual(snapshot.listPaths, ["/project", "/project", "/project"])
+        XCTAssertEqual(snapshot.listSessionIds[0], snapshot.listSessionIds[1])
+        XCTAssertNotEqual(snapshot.listSessionIds[1], snapshot.listSessionIds[2])
+        XCTAssertEqual(Set(snapshot.listSessionIds).count, 2)
+        XCTAssertTrue(manager.state(for: host).isConnected)
+    }
+
+    func testRemoteListingDoesNotReconnectForPermissionDenied() async throws {
+        let host = SavedHost.fixture(lastRemotePath: "/project")
+        let remoteFileSystem = SequencedListRemoteFileSystem(
+            listResults: [
+                .success([]),
+                .failure(RemoteFileSystemError.permissionDenied("/project"))
+            ]
+        )
+        let manager = HostSessionManager(
+            remoteFileSystem: remoteFileSystem,
+            credentialStore: InMemoryCredentialStore(),
+            defaultLocalPath: { "/Users/me/Downloads" }
+        )
+
+        _ = try await manager.listRemoteDirectory(for: host)
+
+        do {
+            _ = try await manager.listRemoteDirectory(for: host)
+            XCTFail("Expected permissionDenied")
+        } catch RemoteFileSystemError.permissionDenied(let path) {
+            XCTAssertEqual(path, "/project")
+        }
+
+        let snapshot = await remoteFileSystem.snapshot()
+        XCTAssertEqual(snapshot.connectCount, 1)
+        XCTAssertEqual(snapshot.disconnectCount, 0)
+        XCTAssertEqual(snapshot.listPaths, ["/project", "/project"])
+        XCTAssertEqual(Set(snapshot.listSessionIds).count, 1)
+    }
+
     func testConcurrentFirstListingsForSameHostSharePendingSession() async throws {
         let host = SavedHost.fixture(lastRemotePath: "/project")
         let remoteFileSystem = SlowConnectRemoteFileSystem(listingsByPath: ["/project": []])
@@ -142,6 +208,67 @@ private actor SlowConnectRemoteFileSystem: RemoteFileSystem {
     func listDirectory(_ path: String, in session: RemoteSession) async throws -> [FileItem] {
         listCallCount += 1
         return listingsByPath[path] ?? []
+    }
+
+    func upload(
+        _ request: UploadRequest,
+        in session: RemoteSession,
+        progress: @escaping @Sendable (TransferProgress) async -> Void
+    ) async throws {}
+
+    func download(
+        _ request: DownloadRequest,
+        in session: RemoteSession,
+        progress: @escaping @Sendable (TransferProgress) async -> Void
+    ) async throws {}
+}
+
+private actor SequencedListRemoteFileSystem: RemoteFileSystem {
+    struct Snapshot {
+        let connectCount: Int
+        let disconnectCount: Int
+        let listPaths: [String]
+        let listSessionIds: [UUID]
+    }
+
+    private var listResults: [Result<[FileItem], Error>]
+    private var connectCallCount = 0
+    private var disconnectedSessions: [RemoteSession] = []
+    private var listCalls: [(path: String, session: RemoteSession)] = []
+
+    init(listResults: [Result<[FileItem], Error>]) {
+        self.listResults = listResults
+    }
+
+    func connect(_ spec: ConnectionSpec) async throws -> RemoteSession {
+        connectCallCount += 1
+        return RemoteSession(hostId: spec.hostId, displayName: spec.displayName)
+    }
+
+    func disconnect(_ session: RemoteSession) async {
+        disconnectedSessions.append(session)
+    }
+
+    func listDirectory(_ path: String, in session: RemoteSession) async throws -> [FileItem] {
+        listCalls.append((path: path, session: session))
+        guard !listResults.isEmpty else {
+            return []
+        }
+        switch listResults.removeFirst() {
+        case .success(let items):
+            return items
+        case .failure(let error):
+            throw error
+        }
+    }
+
+    func snapshot() -> Snapshot {
+        Snapshot(
+            connectCount: connectCallCount,
+            disconnectCount: disconnectedSessions.count,
+            listPaths: listCalls.map(\.path),
+            listSessionIds: listCalls.map(\.session.id)
+        )
     }
 
     func upload(

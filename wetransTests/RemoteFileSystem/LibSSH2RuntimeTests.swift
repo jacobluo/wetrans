@@ -70,11 +70,7 @@ final class LibSSH2RuntimeTests: XCTestCase {
 }
 
 final class LibSSH2RuntimeRealProbeTests: XCTestCase {
-    func testRealProbeWhenEnabled() throws {
-        guard ProcessInfo.processInfo.environment["WETRANS_RUN_LIBSSH2_REAL_PROBE"] == "1" else {
-            throw XCTSkip("Set WETRANS_RUN_LIBSSH2_REAL_PROBE=1 to run the real libssh2 probe.")
-        }
-
+    func testRealProbe() throws {
         let runtime = LibSSH2Runtime()
         let info = try runtime.initialize()
 

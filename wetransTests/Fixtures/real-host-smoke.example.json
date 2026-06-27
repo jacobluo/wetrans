@@ -1,0 +1,12 @@
+{
+  "hosts": [
+    {
+      "name": "openclaw-vm",
+      "hostname": "43.164.133.39",
+      "port": 22,
+      "username": "ubuntu",
+      "identityFile": "~/.ssh/openclaw_vm",
+      "listPath": "."
+    }
+  ]
+}

@@ -44,7 +44,7 @@ Before building the remote file browser and transfer queue on top of `RemoteFile
 - `LibSSH2RemoteFileSystem` skeleton conforming to `RemoteFileSystem`.
 - Error mapping into app-level errors.
 - Unit tests with fake loaders.
-- Optional real-library probe test gated by environment variable.
+- Required real-library probe test.
 - Documentation update explaining that dynamic probing is the first spike step.
 
 ### 3.2 Out of Scope
@@ -199,17 +199,16 @@ Unit tests:
 - Adapter `connect` initializes runtime and throws explicit unsupported operation.
 - Adapter `listDirectory` throws `.disconnected`.
 
-Optional real probe:
+Required real probe:
 
-- Only runs when `WETRANS_RUN_LIBSSH2_REAL_PROBE=1`.
 - Attempts to load candidate libssh2.
 - Prints or asserts version is accessible if the library is present.
-- Skips by default.
+- Runs as part of the default Swift test suite.
 
 ## 8. Acceptance Criteria
 
 - libssh2 runtime/probe types exist and are tested.
-- Unit tests do not require libssh2 installed.
+- The default test suite requires a loadable libssh2 runtime.
 - `LibSSH2RemoteFileSystem` conforms to `RemoteFileSystem`.
 - Adapter skeleton fails explicitly instead of silently pretending to connect.
 - `swift test` passes.
@@ -227,4 +226,3 @@ Optional real probe:
 - Upload/download progress.
 - Transfer cancellation.
 - Packaging strategy for distributing libssh2 with the app.
-
