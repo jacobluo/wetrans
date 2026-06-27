@@ -153,7 +153,7 @@ git commit -m "test: run real host e2e by default"
 - Modify: `docs/real-host-sftp-smoke.md`
 - Modify: `.codebuddy/rules/testing.mdc`
 
-- [ ] **Step 1: Update project documentation**
+- [x] **Step 1: Update project documentation**
 
 Document that the default E2E path has two layers:
 
@@ -162,7 +162,7 @@ Document that the default E2E path has two layers:
 
 Keep full UI transfer automation described as opt-in with `WETRANS_E2E_RUN_FULL=1`.
 
-- [ ] **Step 2: Verify docs diff**
+- [x] **Step 2: Verify docs diff**
 
 Run:
 
@@ -172,7 +172,7 @@ git diff --check
 
 Expected: PASS.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 Commit with:
 

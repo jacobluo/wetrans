@@ -36,8 +36,10 @@ wetrans 是 SwiftPM-first 的原生 macOS 应用，不是 TypeScript / React / P
 - `scripts/test`
   - 执行 `swift test`。
 - `scripts/e2e`
-  - 当前没有 committed macOS UI/E2E test target。
-  - 该脚本明确说明缺口并返回成功；引入 UI test target 或 packaged-app smoke test 后必须替换为真实验证。
+  - 执行默认 E2E 路径。
+  - 先运行 `RemoteFileSystemRealHostIntegrationTests`，验证真实 OpenCloud SFTP connect/list/upload/download。
+  - 再执行 packaged app build/run smoke，并通过 native Accessibility runner 检查主窗口关键 UI 锚点。
+  - 完整 UI 场景仍通过 `WETRANS_E2E_RUN_FULL=1` 显式开启。
 - `scripts/verify`
   - 依次执行 `scripts/lint`、`scripts/typecheck`、`scripts/test`、`scripts/e2e`。
 
@@ -72,29 +74,31 @@ swift test --filter TransferQueueTests
 - 新增或修改的纯函数、状态机、路径计算、任务队列、持久化 schema、错误映射和安全边界必须有单元测试。
 - View model 的用户动作必须有测试，覆盖成功路径、禁用/拒绝路径和主要错误路径。
 - SwiftUI 视图目前以 compile/render smoke tests 为主；涉及重要交互时，应优先把行为下沉到 view model 并测试。
-- Keychain、libssh2、真实 SFTP 等环境相关能力默认通过 fake/protocol 测试。
-- 真实 libssh2/SFTP 探针必须继续由环境变量显式开启，避免默认测试依赖本机服务或真实凭据：
+- Keychain 等环境相关能力默认通过 fake/protocol 测试。
+- 真实 libssh2 runtime 探针仍由环境变量显式开启：
 
 ```bash
 WETRANS_RUN_LIBSSH2_REAL_PROBE=1 swift test --filter LibSSH2RuntimeRealProbeTests
-WETRANS_RUN_SFTP_INTEGRATION=1 swift test --filter LibSSH2RemoteFileSystemIntegrationTests
 ```
+
+真实 SFTP 主路径现在由 `RemoteFileSystemRealHostIntegrationTests` 默认覆盖，依赖提交的非 secret fixture 或 `WETRANS_SFTP_INTEGRATION_FILE` 本地覆盖。
 
 ## UI/E2E 策略
 
-当前仓库没有 committed Xcode UI test target 或 packaged-app smoke test。
+当前仓库有 committed packaged-app smoke path 和 native Accessibility runner。
 
-在引入正式 UI/E2E 之前：
+当前 E2E 分为两层：
 
 - 不要编造 Playwright、Chromium、Web E2E 覆盖。
-- `scripts/e2e` 保持为显式占位说明。
-- 用户可见核心流程应由 view model/unit tests 和 SwiftUI smoke tests 覆盖。
+- `scripts/e2e` 默认运行真实 SFTP connect/list/upload/download E2E。
+- `scripts/e2e` 默认运行 packaged app build/run smoke，检查 `Connect Host`、`Local File Panel`、`Remote File Panel`、`Transfer Queue`。
+- 用户可见核心流程仍应由 view model/unit tests 和 SwiftUI smoke tests 覆盖。
 
-当项目加入 committed `.xcodeproj`、app bundle 或 UI test target 后：
+完整 UI 自动化仍是 opt-in：
 
-- `scripts/e2e` 必须改为真实 macOS UI 或 packaged-app smoke 验证。
 - `scripts/verify` 必须继续包含 `scripts/e2e`。
-- 内测前至少覆盖：启动 app、打开主窗口、连接主机入口、浏览本地目录、浏览远程目录、上传/下载动作、队列状态展示。
+- `WETRANS_E2E_RUN_FULL=1` 可运行 manual host、SSH Config host、transfer 等 UI 场景。
+- 内测前默认路径至少覆盖：真实主机连接、浏览远端目录、单文件/多文件/目录上传、单文件/多文件/目录下载、启动 app、打开主窗口、队列区域可见。
 
 ## 完成标准
 

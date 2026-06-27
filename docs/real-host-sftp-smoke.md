@@ -1,8 +1,23 @@
-# Real Host SFTP Integration
+# Real Host SFTP E2E
 
-The real host SFTP integration test verifies that wetrans can connect to known development hosts and list remote directories through the same libssh2-backed SFTP path used by the app.
+The real host SFTP E2E tests verify that wetrans can connect to known development hosts, list remote directories, upload files, and download files through the same libssh2-backed SFTP path used by the app.
 
-This test runs by default because real remote directory access is part of the required verification path. It depends on network access, reachable hosts, and local private key files.
+These tests run by default because real remote transfer access is part of the required verification path. They depend on network access, reachable hosts, and local private key files.
+
+## Coverage
+
+`RemoteFileSystemRealHostIntegrationTests` covers:
+
+- fixture decoding for the committed non-secret host metadata
+- connect and list for every configured host
+- upload one file
+- upload multiple files
+- upload a directory that contains a nested child directory
+- download one file
+- download multiple files
+- download a directory that contains a nested child directory
+
+Download fixtures are created by the same test run. The tests upload deterministic local files to a unique remote `/tmp/wetrans-e2e-<uuid>/` root, download them into a separate local temporary directory, and compare file contents byte-for-byte. No manual remote fixture preparation is required.
 
 ## Run
 
@@ -11,6 +26,14 @@ Use the committed non-secret fixture:
 ```bash
 swift test --filter RemoteFileSystemRealHostIntegrationTests
 ```
+
+Run the default E2E path:
+
+```bash
+scripts/e2e
+```
+
+`scripts/e2e` runs the real-host SFTP E2E suite first, then builds and launches the packaged app for native UI smoke verification.
 
 Use a local override config:
 

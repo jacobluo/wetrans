@@ -454,21 +454,38 @@ The app should be testable without a live SSH server for most behavior.
 
 ### 8.3 Integration Tests
 
-Use a controlled local SSH/SFTP test server after the Swift project exists.
+Use real-host SFTP E2E against the configured OpenCloud development VM as the default integration path. Keep fake adapters for most unit behavior, but require the real libssh2-backed path to prove network, authentication, remote listing, upload, and download behavior.
 
 Validate:
 
-- Password connection.
 - Key connection.
 - Host-key trust and mismatch.
 - List directory.
-- Upload.
-- Download.
+- Upload single file.
+- Upload multiple files.
+- Upload directory with nested child directories.
+- Download single file.
+- Download multiple files.
+- Download directory with nested child directories.
 - Cancellation.
 
-### 8.4 UI Tests
+### 8.4 E2E Script Layers
 
-After the Xcode project exists:
+`scripts/e2e` is the default E2E entry point. It has two stable layers:
+
+- Real-host SFTP E2E through `RemoteFileSystemRealHostIntegrationTests`.
+- Packaged app build/run smoke through the native `wetrans-e2e` Accessibility runner.
+
+The app smoke verifies that the launched app exposes the main automation anchors:
+
+- Connect Host.
+- Local File Panel.
+- Remote File Panel.
+- Transfer Queue.
+
+### 8.5 Opt-In Full UI Tests
+
+Full UI scenarios remain opt-in because they depend on Accessibility permission, local SSH config state, and environment-provided host details. When `WETRANS_E2E_RUN_FULL=1` is set, the runner may cover:
 
 - Launch app.
 - Add manual host draft.

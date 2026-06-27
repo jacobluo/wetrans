@@ -855,7 +855,7 @@ AppKit should own:
 
 - Future high-fidelity file tables.
 - Future outline/list interactions.
-- Future drag and drop after directory transfer and full UI E2E coverage are stable.
+- Future drag and drop after directory transfer hardening and E2E default-path coverage are stable.
 - Future Finder-grade multi-select.
 - Context menus and desktop integrations where SwiftUI benefits from AppKit bridges.
 - Future precise keyboard behavior.
@@ -1240,6 +1240,7 @@ Scope:
 - Better empty/loading/error states.
 - Logs and debug details.
 - App signing and packaging.
+- Default E2E path covering real-host SFTP connect/list/upload/download and packaged app smoke.
 - Basic onboarding copy.
 
 Outcome:
