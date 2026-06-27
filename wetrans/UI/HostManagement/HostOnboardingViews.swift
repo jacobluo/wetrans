@@ -332,6 +332,7 @@ public struct ConnectHostSheetView: View {
 
     private let catalog: HostCatalog
     private let credentialStore: CredentialStore
+    private let savedHostMaintenance: SavedHostMaintenance
     private let scanner: SSHConfigScanner
     private let resolver: SSHConfigResolver
     private let onSaved: (SavedHost) -> Void
@@ -350,12 +351,22 @@ public struct ConnectHostSheetView: View {
     public init(
         catalog: HostCatalog,
         credentialStore: CredentialStore,
+        trustedHostStore: TrustedHostStore = FileTrustedHostStore(
+            applicationSupportDirectory: FileManager.wetransApplicationSupportDirectory
+        ),
+        hostSessionCleaner: HostSessionCleaning = NoopHostSessionCleaner(),
         scanner: SSHConfigScanner = FileSSHConfigScanner(),
         resolver: SSHConfigResolver = ProcessSSHConfigResolver(),
         onSaved: @escaping (SavedHost) -> Void
     ) {
         self.catalog = catalog
         self.credentialStore = credentialStore
+        self.savedHostMaintenance = SavedHostMaintenance(
+            catalog: catalog,
+            credentialStore: credentialStore,
+            trustedHostStore: trustedHostStore,
+            hostSessionCleaner: hostSessionCleaner
+        )
         self.scanner = scanner
         self.resolver = resolver
         self.onSaved = onSaved
@@ -505,16 +516,17 @@ public struct ConnectHostSheetView: View {
     }
 
     private func deleteSavedHost(_ host: SavedHost) {
-        do {
-            try catalog.delete(hostId: host.id)
-            try credentialStore.deleteCredentials(hostId: host.id)
-            if savedHostsState.selectedHostId == host.id {
-                savedHostsState.selectedHostId = nil
+        Task {
+            do {
+                try await savedHostMaintenance.delete(host)
+                if savedHostsState.selectedHostId == host.id {
+                    savedHostsState.selectedHostId = nil
+                }
+                editingHost = nil
+                loadSavedHosts()
+            } catch {
+                hostManagementErrorMessage = readableMessage(for: error)
             }
-            editingHost = nil
-            loadSavedHosts()
-        } catch {
-            hostManagementErrorMessage = readableMessage(for: error)
         }
     }
 
@@ -528,12 +540,15 @@ public struct ConnectHostSheetView: View {
     }
 
     private func saveEditedHost(_ host: SavedHost) {
-        do {
-            try catalog.save(host)
-            editingHost = nil
-            loadSavedHosts()
-        } catch {
-            hostManagementErrorMessage = readableMessage(for: error)
+        let original = savedHostsState.hosts.first { $0.id == host.id } ?? host
+        Task {
+            do {
+                try await savedHostMaintenance.saveEdited(original: original, edited: host)
+                editingHost = nil
+                loadSavedHosts()
+            } catch {
+                hostManagementErrorMessage = readableMessage(for: error)
+            }
         }
     }
 

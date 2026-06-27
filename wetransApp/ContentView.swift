@@ -2,23 +2,27 @@ import SwiftUI
 import wetrans
 
 struct ContentView: View {
+    @StateObject private var appState = AppState()
     @StateObject private var browserViewModel = MainBrowserViewModel()
-    @State private var isShowingConnectHost = false
     private let hostCatalog = FileHostCatalog(applicationSupportDirectory: FileManager.wetransApplicationSupportDirectory)
     private let credentialStore = KeychainCredentialStore()
+    private let trustedHostStore = FileTrustedHostStore(applicationSupportDirectory: FileManager.wetransApplicationSupportDirectory)
 
     var body: some View {
         MainBrowserView(viewModel: browserViewModel) {
-            isShowingConnectHost = true
+            appState.showConnectHost()
         }
-        .sheet(isPresented: $isShowingConnectHost, onDismiss: reloadHosts) {
+        .sheet(isPresented: $appState.isShowingConnectHost, onDismiss: reloadHosts) {
             ConnectHostSheetView(
                 catalog: hostCatalog,
-                credentialStore: credentialStore
+                credentialStore: credentialStore,
+                trustedHostStore: trustedHostStore,
+                hostSessionCleaner: browserViewModel
             ) { savedHost in
                 reloadHosts()
+                appState.selectHost(savedHost.id)
                 browserViewModel.select(hostId: savedHost.id)
-                isShowingConnectHost = false
+                appState.dismissConnectHost()
             }
         }
     }

@@ -4,6 +4,7 @@ public final class HostSessionManager: @unchecked Sendable {
     private let remoteFileSystem: RemoteFileSystem
     private let credentialStore: CredentialStore
     private let defaultLocalPath: () -> String
+    private let now: @Sendable () -> Date
     private let lock = NSLock()
     private var states: [UUID: HostSessionState] = [:]
     private var sessions: [UUID: RemoteSession] = [:]
@@ -15,11 +16,13 @@ public final class HostSessionManager: @unchecked Sendable {
         defaultLocalPath: @escaping () -> String = {
             FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask).first?.path
                 ?? FileManager.default.homeDirectoryForCurrentUser.path
-        }
+        },
+        now: @escaping @Sendable () -> Date = Date.init
     ) {
         self.remoteFileSystem = remoteFileSystem
         self.credentialStore = credentialStore
         self.defaultLocalPath = defaultLocalPath
+        self.now = now
     }
 
     public func state(for host: SavedHost) -> HostSessionState {
@@ -32,7 +35,7 @@ public final class HostSessionManager: @unchecked Sendable {
         lock.withLock {
             var hostState = stateUnlocked(for: host.id) ?? makeInitialStateUnlocked(for: host)
             hostState.currentLocalPath = path
-            hostState.lastActiveAt = Date()
+            hostState.lastActiveAt = now()
             states[host.id] = hostState
         }
     }
@@ -41,7 +44,7 @@ public final class HostSessionManager: @unchecked Sendable {
         lock.withLock {
             var hostState = stateUnlocked(for: host.id) ?? makeInitialStateUnlocked(for: host)
             hostState.currentRemotePath = path
-            hostState.lastActiveAt = Date()
+            hostState.lastActiveAt = now()
             states[host.id] = hostState
         }
     }
@@ -69,7 +72,7 @@ public final class HostSessionManager: @unchecked Sendable {
         lock.withLock {
             var hostState = stateUnlocked(for: host.id) ?? makeInitialStateUnlocked(for: host)
             hostState.isConnected = true
-            hostState.lastActiveAt = Date()
+            hostState.lastActiveAt = now()
             states[host.id] = hostState
         }
         return items
@@ -91,7 +94,7 @@ public final class HostSessionManager: @unchecked Sendable {
         lock.withLock {
             if var hostState = states[hostId] {
                 hostState.isConnected = false
-                hostState.lastActiveAt = Date()
+                hostState.lastActiveAt = now()
                 states[hostId] = hostState
             }
         }
@@ -112,7 +115,7 @@ public final class HostSessionManager: @unchecked Sendable {
         lock.withLock {
             if var hostState = states[hostId] {
                 hostState.isConnected = false
-                hostState.lastActiveAt = Date()
+                hostState.lastActiveAt = now()
                 states[hostId] = hostState
             }
         }
@@ -148,7 +151,7 @@ public final class HostSessionManager: @unchecked Sendable {
                 sessions[host.id] = session
                 var hostState = stateUnlocked(for: host.id) ?? makeInitialStateUnlocked(for: host)
                 hostState.isConnected = true
-                hostState.lastActiveAt = Date()
+                hostState.lastActiveAt = now()
                 states[host.id] = hostState
                 return session
             }
@@ -177,4 +180,35 @@ public final class HostSessionManager: @unchecked Sendable {
         states[host.id] = initialState
         return initialState
     }
+
+    public func disconnectIdleSessions(now: Date = Date(), idleTimeout: TimeInterval = 15 * 60) async {
+        let expiredSessions = lock.withLock {
+            let expired = sessions.compactMap { hostId, session -> (hostId: UUID, session: RemoteSession)? in
+                guard let lastActiveAt = states[hostId]?.lastActiveAt else {
+                    return nil
+                }
+                guard now.timeIntervalSince(lastActiveAt) >= idleTimeout else {
+                    return nil
+                }
+                return (hostId, session)
+            }
+            for expiredSession in expired {
+                sessions.removeValue(forKey: expiredSession.hostId)
+            }
+            return expired
+        }
+
+        for expired in expiredSessions {
+            await remoteFileSystem.disconnect(expired.session)
+            lock.withLock {
+                if var hostState = states[expired.hostId] {
+                    hostState.isConnected = false
+                    hostState.lastActiveAt = now
+                    states[expired.hostId] = hostState
+                }
+            }
+        }
+    }
 }
+
+extension HostSessionManager: HostSessionCleaning {}

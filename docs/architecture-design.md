@@ -39,7 +39,9 @@ SwiftUI owns the application shell:
 
 The MVP main window shell should not add an app-level top horizontal toolbar above the three-pane browser. Persistent global navigation belongs in the host sidebar; file operations belong to file-panel controls or context menus.
 
-AppKit owns dense file-manager surfaces:
+The current MVP renders the file panels in SwiftUI and uses narrow AppKit integrations for desktop services such as Finder reveal, pasteboard writes, and event modifier lookup.
+
+AppKit remains the intended future owner for denser file-manager surfaces when the product needs higher-fidelity table behavior:
 
 - Local file table.
 - Remote file table.
@@ -408,7 +410,7 @@ AppKit table delegates should call view model methods and return quickly.
 
 ## 7. Error Model
 
-Use typed domain errors rather than passing raw library errors through the UI.
+Use typed domain errors rather than passing raw library errors directly through the UI.
 
 Top-level categories:
 
@@ -420,12 +422,11 @@ Top-level categories:
 - `RemoteFileError`
 - `TransferError`
 
-Each error should contain:
+Current implementation status:
 
-- Stable code.
-- User message.
-- Recovery suggestion.
-- Debug detail.
+- Core boundaries use typed errors such as `RemoteFileSystemError` and `CredentialStoreError`.
+- UI surfaces map those errors to readable strings.
+- Stable error codes, structured recovery suggestions, and expanded debug-detail objects remain future productization work.
 
 ## 8. Testing Strategy
 
@@ -480,11 +481,8 @@ After the Xcode project exists:
 Recommended project layout:
 
 ```text
-wetrans.xcodeproj
 wetrans/
-  App/
   UI/
-  AppKitAdapters/
   Domain/
   Persistence/
   SSHConfig/
@@ -492,7 +490,7 @@ wetrans/
   TransferQueue/
   Security/
 wetransTests/
-wetransUITests/
+wetransE2E/
 docs/
 ```
 

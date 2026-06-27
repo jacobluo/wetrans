@@ -40,6 +40,9 @@ public struct MainBrowserView: View {
             try? viewModel.loadHosts()
             viewModel.refreshLocal()
         }
+        .task {
+            await runIdleSessionCleanupLoop()
+        }
         .onReceive(viewModel.sidebarViewModel.$selectedHostId.dropFirst().removeDuplicates()) { hostId in
             viewModel.select(hostId: hostId)
             viewModel.refreshLocal()
@@ -205,6 +208,13 @@ public struct MainBrowserView: View {
             },
             onOpen: viewModel.openLocalItem
         )
+    }
+
+    private func runIdleSessionCleanupLoop() async {
+        while !Task.isCancelled {
+            try? await Task.sleep(nanoseconds: 60 * 1_000_000_000)
+            await viewModel.disconnectIdleSessions()
+        }
     }
 
     private var remotePanel: some View {

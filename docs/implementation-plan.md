@@ -4,7 +4,7 @@
 
 **Goal:** Build the MVP of wetrans: a native macOS SSH/SFTP file manager with saved hosts, SSH Config host generation, local/remote browsing, and bounded concurrent multi-file transfers.
 
-**Architecture:** The app uses SwiftUI for the shell and AppKit for dense file-table interactions. Core behavior is isolated behind deep modules: host catalog, SSH config scanner/resolver, credential store, trusted host store, remote file system, host session manager, and transfer queue.
+**Architecture:** The app uses SwiftUI for the shell and current file-panel surfaces, with narrow AppKit integrations for macOS desktop services. Core behavior is isolated behind deep modules: app state, host catalog, SSH config scanner/resolver, credential store, trusted host store, remote file system, host session manager, and transfer queue.
 
 **Tech Stack:** SwiftUI, AppKit, Swift concurrency, Keychain Services, JSON persistence under Application Support, libssh2 spike first with libssh fallback.
 
@@ -221,8 +221,8 @@ docs/
 
 - Build SwiftUI app shell.
 - Build host sidebar.
-- Build AppKit-backed local file panel.
-- Build AppKit-backed remote file panel.
+- Build SwiftUI-rendered local file panel with AppKit service integrations where needed.
+- Build SwiftUI-rendered remote file panel with AppKit service integrations where needed.
 - Implement `HostSessionManager`.
 - Implement `RemoteFileSystem.listDirectory`.
 - Preserve current local/remote path per host.

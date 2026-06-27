@@ -225,6 +225,14 @@ public final class MainBrowserViewModel: ObservableObject {
         pendingHostKeyTrust = nil
     }
 
+    public func disconnect(hostId: UUID) async {
+        await hostSessionManager.disconnect(hostId: hostId)
+    }
+
+    public func disconnectIdleSessions(now: Date = Date(), idleTimeout: TimeInterval = 15 * 60) async {
+        await hostSessionManager.disconnectIdleSessions(now: now, idleTimeout: idleTimeout)
+    }
+
     public func trustPendingHostKeyAndRefresh() async {
         guard let key = pendingHostKeyTrust else {
             return
@@ -511,3 +519,5 @@ public final class MainBrowserViewModel: ObservableObject {
         }
     }
 }
+
+extension MainBrowserViewModel: HostSessionCleaning {}
