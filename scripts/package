@@ -15,6 +15,7 @@ APP_BINARY="$APP_MACOS/$APP_NAME"
 APP_ICON="$ROOT/assets/app-icon/AppIcon.icns"
 INFO_PLIST="$APP_CONTENTS/Info.plist"
 ZIP_PATH="$DIST_DIR/$APP_NAME.zip"
+NOTARY_ZIP_PATH="$DIST_DIR/$APP_NAME-notary.zip"
 
 cd "$ROOT"
 
@@ -26,7 +27,7 @@ else
   BUILD_BINARY="$(swift build --show-bin-path)/$APP_NAME"
 fi
 
-rm -rf "$APP_BUNDLE" "$ZIP_PATH"
+rm -rf "$APP_BUNDLE" "$ZIP_PATH" "$NOTARY_ZIP_PATH"
 mkdir -p "$APP_MACOS" "$APP_RESOURCES"
 cp "$BUILD_BINARY" "$APP_BINARY"
 chmod +x "$APP_BINARY"
@@ -60,6 +61,15 @@ cat >"$INFO_PLIST" <<PLIST
 </plist>
 PLIST
 
+create_zip() {
+  local output_path="$1"
+  rm -f "$output_path"
+  (
+    cd "$DIST_DIR"
+    ditto -c -k --keepParent "$APP_NAME.app" "$output_path"
+  )
+}
+
 if [[ -n "${WETRANS_DEVELOPER_ID_APPLICATION:-}" ]]; then
   codesign \
     --force \
@@ -72,18 +82,19 @@ else
   echo "Skipping Developer ID signing: WETRANS_DEVELOPER_ID_APPLICATION is not set."
 fi
 
-(
-  cd "$DIST_DIR"
-  ditto -c -k --keepParent "$APP_NAME.app" "$APP_NAME.zip"
-)
-
 if [[ -n "${WETRANS_NOTARYTOOL_PROFILE:-}" && -n "${WETRANS_DEVELOPER_ID_APPLICATION:-}" ]]; then
-  xcrun notarytool submit "$ZIP_PATH" \
+  create_zip "$NOTARY_ZIP_PATH"
+  xcrun notarytool submit "$NOTARY_ZIP_PATH" \
     --keychain-profile "$WETRANS_NOTARYTOOL_PROFILE" \
     --wait
   xcrun stapler staple "$APP_BUNDLE"
+  xcrun stapler validate "$APP_BUNDLE"
+  spctl --assess --type execute --verbose=4 "$APP_BUNDLE"
+  create_zip "$ZIP_PATH"
+  rm -f "$NOTARY_ZIP_PATH"
 else
   echo "Skipping notarization: set both WETRANS_DEVELOPER_ID_APPLICATION and WETRANS_NOTARYTOOL_PROFILE."
+  create_zip "$ZIP_PATH"
 fi
 
 echo "Packaged $APP_BUNDLE"
