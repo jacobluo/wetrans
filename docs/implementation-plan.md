@@ -276,7 +276,7 @@ docs/
 **Scope:**
 
 - Add context menus for common actions.
-- Add drag-and-drop if core transfer queue is stable.
+- Add directory-level upload/download after core transfer queue is stable.
 - Improve error copy and debug detail views.
 - Add lightweight app logs.
 - Add settings for default local directory if needed.
@@ -352,6 +352,8 @@ M6 must precede M7 because transfer actions depend on selected local/remote file
 - Test remote browsing.
 - Test multi-file upload.
 - Test multi-file download.
+- Test directory upload.
+- Test directory download.
 - Test cancellation.
 - Test host switching during transfer.
 
@@ -359,7 +361,6 @@ M6 must precede M7 because transfer actions depend on selected local/remote file
 
 These stay outside MVP unless explicitly re-prioritized:
 
-- Folder upload/download.
 - Pause/resume.
 - Resumable transfers.
 - Directory sync.
@@ -378,4 +379,4 @@ Before implementation starts, confirm:
 
 - Whether M0 should create a temporary command-line harness or go straight into an Xcode test target.
 - Whether internal testing should require both password and key-auth test servers.
-- Whether drag-and-drop should remain M8 polish or move into M7 once transfer queue works.
+- Whether drag-and-drop should stay deferred until directory transfer and full E2E coverage are stable.

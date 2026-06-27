@@ -190,11 +190,11 @@ public final class MainBrowserViewModel: ObservableObject {
     }
 
     public var canUploadSelection: Bool {
-        selectedHost != nil && localPanel.selectedItems.contains { !$0.isDirectory }
+        selectedHost != nil && !localPanel.selectedItems.isEmpty
     }
 
     public var canDownloadSelection: Bool {
-        selectedHost != nil && remotePanel.selectedItems.contains { !$0.isDirectory }
+        selectedHost != nil && !remotePanel.selectedItems.isEmpty
     }
 
     public func refreshRemote() async {
@@ -320,21 +320,15 @@ public final class MainBrowserViewModel: ObservableObject {
         }
 
         let items = contextTransferItems(for: item, in: localPanel)
-        let tasks = items
-            .filter { !$0.isDirectory }
-            .map { selectedItem in
-                TransferTask(
-                    hostId: host.id,
-                    hostDisplayName: host.displayName,
-                    direction: .upload,
-                    localPath: selectedItem.path,
-                    remotePath: BrowserPath.remoteJoin(directory: remotePanel.path, name: selectedItem.name),
-                    fileName: selectedItem.name,
-                    totalBytes: selectedItem.size
-                )
-            }
-        guard !tasks.isEmpty else {
-            localPanel.loadingState = .failed("Select a file to upload.")
+        let tasks: [TransferTask]
+        do {
+            tasks = try DirectoryTransferPlanner(localFileSystem: localFileSystem).uploadTasks(
+                for: items,
+                host: host,
+                remoteDirectory: remotePanel.path
+            )
+        } catch {
+            localPanel.loadingState = .failed("Could not prepare upload: \(error.localizedDescription)")
             return
         }
 
@@ -348,21 +342,17 @@ public final class MainBrowserViewModel: ObservableObject {
         }
 
         let items = contextTransferItems(for: item, in: remotePanel)
-        let tasks = items
-            .filter { !$0.isDirectory }
-            .map { selectedItem in
-                TransferTask(
-                    hostId: host.id,
-                    hostDisplayName: host.displayName,
-                    direction: .download,
-                    localPath: BrowserPath.localJoin(directory: localPanel.path, name: selectedItem.name),
-                    remotePath: selectedItem.path,
-                    fileName: selectedItem.name,
-                    totalBytes: selectedItem.size
-                )
-            }
-        guard !tasks.isEmpty else {
-            remotePanel.loadingState = .failed("Select a file to download.")
+        let tasks: [TransferTask]
+        do {
+            tasks = try await DirectoryTransferPlanner(localFileSystem: localFileSystem).downloadTasks(
+                for: items,
+                host: host,
+                localDirectory: localPanel.path,
+                hostSessionManager: hostSessionManager
+            )
+        } catch {
+            let message = Self.message(forRemoteError: error)
+            remotePanel.loadingState = .failed("Could not prepare download: \(message)")
             return
         }
 
@@ -375,19 +365,17 @@ public final class MainBrowserViewModel: ObservableObject {
             return
         }
 
-        let tasks = localPanel.selectedItems
-            .filter { !$0.isDirectory }
-            .map { item in
-                TransferTask(
-                    hostId: host.id,
-                    hostDisplayName: host.displayName,
-                    direction: .upload,
-                    localPath: item.path,
-                    remotePath: BrowserPath.remoteJoin(directory: remotePanel.path, name: item.name),
-                    fileName: item.name,
-                    totalBytes: item.size
-                )
-            }
+        let tasks: [TransferTask]
+        do {
+            tasks = try DirectoryTransferPlanner(localFileSystem: localFileSystem).uploadTasks(
+                for: localPanel.selectedItems,
+                host: host,
+                remoteDirectory: remotePanel.path
+            )
+        } catch {
+            localPanel.loadingState = .failed("Could not prepare upload: \(error.localizedDescription)")
+            return
+        }
 
         await enqueueUploadTasks(tasks)
     }
@@ -398,26 +386,26 @@ public final class MainBrowserViewModel: ObservableObject {
             return
         }
 
-        let tasks = remotePanel.selectedItems
-            .filter { !$0.isDirectory }
-            .map { item in
-                TransferTask(
-                    hostId: host.id,
-                    hostDisplayName: host.displayName,
-                    direction: .download,
-                    localPath: BrowserPath.localJoin(directory: localPanel.path, name: item.name),
-                    remotePath: item.path,
-                    fileName: item.name,
-                    totalBytes: item.size
-                )
-            }
+        let tasks: [TransferTask]
+        do {
+            tasks = try await DirectoryTransferPlanner(localFileSystem: localFileSystem).downloadTasks(
+                for: remotePanel.selectedItems,
+                host: host,
+                localDirectory: localPanel.path,
+                hostSessionManager: hostSessionManager
+            )
+        } catch {
+            let message = Self.message(forRemoteError: error)
+            remotePanel.loadingState = .failed("Could not prepare download: \(message)")
+            return
+        }
 
         await enqueueDownloadTasks(tasks)
     }
 
     private func enqueueUploadTasks(_ tasks: [TransferTask]) async {
         guard !tasks.isEmpty else {
-            localPanel.loadingState = .failed("Select one or more files to upload.")
+            localPanel.loadingState = .failed("Select one or more files or directories to upload.")
             return
         }
 
@@ -432,7 +420,7 @@ public final class MainBrowserViewModel: ObservableObject {
 
     private func enqueueDownloadTasks(_ tasks: [TransferTask]) async {
         guard !tasks.isEmpty else {
-            remotePanel.loadingState = .failed("Select one or more files to download.")
+            remotePanel.loadingState = .failed("Select one or more files or directories to download.")
             return
         }
 

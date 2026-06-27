@@ -2,7 +2,7 @@
 
 ## 1. Purpose
 
-wetrans is ready for more internal testing, but failures are still hard to report. This slice adds a minimal diagnostic surface before broader UI E2E and drag-and-drop work:
+wetrans is ready for more internal testing, but failures are still hard to report. This slice adds a minimal diagnostic surface before broader UI E2E and directory-transfer work:
 
 - lightweight app logs at important browser and transfer boundaries
 - copyable, redacted debug detail for the latest file-panel failure

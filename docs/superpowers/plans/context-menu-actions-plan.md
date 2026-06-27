@@ -1,5 +1,7 @@
 # Context Menu Actions Implementation Plan
 
+> Note: directory upload/download behavior in this historical plan has been superseded by `docs/superpowers/specs/directory-transfers-spec.md` and `docs/superpowers/plans/directory-transfers-plan.md`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add row-level local and remote file context menu actions for upload, download, Finder reveal, remote path copy, and refresh.

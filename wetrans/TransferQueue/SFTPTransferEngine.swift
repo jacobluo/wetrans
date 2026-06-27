@@ -63,6 +63,10 @@ public struct SFTPTransferEngine: TransferEngine {
         do {
             switch task.direction {
             case .upload:
+                try await remoteFileSystem.ensureDirectory(
+                    BrowserPath.remoteParent(of: task.remotePath),
+                    in: session
+                )
                 try await remoteFileSystem.upload(
                     UploadRequest(localPath: task.localPath, remotePath: task.remotePath),
                     in: session,

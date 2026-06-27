@@ -136,6 +136,23 @@ final class LibSSH2RemoteFileSystemTests: XCTestCase {
         XCTAssertEqual(client.uploadCalls, [request])
     }
 
+    func testEnsureDirectoryDelegatesToConnectedClient() async throws {
+        let hostId = UUID()
+        let spec = makeSpec(hostId: hostId)
+        let candidate = makeTrustedKey(hostId: hostId, fingerprint: "SHA256:candidate")
+        let client = FakeLibSSH2Client(hostKey: candidate)
+        let adapter = LibSSH2RemoteFileSystem(
+            runtime: FakeLibSSH2Runtime(),
+            trustedHostStore: FakeTrustedHostStore(trustedKey: candidate),
+            clientFactory: FakeLibSSH2ClientFactory(client: client)
+        )
+        let session = try await adapter.connect(spec)
+
+        try await adapter.ensureDirectory("/var/www/site", in: session)
+
+        XCTAssertEqual(client.ensureDirectoryCalls, ["/var/www/site"])
+    }
+
     func testDownloadDelegatesToConnectedClient() async throws {
         let hostId = UUID()
         let spec = makeSpec(hostId: hostId)
@@ -434,6 +451,7 @@ private final class FakeLibSSH2Client: LibSSH2Client {
     private(set) var authenticateCalls: [ConnectionAuth] = []
     private(set) var openSFTPCallCount = 0
     private(set) var listDirectoryCalls: [String] = []
+    private(set) var ensureDirectoryCalls: [String] = []
     private(set) var uploadCalls: [UploadRequest] = []
     private(set) var downloadCalls: [DownloadRequest] = []
     private(set) var disconnectCallCount = 0
@@ -471,6 +489,10 @@ private final class FakeLibSSH2Client: LibSSH2Client {
     func listDirectory(_ path: String) throws -> [FileItem] {
         listDirectoryCalls.append(path)
         return listingsByPath[path] ?? []
+    }
+
+    func ensureDirectory(_ path: String) throws {
+        ensureDirectoryCalls.append(path)
     }
 
     func upload(

@@ -135,6 +135,28 @@ final class HostSessionManagerTests: XCTestCase {
         XCTAssertEqual(remoteFileSystem.listCalls.map(\.path), ["/var/log"])
     }
 
+    func testListingSpecificRemotePathDoesNotChangeCurrentPath() async throws {
+        let host = SavedHost.fixture(lastRemotePath: "/project")
+        let remoteFileSystem = MockRemoteFileSystem(
+            listingsByPath: [
+                "/project/logs": [
+                    FileItem(name: "app.log", path: "/project/logs/app.log", isDirectory: false)
+                ]
+            ]
+        )
+        let manager = HostSessionManager(
+            remoteFileSystem: remoteFileSystem,
+            credentialStore: InMemoryCredentialStore(),
+            defaultLocalPath: { "/Users/me/Downloads" }
+        )
+
+        let items = try await manager.listRemoteDirectory(path: "/project/logs", for: host)
+
+        XCTAssertEqual(items.map(\.name), ["app.log"])
+        XCTAssertEqual(manager.state(for: host).currentRemotePath, "/project")
+        XCTAssertEqual(remoteFileSystem.listCalls.map(\.path), ["/project/logs"])
+    }
+
     func testNewHostWithoutRemotePathListsSFTPHomeDirectory() async throws {
         let host = SavedHost.fixture()
         let remoteFileSystem = MockRemoteFileSystem(listingsByPath: [".": []])
@@ -236,6 +258,8 @@ private actor SlowConnectRemoteFileSystem: RemoteFileSystem {
         return listingsByPath[path] ?? []
     }
 
+    func ensureDirectory(_ path: String, in session: RemoteSession) async throws {}
+
     func upload(
         _ request: UploadRequest,
         in session: RemoteSession,
@@ -306,6 +330,8 @@ private actor SequencedListRemoteFileSystem: RemoteFileSystem {
             throw error
         }
     }
+
+    func ensureDirectory(_ path: String, in session: RemoteSession) async throws {}
 
     func snapshot() -> Snapshot {
         Snapshot(

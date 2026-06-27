@@ -6,6 +6,7 @@ public protocol LibSSH2Client: AnyObject {
     func authenticate(username: String, auth: ConnectionAuth) throws
     func openSFTP() throws
     func listDirectory(_ path: String) throws -> [FileItem]
+    func ensureDirectory(_ path: String) throws
     func upload(
         _ request: UploadRequest,
         progress: @escaping @Sendable (TransferProgress) async -> Void

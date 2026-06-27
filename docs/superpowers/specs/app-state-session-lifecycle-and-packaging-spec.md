@@ -82,7 +82,6 @@ The path must be safe on machines without signing credentials: it should explain
 ## 3. Out of Scope
 
 - Full AppKit table replacement.
-- Drag-and-drop transfer.
 - Favorite remote path UI/workflow.
 - Full UI E2E enablement by default.
 - OSLog/debug-detail surface expansion.

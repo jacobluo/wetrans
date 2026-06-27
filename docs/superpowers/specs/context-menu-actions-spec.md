@@ -4,11 +4,11 @@
 
 wetrans now has a functional three-pane browser, toolbar upload/download actions, a global transfer queue, and automatic refresh after successful transfers. The next internal-testing usability gap is desktop-native context menus: users expect right-click actions in file lists, especially on macOS.
 
-This slice adds row-level context menu actions for common MVP workflows without changing transfer semantics.
+This slice added row-level context menu actions for common MVP workflows. Directory upload/download semantics were later extended by `directory-transfers-spec.md`.
 
 ## Product Boundary
 
-This is a context-menu usability slice. It does not add drag-and-drop, folder transfers, file conflict prompts, multi-select context menus, or remote file editing.
+This is a context-menu usability slice. It does not add drag-and-drop, file conflict prompts, multi-select context menus, or remote file editing. Folder transfer behavior is now covered by `directory-transfers-spec.md`.
 
 ## In Scope
 
@@ -27,8 +27,8 @@ Remote file panel row context menu:
 Shared behavior:
 
 - Context menu actions are row-scoped for this slice.
-- Upload/download context actions ignore directories and surface the same readable panel errors as toolbar actions.
-- Context upload/download enqueue exactly one `TransferTask`.
+- Upload/download context actions use the same file-or-directory transfer planning rules as toolbar actions.
+- Context upload/download enqueue one or more file-level `TransferTask` values.
 - Context upload/download refresh the transfer queue view model after enqueue.
 - Finder reveal and pasteboard writes are isolated behind small protocols so view model behavior is testable without AppKit.
 
@@ -36,7 +36,7 @@ Shared behavior:
 
 - Context actions for multiple selected rows.
 - Drag-and-drop transfer.
-- Folder upload/download.
+- Directory transfer planning, which is covered by `directory-transfers-spec.md`.
 - Conflict prompts.
 - Remote "Reveal in Finder", which does not apply.
 - Opening local or remote files in external editors.
@@ -55,7 +55,7 @@ Refresh
 
 Rules:
 
-- `Upload` is enabled only for regular files when a host is selected.
+- `Upload` is enabled for files and directories when a host is selected.
 - `Show in Finder` is available for files and directories.
 - `Refresh` refreshes the local panel's current directory.
 
@@ -71,7 +71,7 @@ Refresh
 
 Rules:
 
-- `Download` is enabled only for regular files when a host is selected.
+- `Download` is enabled for files and directories when a host is selected.
 - `Copy Remote Path` copies the row path as plain text.
 - `Refresh` refreshes the current remote panel directory.
 
@@ -131,15 +131,15 @@ public func copyRemotePath(_ item: FileItem)
 
 Upload/download logic should reuse the same task-building rules as existing selection-based actions:
 
-- upload destination is `remotePanel.path + item.name`
-- download destination is `localPanel.path + item.name`
-- directories are rejected with readable errors
+- file upload destination is `remotePanel.path + item.name`
+- file download destination is `localPanel.path + item.name`
+- directories are recursively expanded by `DirectoryTransferPlanner`
 - missing selected host is rejected with readable errors
 
 ## Error Handling
 
-- Uploading a directory from the context menu sets a local panel error: `Select a file to upload.`
-- Downloading a directory from the context menu sets a remote panel error: `Select a file to download.`
+- Uploading an empty directory from the context menu surfaces the same empty-task message as toolbar upload.
+- Downloading an empty directory from the context menu surfaces the same empty-task message as toolbar download.
 - Uploading without a selected host sets a local panel error.
 - Downloading without a selected host sets a remote panel error.
 - Copying a remote path has no user-visible success message in this slice.
@@ -151,7 +151,7 @@ Add focused tests for:
 
 - Local row upload enqueues exactly one upload task for that row.
 - Remote row download enqueues exactly one download task for that row.
-- Directory upload/download from context menu does not enqueue a task and shows a readable error.
+- Directory upload/download from context menu expands contained files into transfer tasks.
 - Local reveal calls the injected file revealer with the item path.
 - Remote copy path writes the item path to the injected pasteboard writer.
 - `FilePanelView` can render context-action-capable rows.
@@ -160,8 +160,8 @@ Add focused tests for:
 
 - Local rows expose Upload, Show in Finder, and Refresh context menu actions.
 - Remote rows expose Download, Copy Remote Path, and Refresh context menu actions.
-- Row-scoped upload/download create one transfer task with correct paths.
-- Directory upload/download is blocked with readable errors.
+- Row-scoped file upload/download create one transfer task with correct paths.
+- Row-scoped directory upload/download create one task per contained file while preserving the top-level directory name.
 - Show in Finder is delegated to the file revealer adapter.
 - Copy Remote Path is delegated to the pasteboard adapter.
 - Existing toolbar upload/download behavior still works.

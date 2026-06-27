@@ -17,6 +17,9 @@ final class SFTPTransferEngineTests: XCTestCase {
         }
 
         XCTAssertEqual(provider.connectCalls, [host.id])
+        XCTAssertEqual(remoteFileSystem.ensureDirectoryCalls, [
+            .init(path: "/etc", session: session)
+        ])
         XCTAssertEqual(remoteFileSystem.uploadCalls, [
             .init(request: UploadRequest(localPath: "/Users/me/config.yaml", remotePath: "/etc/config.yaml"), session: session)
         ])

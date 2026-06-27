@@ -1,6 +1,6 @@
 # wetrans Internal Test Checklist
 
-Use this checklist for internal builds before broader UI E2E and drag-and-drop work. Do not put passwords, passphrases, private key contents, or tokens in bug reports.
+Use this checklist for internal builds before broader UI E2E work. Do not put passwords, passphrases, private key contents, or tokens in bug reports.
 
 ## 1. Build and Launch
 
@@ -35,8 +35,10 @@ Use this checklist for internal builds before broader UI E2E and drag-and-drop w
 
 - Select one local file and upload it.
 - Select multiple local files and upload them.
+- Select one local directory and upload it.
 - Select one remote file and download it.
 - Select multiple remote files and download them.
+- Select one remote directory and download it.
 - Confirm successful uploads refresh the visible remote directory.
 - Confirm successful downloads refresh the visible local directory.
 - Expand the transfer queue.
