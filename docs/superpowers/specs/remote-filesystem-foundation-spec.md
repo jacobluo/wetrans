@@ -65,7 +65,6 @@ After this spec, the app has a stable browsing core:
 - Upload and download.
 - Transfer queue.
 - Recursive remote directory loading.
-- Remote file mutation such as delete, rename, chmod, or mkdir.
 
 ## 4. Product Decisions
 
@@ -354,4 +353,3 @@ Remote/session tests:
 - AppKit remote file panel.
 - Sidebar selection wiring into `HostSessionManager`.
 - Transfer queue integration.
-

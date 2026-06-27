@@ -55,7 +55,7 @@ User selects alias
 -> future connections use the SavedHost data
 ```
 
-After generation, the host behaves like a manually added host. The app may preserve `originSSHConfigAlias` for traceability and future "refresh from SSH Config" behavior, but the saved host does not require SSH Config to remain unchanged.
+After generation, the host behaves like a manually added host. The app may preserve `originSSHConfigAlias` for traceability, but the saved host does not require SSH Config to remain unchanged.
 
 ### 2.3 Persist User Configuration and Recoverable Experience
 
@@ -413,21 +413,9 @@ service: wetrans.ssh.keyPassphrase
 account: <hostId>
 ```
 
-### 6.4 Refresh From SSH Config
+### 6.4 Saved Host Independence
 
-P1 may support "Refresh from SSH Config" for hosts with `originSSHConfigAlias`.
-
-Flow:
-
-```text
-User chooses Refresh from SSH Config
-wetrans runs ssh -G <originSSHConfigAlias>
-wetrans shows differences
-User confirms fields to update
-wetrans updates the SavedHost
-```
-
-This must be explicit. wetrans should not silently overwrite saved host settings.
+Generated hosts are normal saved hosts after creation. wetrans does not refresh saved hosts from SSH Config after they have been created.
 
 ## 7. Browsing State
 
@@ -1110,12 +1098,8 @@ Error messages should:
 - Drag-and-drop upload/download.
 - File conflict handling.
 - Retry failed transfers.
-- Create remote directory.
-- Rename.
-- Delete.
 - Copy remote path.
 - Context menus.
-- Refresh from SSH Config for generated hosts.
 
 ### 16.4 P2 Features
 

@@ -12,7 +12,7 @@ Users should be able to:
 - Connect to the selected host and browse one remote directory in the right panel.
 - Enter folders, go up, refresh, and preserve local/remote paths per host.
 
-This slice is about browsing only. It does not implement upload, download, drag and drop, transfer queue behavior, remote mutation, or context menus.
+This slice is about browsing only. It does not implement upload, download, drag and drop, transfer queue behavior, or context menus.
 
 ## 2. Product Shape
 
@@ -61,7 +61,6 @@ The first browsing implementation should feel like an operational tool, not a la
 - Drag and drop.
 - File conflict handling.
 - Multi-select transfer actions.
-- Remote delete/rename/new folder.
 - Local Finder reveal.
 - Full AppKit table replacement.
 - Host-key trust prompt UI beyond surfacing a structured error.

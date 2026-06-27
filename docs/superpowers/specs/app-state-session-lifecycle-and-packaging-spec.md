@@ -84,8 +84,6 @@ The path must be safe on machines without signing credentials: it should explain
 - Full AppKit table replacement.
 - Drag-and-drop transfer.
 - Favorite remote path UI/workflow.
-- Remote rename/delete/mkdir/chmod.
-- Refresh from SSH Config.
 - Full UI E2E enablement by default.
 - OSLog/debug-detail surface expansion.
 - Secret editing UI.

@@ -191,4 +191,4 @@ Expected: PASS.
 
 - [x] **Step 3: Review docs for requested deferrals**
 
-Confirm docs still leave these as not implemented/deferred: full UI E2E by default, drag-and-drop, remote mutation operations, refresh from SSH Config, expanded logs/debug detail/checklist.
+Confirm docs still leave these as not implemented/deferred: full UI E2E by default, drag-and-drop, expanded logs/debug detail/checklist.

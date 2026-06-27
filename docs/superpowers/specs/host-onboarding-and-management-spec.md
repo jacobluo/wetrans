@@ -67,7 +67,7 @@ After saving, both paths produce the same kind of `SavedHost`.
 - SSH Agent support.
 - Complex ProxyCommand execution.
 - Keyboard-interactive authentication.
-- Refresh from SSH Config after a host has already been saved.
+- Runtime dependency on SSH Config after a host has already been saved.
 
 ## 4. Product Decisions
 

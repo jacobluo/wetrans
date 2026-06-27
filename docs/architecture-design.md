@@ -537,7 +537,7 @@ Mitigation:
 - Generate hosts from `ssh -G`.
 - Warn on unsupported resolved options.
 - Make generated hosts editable.
-- Add "Refresh from SSH Config" later as explicit action.
+- Treat generated hosts as independent saved hosts after creation.
 
 ## 11. References
 

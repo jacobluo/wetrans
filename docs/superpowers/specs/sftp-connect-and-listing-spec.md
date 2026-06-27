@@ -165,7 +165,6 @@ If no real environment is configured, normal `swift test` must pass with the int
 - Download.
 - Transfer queue.
 - Drag and drop.
-- Remote file mutation.
 - ProxyJump.
 - SSH Agent.
 - Keyboard-interactive authentication.

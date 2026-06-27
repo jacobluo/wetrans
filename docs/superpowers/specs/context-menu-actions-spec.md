@@ -8,7 +8,7 @@ This slice adds row-level context menu actions for common MVP workflows without 
 
 ## Product Boundary
 
-This is a context-menu usability slice. It does not add drag-and-drop, folder transfers, file conflict prompts, delete, rename, permissions, multi-select context menus, or remote file editing.
+This is a context-menu usability slice. It does not add drag-and-drop, folder transfers, file conflict prompts, multi-select context menus, or remote file editing.
 
 ## In Scope
 
@@ -38,7 +38,6 @@ Shared behavior:
 - Drag-and-drop transfer.
 - Folder upload/download.
 - Conflict prompts.
-- Remote delete, rename, new folder, chmod.
 - Remote "Reveal in Finder", which does not apply.
 - Opening local or remote files in external editors.
 
