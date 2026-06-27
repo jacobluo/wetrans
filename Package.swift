@@ -28,7 +28,10 @@ let package = Package(
         .testTarget(
             name: "wetransTests",
             dependencies: ["wetrans"],
-            path: "wetransTests"
+            path: "wetransTests",
+            resources: [
+                .copy("Fixtures")
+            ]
         )
     ]
 )

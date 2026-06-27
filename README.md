@@ -77,7 +77,10 @@ Optional real integration probes are disabled by default because they require lo
 ```bash
 WETRANS_RUN_LIBSSH2_REAL_PROBE=1 swift test --filter LibSSH2RuntimeRealProbeTests
 WETRANS_RUN_SFTP_INTEGRATION=1 swift test --filter LibSSH2RemoteFileSystemIntegrationTests
+WETRANS_RUN_REAL_HOST_SMOKE=1 swift test --filter RealHostSFTPSmokeTests
 ```
+
+See [`docs/real-host-sftp-smoke.md`](docs/real-host-sftp-smoke.md) for the real host smoke config format and secret handling rules.
 
 ## Project Docs
 
