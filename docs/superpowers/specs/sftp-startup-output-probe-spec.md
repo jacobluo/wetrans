@@ -32,7 +32,6 @@ wetrans will keep standard libssh2 SFTP as the primary remote file transport.
 The startup output probe is a diagnostic tool:
 
 - It may run after selected SFTP startup failures.
-- It can later power a manual Diagnose action.
 - It must not silently switch the host to a shell, SCP, or custom SFTP compatibility transport.
 - It must not attempt to discard startup output from the SFTP byte stream.
 
@@ -157,12 +156,6 @@ When automatic probing produces strong evidence, the remote panel error should s
 When probing produces weak evidence, the remote panel should keep the SFTP failure context and mention that remote startup diagnostics were printed.
 
 When probing finds no output or fails, the UI should not overstate the startup-output hypothesis.
-
-## Future Manual Diagnose Action
-
-A manual Diagnose action can be added to the connection error detail surface or host management flow in a later UI slice. It should reuse the same probe adapter and show the same structured result.
-
-The first implementation slice should focus on automatic probing after selected SFTP startup failures.
 
 ## Security And Privacy
 
