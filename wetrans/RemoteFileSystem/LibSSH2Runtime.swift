@@ -86,6 +86,7 @@ public final class LibSSH2Runtime: LibSSH2RuntimeManaging {
             paths.append(override)
         }
         paths.append(contentsOf: [
+            "@executable_path/../Frameworks/libssh2.dylib",
             "/opt/homebrew/opt/libssh2/lib/libssh2.dylib",
             "/usr/local/opt/libssh2/lib/libssh2.dylib",
             "/opt/homebrew/lib/libssh2.dylib",

@@ -125,7 +125,7 @@ Recommendation: spike first.
 
 ### Spike Step: Dynamic libssh2 Probe
 
-The first implementation step uses a dynamic libssh2 probe instead of hard-linking the app to a Homebrew path. This keeps normal SwiftPM tests portable while allowing development machines to opt into a real probe through `WETRANS_LIBSSH2_DYLIB` or common Homebrew candidate paths.
+The first implementation step uses a dynamic libssh2 probe instead of hard-linking the app to a Homebrew path. This keeps normal SwiftPM tests portable while allowing development machines to opt into a real probe through `WETRANS_LIBSSH2_DYLIB`, the app bundle's `Contents/Frameworks/libssh2.dylib`, or common Homebrew candidate paths.
 
 This spike does not yet prove real SSH authentication or SFTP directory listing; those remain the next adapter slice.
 
@@ -292,6 +292,7 @@ Avoid premature over-modularization. The first useful split is:
 MVP:
 
 - `scripts/package` builds `dist/wetrans.app` and `dist/wetrans.zip`.
+- The package script vendors libssh2, libssl, and libcrypto into `Contents/Frameworks` and rewrites their install names to app-relative paths before signing.
 - If `WETRANS_DEVELOPER_ID_APPLICATION` is set, the script signs with Developer ID using hardened runtime options.
 - If both `WETRANS_DEVELOPER_ID_APPLICATION` and `WETRANS_NOTARYTOOL_PROFILE` are set, the script submits the zip through `xcrun notarytool --wait` and staples the app after success.
 - On development machines without signing credentials, the script applies an ad-hoc local signature for bundle validation, skips Developer ID signing and notarization, and still produces local artifacts for smoke testing.

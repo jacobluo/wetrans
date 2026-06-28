@@ -12,6 +12,7 @@ APP_BUNDLE="$DIST_DIR/$APP_NAME.app"
 APP_CONTENTS="$APP_BUNDLE/Contents"
 APP_MACOS="$APP_CONTENTS/MacOS"
 APP_RESOURCES="$APP_CONTENTS/Resources"
+APP_FRAMEWORKS="$APP_CONTENTS/Frameworks"
 APP_BINARY="$APP_MACOS/$APP_NAME"
 APP_ICON="$ROOT/assets/app-icon/AppIcon.icns"
 INFO_PLIST="$APP_CONTENTS/Info.plist"
@@ -58,7 +59,7 @@ else
 fi
 
 rm -rf "$APP_BUNDLE" "$ZIP_PATH" "$NOTARY_ZIP_PATH"
-mkdir -p "$APP_MACOS" "$APP_RESOURCES"
+mkdir -p "$APP_MACOS" "$APP_RESOURCES" "$APP_FRAMEWORKS"
 cp "$BUILD_BINARY" "$APP_BINARY"
 chmod +x "$APP_BINARY"
 
@@ -100,10 +101,120 @@ create_zip() {
   )
 }
 
+first_existing_path() {
+  local candidate
+  for candidate in "$@"; do
+    if [[ -f "$candidate" ]]; then
+      echo "$candidate"
+      return 0
+    fi
+  done
+  return 1
+}
+
+brew_opt_path() {
+  local formula="$1"
+  if command -v brew >/dev/null 2>&1; then
+    brew --prefix "$formula" 2>/dev/null || true
+  fi
+}
+
+rewrite_dylib_dependency() {
+  local binary_path="$1"
+  local dependency_name="$2"
+  local replacement="$3"
+  local dependency
+
+  while IFS= read -r dependency; do
+    install_name_tool -change "$dependency" "$replacement" "$binary_path"
+  done < <(
+    otool -L "$binary_path" |
+      awk -v dependency_name="$dependency_name" '
+        $1 ~ dependency_name &&
+        $1 !~ /^@/ &&
+        $1 !~ /^\/usr\/lib/ &&
+        $1 !~ /^\/System\// {
+          print $1
+        }
+      '
+  )
+}
+
+bundle_native_dependencies() {
+  local libssh2_prefix
+  local openssl_prefix
+  libssh2_prefix="$(brew_opt_path libssh2)"
+  openssl_prefix="$(brew_opt_path openssl@3)"
+
+  local libssh2_source
+  local libssl_source
+  local libcrypto_source
+
+  libssh2_source="$(first_existing_path \
+    "${WETRANS_LIBSSH2_DYLIB:-}" \
+    "${libssh2_prefix:+$libssh2_prefix/lib/libssh2.dylib}" \
+    /opt/homebrew/opt/libssh2/lib/libssh2.dylib \
+    /usr/local/opt/libssh2/lib/libssh2.dylib \
+    /opt/homebrew/lib/libssh2.dylib \
+    /usr/local/lib/libssh2.dylib)" || {
+      echo "Missing libssh2. Install it with: brew install libssh2" >&2
+      exit 1
+    }
+
+  libssl_source="$(first_existing_path \
+    "${openssl_prefix:+$openssl_prefix/lib/libssl.3.dylib}" \
+    /opt/homebrew/opt/openssl@3/lib/libssl.3.dylib \
+    /usr/local/opt/openssl@3/lib/libssl.3.dylib)" || {
+      echo "Missing OpenSSL libssl. Install it with: brew install openssl@3" >&2
+      exit 1
+    }
+
+  libcrypto_source="$(first_existing_path \
+    "${openssl_prefix:+$openssl_prefix/lib/libcrypto.3.dylib}" \
+    /opt/homebrew/opt/openssl@3/lib/libcrypto.3.dylib \
+    /usr/local/opt/openssl@3/lib/libcrypto.3.dylib)" || {
+      echo "Missing OpenSSL libcrypto. Install it with: brew install openssl@3" >&2
+      exit 1
+    }
+
+  cp -f "$libssh2_source" "$APP_FRAMEWORKS/libssh2.dylib"
+  cp -f "$libssl_source" "$APP_FRAMEWORKS/libssl.3.dylib"
+  cp -f "$libcrypto_source" "$APP_FRAMEWORKS/libcrypto.3.dylib"
+  chmod 755 "$APP_FRAMEWORKS/libssh2.dylib" "$APP_FRAMEWORKS/libssl.3.dylib" "$APP_FRAMEWORKS/libcrypto.3.dylib"
+
+  install_name_tool -id "@rpath/libssh2.dylib" "$APP_FRAMEWORKS/libssh2.dylib"
+  rewrite_dylib_dependency "$APP_FRAMEWORKS/libssh2.dylib" "libssl\\.3\\.dylib" "@loader_path/libssl.3.dylib"
+  rewrite_dylib_dependency "$APP_FRAMEWORKS/libssh2.dylib" "libcrypto\\.3\\.dylib" "@loader_path/libcrypto.3.dylib"
+
+  install_name_tool -id "@rpath/libssl.3.dylib" "$APP_FRAMEWORKS/libssl.3.dylib"
+  rewrite_dylib_dependency "$APP_FRAMEWORKS/libssl.3.dylib" "libcrypto\\.3\\.dylib" "@loader_path/libcrypto.3.dylib"
+
+  install_name_tool -id "@rpath/libcrypto.3.dylib" "$APP_FRAMEWORKS/libcrypto.3.dylib"
+
+  echo "Bundled libssh2 runtime dependencies."
+}
+
+sign_path() {
+  local path="$1"
+  if [[ -n "${WETRANS_DEVELOPER_ID_APPLICATION:-}" ]]; then
+    codesign \
+      --force \
+      --timestamp \
+      --options runtime \
+      --sign "$WETRANS_DEVELOPER_ID_APPLICATION" \
+      "$path"
+  else
+    codesign --force --sign - "$path"
+  fi
+}
+
 verify_package() {
   [[ -d "$APP_BUNDLE" ]]
   [[ -x "$APP_BINARY" ]]
   [[ -f "$APP_RESOURCES/AppIcon.icns" ]]
+  [[ -f "$APP_FRAMEWORKS/libssh2.dylib" ]]
+  [[ -f "$APP_FRAMEWORKS/libssl.3.dylib" ]]
+  [[ -f "$APP_FRAMEWORKS/libcrypto.3.dylib" ]]
   [[ -f "$ZIP_PATH" ]]
 
   local plist_executable
@@ -123,27 +234,34 @@ verify_package() {
 
   codesign --verify --deep --strict --verbose=2 "$APP_BUNDLE"
 
+  if otool -L "$APP_FRAMEWORKS"/*.dylib | grep -E "/opt/homebrew|/usr/local|/Cellar"; then
+    echo "Bundled dylibs must not depend on Homebrew absolute paths." >&2
+    exit 1
+  fi
+
   VERIFY_DIR="$(mktemp -d)"
   ditto -x -k "$ZIP_PATH" "$VERIFY_DIR"
   [[ -x "$VERIFY_DIR/$APP_NAME.app/Contents/MacOS/$APP_NAME" ]]
   [[ -f "$VERIFY_DIR/$APP_NAME.app/Contents/Resources/AppIcon.icns" ]]
+  [[ -f "$VERIFY_DIR/$APP_NAME.app/Contents/Frameworks/libssh2.dylib" ]]
 
   echo "Verified $APP_BUNDLE"
   echo "Verified $ZIP_PATH"
 }
 
+bundle_native_dependencies
+
+sign_path "$APP_FRAMEWORKS/libcrypto.3.dylib"
+sign_path "$APP_FRAMEWORKS/libssl.3.dylib"
+sign_path "$APP_FRAMEWORKS/libssh2.dylib"
+
 if [[ -n "${WETRANS_DEVELOPER_ID_APPLICATION:-}" ]]; then
-  codesign \
-    --force \
-    --timestamp \
-    --options runtime \
-    --sign "$WETRANS_DEVELOPER_ID_APPLICATION" \
-    "$APP_BUNDLE"
+  sign_path "$APP_BUNDLE"
   codesign --verify --deep --strict --verbose=2 "$APP_BUNDLE"
 else
   echo "Skipping Developer ID signing: WETRANS_DEVELOPER_ID_APPLICATION is not set."
   echo "Applying ad-hoc signature for local package validation."
-  codesign --force --sign - "$APP_BUNDLE"
+  sign_path "$APP_BUNDLE"
   codesign --verify --deep --strict --verbose=2 "$APP_BUNDLE"
 fi
 

@@ -8,6 +8,7 @@ final class LibSSH2RuntimeTests: XCTestCase {
         let paths = LibSSH2Runtime.defaultCandidatePaths(environment: environment)
 
         XCTAssertEqual(paths.first, "/tmp/libssh2.dylib")
+        XCTAssertEqual(paths.dropFirst().first, "@executable_path/../Frameworks/libssh2.dylib")
         XCTAssertTrue(paths.contains("libssh2.dylib"))
     }
 

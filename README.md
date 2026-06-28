@@ -79,7 +79,7 @@ Package for internal testing:
 scripts/package
 ```
 
-The packaging script always creates `dist/wetrans.app` and `dist/wetrans.zip`. Without credentials it applies an ad-hoc local signature for validation, then skips Developer ID signing and notarization. Provide credentials for a distributable signed and notarized build:
+The packaging script always creates `dist/wetrans.app` and `dist/wetrans.zip`. It bundles libssh2 and OpenSSL runtime libraries into the app so testers do not need Homebrew. Without credentials it applies an ad-hoc local signature for validation, then skips Developer ID signing and notarization. Provide credentials for a distributable signed and notarized build:
 
 ```bash
 WETRANS_DEVELOPER_ID_APPLICATION="Developer ID Application: Example (TEAMID)" \
