@@ -50,6 +50,8 @@ Requirements:
 - macOS
 - Swift toolchain
 - `libssh2` for real SSH/SFTP runtime work
+- Docker CLI and a running Docker daemon for default SFTP E2E tests
+- Access to `lscr.io/linuxserver/openssh-server:latest`, or a replacement image via `WETRANS_SFTP_DOCKER_IMAGE`
 
 Install the SFTP runtime dependency:
 
