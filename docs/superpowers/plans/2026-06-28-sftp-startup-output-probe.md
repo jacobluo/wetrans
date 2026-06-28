@@ -232,7 +232,7 @@ git commit -m "fix: probe startup output after SFTP startup failures"
 - Modify: `wetrans/RemoteFileSystem/LibSSH2DynamicClient.swift`
 - Modify: `docs/superpowers/plans/2026-06-28-sftp-startup-output-probe.md`
 
-- [ ] **Step 1: Run typecheck and observe missing protocol implementation**
+- [x] **Step 1: Run typecheck and confirm the placeholder implementation still builds**
 
 Run:
 
@@ -240,9 +240,9 @@ Run:
 swift build
 ```
 
-Expected: FAIL because `LibSSH2DynamicClient` does not yet implement `probeStartupOutput`.
+Expected: PASS. Task 2 added a placeholder `probeStartupOutput` so adapter tests could compile; this task replaces that placeholder with the real libssh2 exec-channel implementation.
 
-- [ ] **Step 2: Implement libssh2 channel symbols and exec probe**
+- [x] **Step 2: Implement libssh2 channel symbols and exec probe**
 
 Add required channel symbols to `LibSSH2Symbols` and implement `LibSSH2DynamicClient.probeStartupOutput(command:timeout:outputLimit:)` by:
 
@@ -253,7 +253,7 @@ Add required channel symbols to `LibSSH2Symbols` and implement `LibSSH2DynamicCl
 - Closing and freeing the channel with `defer`.
 - Returning `SSHStartupOutputProbeResult(stdout:stderr:outputLimit:)`.
 
-- [ ] **Step 3: Run typecheck**
+- [x] **Step 3: Run typecheck**
 
 Run:
 
@@ -263,7 +263,7 @@ swift build
 
 Expected: PASS.
 
-- [ ] **Step 4: Run focused probe and adapter tests**
+- [x] **Step 4: Run focused probe and adapter tests**
 
 Run:
 
@@ -275,7 +275,7 @@ swift test --filter SFTPStartupOutputDiagnosticTests
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit dynamic client task**
+- [x] **Step 5: Commit dynamic client task**
 
 Run:
 

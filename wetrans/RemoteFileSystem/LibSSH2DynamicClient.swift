@@ -128,7 +128,50 @@ public final class LibSSH2DynamicClient: LibSSH2Client {
         timeout: TimeInterval,
         outputLimit: Int
     ) throws -> SSHStartupOutputProbeResult {
-        throw RemoteFileSystemError.connectionFailed("SSH startup output probe is not implemented")
+        guard let symbols, let session else {
+            throw RemoteFileSystemError.disconnected
+        }
+
+        let timeoutMilliseconds = max(1, Int(timeout * 1000))
+        symbols.sessionSetTimeout(session, CLong(timeoutMilliseconds))
+
+        let channel = "session".withCString { channelType in
+            symbols.channelOpenEx(
+                session,
+                channelType,
+                UInt32(strlen(channelType)),
+                LibSSH2ChannelOpen.windowSize,
+                LibSSH2ChannelOpen.packetSize,
+                nil,
+                0
+            )
+        }
+        guard let channel else {
+            throw RemoteFileSystemError.connectionFailed(lastErrorMessage(fallback: "Unable to open SSH probe channel"))
+        }
+        defer {
+            _ = symbols.channelClose(channel)
+            _ = symbols.channelFree(channel)
+        }
+
+        let startupStatus = command.withCString { commandPointer in
+            "exec".withCString { requestPointer in
+                symbols.channelProcessStartup(
+                    channel,
+                    requestPointer,
+                    UInt32(strlen(requestPointer)),
+                    commandPointer,
+                    UInt32(strlen(commandPointer))
+                )
+            }
+        }
+        guard startupStatus == 0 else {
+            throw RemoteFileSystemError.connectionFailed(lastErrorMessage(fallback: "Unable to run SSH probe command"))
+        }
+
+        let stdout = try readProbeOutput(from: channel, streamId: LibSSH2ChannelStream.stdout, outputLimit: outputLimit)
+        let stderr = try readProbeOutput(from: channel, streamId: LibSSH2ChannelStream.stderr, outputLimit: outputLimit)
+        return SSHStartupOutputProbeResult(stdout: stdout, stderr: stderr, outputLimit: outputLimit)
     }
 
     public func listDirectory(_ path: String) throws -> [FileItem] {
@@ -453,6 +496,36 @@ public final class LibSSH2DynamicClient: LibSSH2Client {
         }
     }
 
+    private func readProbeOutput(from channel: OpaquePointer, streamId: Int32, outputLimit: Int) throws -> Data {
+        guard let symbols else {
+            throw RemoteFileSystemError.disconnected
+        }
+
+        let limit = max(0, outputLimit)
+        var data = Data()
+        var buffer = [CChar](repeating: 0, count: LibSSH2ChannelOpen.readBufferSize)
+
+        while true {
+            let count = symbols.channelReadEx(channel, streamId, &buffer, buffer.count)
+            if count == 0 || count == LibSSH2Constants.errorEAGAIN {
+                break
+            }
+            guard count > 0 else {
+                throw RemoteFileSystemError.connectionFailed(
+                    lastErrorMessage(fallback: "Unable to read SSH probe output")
+                )
+            }
+
+            let remaining = limit - data.count
+            if remaining > 0 {
+                let bytes = buffer.prefix(count).map { UInt8(bitPattern: $0) }
+                data.append(contentsOf: bytes.prefix(remaining))
+            }
+        }
+
+        return data
+    }
+
     private static func speed(transferredBytes: UInt64, startedAt: Date) -> UInt64? {
         let elapsed = Date().timeIntervalSince(startedAt)
         guard elapsed > 0 else {
@@ -588,6 +661,7 @@ public enum LibSSH2ErrorContext {
 }
 
 private struct LibSSH2Constants {
+    static let errorEAGAIN: Int = -37
     static let sftpNoSuchFile: UInt64 = 2
     static let sftpPermissionDenied: UInt64 = 3
     static let sftpFailure: UInt64 = 4
@@ -599,6 +673,17 @@ private struct LibSSH2Constants {
 
 enum LibSSH2DirectoryOpenMode {
     static let openDirectory: Int32 = 1
+}
+
+private enum LibSSH2ChannelOpen {
+    static let windowSize: UInt32 = 2 * 1024 * 1024
+    static let packetSize: UInt32 = 32 * 1024
+    static let readBufferSize = 4096
+}
+
+private enum LibSSH2ChannelStream {
+    static let stdout: Int32 = 0
+    static let stderr: Int32 = 1
 }
 
 public enum LibSSH2TransferOpenMode {
@@ -640,6 +725,7 @@ private struct LibSSH2Symbols {
         UnsafeRawPointer?
     ) -> OpaquePointer?
     typealias SessionSetBlocking = @convention(c) (OpaquePointer, Int32) -> Void
+    typealias SessionSetTimeout = @convention(c) (OpaquePointer, CLong) -> Void
     typealias SessionHandshake = @convention(c) (OpaquePointer, Int32) -> Int32
     typealias HostKey = @convention(c) (
         OpaquePointer,
@@ -711,9 +797,34 @@ private struct LibSSH2Symbols {
         UnsafePointer<CChar>?
     ) -> Int32
     typealias SessionFree = @convention(c) (OpaquePointer) -> Int32
+    typealias ChannelOpenEx = @convention(c) (
+        OpaquePointer,
+        UnsafePointer<CChar>,
+        UInt32,
+        UInt32,
+        UInt32,
+        UnsafePointer<CChar>?,
+        UInt32
+    ) -> OpaquePointer?
+    typealias ChannelProcessStartup = @convention(c) (
+        OpaquePointer,
+        UnsafePointer<CChar>,
+        UInt32,
+        UnsafePointer<CChar>?,
+        UInt32
+    ) -> Int32
+    typealias ChannelReadEx = @convention(c) (
+        OpaquePointer,
+        Int32,
+        UnsafeMutablePointer<CChar>,
+        Int
+    ) -> Int
+    typealias ChannelClose = @convention(c) (OpaquePointer) -> Int32
+    typealias ChannelFree = @convention(c) (OpaquePointer) -> Int32
 
     let sessionInitEx: SessionInitEx
     let sessionSetBlocking: SessionSetBlocking
+    let sessionSetTimeout: SessionSetTimeout
     let sessionHandshake: SessionHandshake
     let hostKey: HostKey
     let userauthPasswordEx: UserAuthPasswordEx
@@ -730,10 +841,16 @@ private struct LibSSH2Symbols {
     let sftpMkdirEx: SFTPMkdirEx
     let sessionDisconnectEx: SessionDisconnectEx
     let sessionFree: SessionFree
+    let channelOpenEx: ChannelOpenEx
+    let channelProcessStartup: ChannelProcessStartup
+    let channelReadEx: ChannelReadEx
+    let channelClose: ChannelClose
+    let channelFree: ChannelFree
 
     init(provider: LibSSH2SymbolProviding) throws {
         sessionInitEx = try Self.load("libssh2_session_init_ex", from: provider, as: SessionInitEx.self)
         sessionSetBlocking = try Self.load("libssh2_session_set_blocking", from: provider, as: SessionSetBlocking.self)
+        sessionSetTimeout = try Self.load("libssh2_session_set_timeout", from: provider, as: SessionSetTimeout.self)
         sessionHandshake = try Self.load("libssh2_session_handshake", from: provider, as: SessionHandshake.self)
         hostKey = try Self.load("libssh2_session_hostkey", from: provider, as: HostKey.self)
         userauthPasswordEx = try Self.load("libssh2_userauth_password_ex", from: provider, as: UserAuthPasswordEx.self)
@@ -754,6 +871,15 @@ private struct LibSSH2Symbols {
         sftpMkdirEx = try Self.load("libssh2_sftp_mkdir_ex", from: provider, as: SFTPMkdirEx.self)
         sessionDisconnectEx = try Self.load("libssh2_session_disconnect_ex", from: provider, as: SessionDisconnectEx.self)
         sessionFree = try Self.load("libssh2_session_free", from: provider, as: SessionFree.self)
+        channelOpenEx = try Self.load("libssh2_channel_open_ex", from: provider, as: ChannelOpenEx.self)
+        channelProcessStartup = try Self.load(
+            "libssh2_channel_process_startup",
+            from: provider,
+            as: ChannelProcessStartup.self
+        )
+        channelReadEx = try Self.load("libssh2_channel_read_ex", from: provider, as: ChannelReadEx.self)
+        channelClose = try Self.load("libssh2_channel_close", from: provider, as: ChannelClose.self)
+        channelFree = try Self.load("libssh2_channel_free", from: provider, as: ChannelFree.self)
     }
 
     private static func load<T>(_ name: String, from provider: LibSSH2SymbolProviding, as type: T.Type) throws -> T {
