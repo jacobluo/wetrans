@@ -294,7 +294,7 @@ MVP:
 - `scripts/package` builds `dist/wetrans.app` and `dist/wetrans.zip`.
 - If `WETRANS_DEVELOPER_ID_APPLICATION` is set, the script signs with Developer ID using hardened runtime options.
 - If both `WETRANS_DEVELOPER_ID_APPLICATION` and `WETRANS_NOTARYTOOL_PROFILE` are set, the script submits the zip through `xcrun notarytool --wait` and staples the app after success.
-- On development machines without signing credentials, the script leaves signing and notarization skipped while still producing local artifacts for smoke testing.
+- On development machines without signing credentials, the script applies an ad-hoc local signature for bundle validation, skips Developer ID signing and notarization, and still produces local artifacts for smoke testing.
 
 Later:
 

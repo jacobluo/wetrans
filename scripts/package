@@ -6,6 +6,7 @@ APP_NAME="wetrans"
 BUNDLE_ID="com.jacobluo.wetrans"
 MIN_SYSTEM_VERSION="14.0"
 CONFIGURATION="${WETRANS_PACKAGE_CONFIGURATION:-release}"
+VERIFY_AFTER=0
 DIST_DIR="$ROOT/dist"
 APP_BUNDLE="$DIST_DIR/$APP_NAME.app"
 APP_CONTENTS="$APP_BUNDLE/Contents"
@@ -16,6 +17,35 @@ APP_ICON="$ROOT/assets/app-icon/AppIcon.icns"
 INFO_PLIST="$APP_CONTENTS/Info.plist"
 ZIP_PATH="$DIST_DIR/$APP_NAME.zip"
 NOTARY_ZIP_PATH="$DIST_DIR/$APP_NAME-notary.zip"
+VERIFY_DIR=""
+
+usage() {
+  echo "usage: $0 [--verify]" >&2
+}
+
+cleanup() {
+  if [[ -n "$VERIFY_DIR" ]]; then
+    rm -rf "$VERIFY_DIR"
+  fi
+}
+trap cleanup EXIT
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --verify|verify)
+      VERIFY_AFTER=1
+      ;;
+    --help|-h)
+      usage
+      exit 0
+      ;;
+    *)
+      usage
+      exit 2
+      ;;
+  esac
+  shift
+done
 
 cd "$ROOT"
 
@@ -70,6 +100,38 @@ create_zip() {
   )
 }
 
+verify_package() {
+  [[ -d "$APP_BUNDLE" ]]
+  [[ -x "$APP_BINARY" ]]
+  [[ -f "$APP_RESOURCES/AppIcon.icns" ]]
+  [[ -f "$ZIP_PATH" ]]
+
+  local plist_executable
+  local plist_icon
+  plist_executable="$(/usr/libexec/PlistBuddy -c "Print :CFBundleExecutable" "$INFO_PLIST")"
+  plist_icon="$(/usr/libexec/PlistBuddy -c "Print :CFBundleIconFile" "$INFO_PLIST")"
+
+  if [[ "$plist_executable" != "$APP_NAME" ]]; then
+    echo "Unexpected CFBundleExecutable: $plist_executable" >&2
+    exit 1
+  fi
+
+  if [[ "$plist_icon" != "AppIcon" ]]; then
+    echo "Unexpected CFBundleIconFile: $plist_icon" >&2
+    exit 1
+  fi
+
+  codesign --verify --deep --strict --verbose=2 "$APP_BUNDLE"
+
+  VERIFY_DIR="$(mktemp -d)"
+  ditto -x -k "$ZIP_PATH" "$VERIFY_DIR"
+  [[ -x "$VERIFY_DIR/$APP_NAME.app/Contents/MacOS/$APP_NAME" ]]
+  [[ -f "$VERIFY_DIR/$APP_NAME.app/Contents/Resources/AppIcon.icns" ]]
+
+  echo "Verified $APP_BUNDLE"
+  echo "Verified $ZIP_PATH"
+}
+
 if [[ -n "${WETRANS_DEVELOPER_ID_APPLICATION:-}" ]]; then
   codesign \
     --force \
@@ -80,6 +142,9 @@ if [[ -n "${WETRANS_DEVELOPER_ID_APPLICATION:-}" ]]; then
   codesign --verify --deep --strict --verbose=2 "$APP_BUNDLE"
 else
   echo "Skipping Developer ID signing: WETRANS_DEVELOPER_ID_APPLICATION is not set."
+  echo "Applying ad-hoc signature for local package validation."
+  codesign --force --sign - "$APP_BUNDLE"
+  codesign --verify --deep --strict --verbose=2 "$APP_BUNDLE"
 fi
 
 if [[ -n "${WETRANS_NOTARYTOOL_PROFILE:-}" && -n "${WETRANS_DEVELOPER_ID_APPLICATION:-}" ]]; then
@@ -95,6 +160,10 @@ if [[ -n "${WETRANS_NOTARYTOOL_PROFILE:-}" && -n "${WETRANS_DEVELOPER_ID_APPLICA
 else
   echo "Skipping notarization: set both WETRANS_DEVELOPER_ID_APPLICATION and WETRANS_NOTARYTOOL_PROFILE."
   create_zip "$ZIP_PATH"
+fi
+
+if [[ "$VERIFY_AFTER" == "1" ]]; then
+  verify_package
 fi
 
 echo "Packaged $APP_BUNDLE"
