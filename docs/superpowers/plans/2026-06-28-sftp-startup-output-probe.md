@@ -167,7 +167,7 @@ git commit -m "feat: model SSH startup output probe results"
 - Modify: `wetransTests/RemoteFileSystem/LibSSH2RemoteFileSystemTests.swift`
 - Modify: `docs/superpowers/plans/2026-06-28-sftp-startup-output-probe.md`
 
-- [ ] **Step 1: Write failing adapter tests**
+- [x] **Step 1: Write failing adapter tests**
 
 Add tests asserting:
 
@@ -176,7 +176,7 @@ Add tests asserting:
 - When the probe returns no output, `connect(_:)` throws the original SFTP error.
 - When the failure is `RemoteFileSystemError.connectionFailed("SSH authentication failed")`, no probe client is created.
 
-- [ ] **Step 2: Run focused adapter test and verify it fails**
+- [x] **Step 2: Run focused adapter test and verify it fails**
 
 Run:
 
@@ -186,7 +186,7 @@ swift test --filter LibSSH2RemoteFileSystemTests/testConnectRunsStartupOutputPro
 
 Expected: FAIL because `LibSSH2Client` has no probe method and `LibSSH2RemoteFileSystem` does not run the probe.
 
-- [ ] **Step 3: Add probe method to client interface and fake client**
+- [x] **Step 3: Add probe method to client interface and fake client**
 
 Add to `LibSSH2Client`:
 
@@ -196,7 +196,7 @@ func probeStartupOutput(command: String, timeout: TimeInterval, outputLimit: Int
 
 Extend `FakeLibSSH2Client` with configurable `openSFTPError`, `probeResult`, `probeError`, and `probeCalls`.
 
-- [ ] **Step 4: Route startup-like SFTP open failures through a probe client**
+- [x] **Step 4: Route startup-like SFTP open failures through a probe client**
 
 In `LibSSH2RemoteFileSystem.connect`, wrap `client.openSFTP()` so startup-like `RemoteFileSystemError.connectionFailed` messages call a helper that:
 
@@ -207,7 +207,7 @@ In `LibSSH2RemoteFileSystem.connect`, wrap `client.openSFTP()` so startup-like `
 5. Returns `RemoteFileSystemError.connectionFailed(diagnostic)` only for strong or weak evidence.
 6. Returns the original error when the probe fails or has no evidence.
 
-- [ ] **Step 5: Run focused adapter tests and verify they pass**
+- [x] **Step 5: Run focused adapter tests and verify they pass**
 
 Run:
 
@@ -217,7 +217,7 @@ swift test --filter LibSSH2RemoteFileSystemTests
 
 Expected: PASS.
 
-- [ ] **Step 6: Commit routing task**
+- [x] **Step 6: Commit routing task**
 
 Run:
 

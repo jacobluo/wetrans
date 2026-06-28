@@ -123,6 +123,14 @@ public final class LibSSH2DynamicClient: LibSSH2Client {
         self.sftp = sftp
     }
 
+    public func probeStartupOutput(
+        command: String,
+        timeout: TimeInterval,
+        outputLimit: Int
+    ) throws -> SSHStartupOutputProbeResult {
+        throw RemoteFileSystemError.connectionFailed("SSH startup output probe is not implemented")
+    }
+
     public func listDirectory(_ path: String) throws -> [FileItem] {
         guard let symbols, let sftp else {
             throw RemoteFileSystemError.disconnected
