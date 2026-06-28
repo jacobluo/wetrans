@@ -93,7 +93,13 @@ The default E2E path runs local Docker OpenSSH-backed SFTP checks and app smoke 
 scripts/e2e
 ```
 
-`scripts/e2e` first starts a temporary local OpenSSH container, runs `RemoteFileSystemRealHostIntegrationTests` for connect/list, upload, and download coverage using key and password authentication, then launches the packaged app and checks the main UI accessibility anchors. Full UI scenarios remain opt-in with `WETRANS_E2E_RUN_FULL=1`.
+`scripts/e2e` first starts a temporary local OpenSSH container, runs `RemoteFileSystemRealHostIntegrationTests` for connect/list, upload, and download coverage using key and password authentication, then launches the packaged app and checks the main UI accessibility anchors. The fixture uses `lscr.io/linuxserver/openssh-server:latest` by default, so Docker must be able to pull and run that image. To use a mirror or pinned image, set `WETRANS_SFTP_DOCKER_IMAGE` before running the script:
+
+```bash
+WETRANS_SFTP_DOCKER_IMAGE="lscr.io/linuxserver/openssh-server:latest" scripts/e2e
+```
+
+Full UI scenarios remain opt-in with `WETRANS_E2E_RUN_FULL=1`.
 
 See [`docs/real-host-sftp-smoke.md`](docs/real-host-sftp-smoke.md) for SFTP E2E notes, local Docker fixture behavior, external override config format, and secret handling rules.
 
