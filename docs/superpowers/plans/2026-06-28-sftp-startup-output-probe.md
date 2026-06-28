@@ -289,7 +289,7 @@ git commit -m "feat: add libssh2 startup output exec probe"
 **Files:**
 - Modify: `docs/superpowers/plans/2026-06-28-sftp-startup-output-probe.md`
 
-- [ ] **Step 1: Run full verification**
+- [x] **Step 1: Run full verification**
 
 Run:
 
@@ -299,7 +299,7 @@ scripts/verify
 
 Expected: PASS. If the packaged app smoke is blocked by local macOS Accessibility permissions, record the exact blocker and run the remaining focused commands.
 
-- [ ] **Step 2: Commit final plan checkbox update**
+- [x] **Step 2: Commit final plan checkbox update**
 
 Run:
 
