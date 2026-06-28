@@ -27,35 +27,16 @@ public final class LibSSH2RemoteFileSystem: RemoteFileSystem, @unchecked Sendabl
         let client = clientFactory.makeClient()
         do {
             try client.connect(spec)
-            let now = Date()
-            let candidate = try client.hostKey(
-                hostId: spec.hostId,
-                hostname: spec.hostname,
-                port: spec.port,
-                at: now
-            )
-            let trusted = try trustedHostStore.lookup(
-                hostId: spec.hostId,
-                hostname: spec.hostname,
-                port: spec.port
-            )
-
-            switch HostKeyVerificationPolicy.decide(trusted: trusted, candidate: candidate) {
-            case .trusted:
-                try trustedHostStore.recordVerification(
-                    hostId: spec.hostId,
-                    hostname: spec.hostname,
-                    port: spec.port,
-                    at: now
-                )
-            case .requiresTrust(let candidate):
-                throw RemoteFileSystemError.hostKeyRequiresTrust(candidate)
-            case .blockedChangedKey(let expected, let actual):
-                throw RemoteFileSystemError.hostKeyChanged(expected: expected, actual: actual)
-            }
-
+            try verifyHostKey(for: client, spec: spec, at: Date())
             try client.authenticate(username: spec.username, auth: spec.auth)
-            try client.openSFTP()
+            do {
+                try client.openSFTP()
+            } catch RemoteFileSystemError.connectionFailed(let message) {
+                if let diagnosticError = startupOutputDiagnosticError(originalMessage: message, spec: spec) {
+                    throw diagnosticError
+                }
+                throw RemoteFileSystemError.connectionFailed(message)
+            }
 
             let session = RemoteSession(hostId: spec.hostId, displayName: spec.displayName)
             clientsLock.withLock {
@@ -70,6 +51,58 @@ public final class LibSSH2RemoteFileSystem: RemoteFileSystem, @unchecked Sendabl
                 client.disconnect()
             }
             throw error
+        }
+    }
+
+    private func verifyHostKey(for client: LibSSH2Client, spec: ConnectionSpec, at date: Date) throws {
+        let candidate = try client.hostKey(
+            hostId: spec.hostId,
+            hostname: spec.hostname,
+            port: spec.port,
+            at: date
+        )
+        let trusted = try trustedHostStore.lookup(
+            hostId: spec.hostId,
+            hostname: spec.hostname,
+            port: spec.port
+        )
+
+        switch HostKeyVerificationPolicy.decide(trusted: trusted, candidate: candidate) {
+        case .trusted:
+            try trustedHostStore.recordVerification(
+                hostId: spec.hostId,
+                hostname: spec.hostname,
+                port: spec.port,
+                at: date
+            )
+        case .requiresTrust(let candidate):
+            throw RemoteFileSystemError.hostKeyRequiresTrust(candidate)
+        case .blockedChangedKey(let expected, let actual):
+            throw RemoteFileSystemError.hostKeyChanged(expected: expected, actual: actual)
+        }
+    }
+
+    private func startupOutputDiagnosticError(originalMessage: String, spec: ConnectionSpec) -> RemoteFileSystemError? {
+        guard SSHStartupOutputProbeResult.shouldProbe(afterConnectionFailure: originalMessage) else {
+            return nil
+        }
+
+        let probeClient = clientFactory.makeClient()
+        defer {
+            probeClient.disconnect()
+        }
+
+        do {
+            try probeClient.connect(spec)
+            try verifyHostKey(for: probeClient, spec: spec, at: Date())
+            try probeClient.authenticate(username: spec.username, auth: spec.auth)
+            let result = try probeClient.probeStartupOutput(command: "true", timeout: 5, outputLimit: 4096)
+            guard let diagnosticMessage = result.diagnosticMessage(originalError: originalMessage) else {
+                return nil
+            }
+            return .connectionFailed(diagnosticMessage)
+        } catch {
+            return nil
         }
     }
 

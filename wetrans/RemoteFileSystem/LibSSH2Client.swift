@@ -5,6 +5,7 @@ public protocol LibSSH2Client: AnyObject {
     func hostKey(hostId: UUID, hostname: String, port: Int, at date: Date) throws -> TrustedHostKey
     func authenticate(username: String, auth: ConnectionAuth) throws
     func openSFTP() throws
+    func probeStartupOutput(command: String, timeout: TimeInterval, outputLimit: Int) throws -> SSHStartupOutputProbeResult
     func listDirectory(_ path: String) throws -> [FileItem]
     func ensureDirectory(_ path: String) throws
     func upload(

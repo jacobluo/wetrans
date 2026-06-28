@@ -84,6 +84,111 @@ final class LibSSH2RemoteFileSystemTests: XCTestCase {
         XCTAssertEqual(factory.clients[0].disconnectCallCount, 1)
     }
 
+    func testConnectRunsStartupOutputProbeWhenSFTPOpenFailsWithStdout() async {
+        let hostId = UUID()
+        let spec = makeSpec(hostId: hostId)
+        let trusted = makeTrustedKey(hostId: hostId, fingerprint: "SHA256:candidate")
+        let primaryClient = FakeLibSSH2Client(hostKey: trusted)
+        primaryClient.openSFTPError = RemoteFileSystemError.connectionFailed("Unable to open SFTP session")
+        let probeClient = FakeLibSSH2Client(hostKey: trusted)
+        probeClient.probeResult = SSHStartupOutputProbeResult(
+            stdout: Data("Migration Tools environment loaded\n".utf8),
+            stderr: Data(),
+            outputLimit: 4096
+        )
+        let factory = FakeLibSSH2ClientFactory(clients: [primaryClient, probeClient])
+        let adapter = LibSSH2RemoteFileSystem(
+            runtime: FakeLibSSH2Runtime(),
+            trustedHostStore: FakeTrustedHostStore(trustedKey: trusted),
+            clientFactory: factory
+        )
+
+        await XCTAssertThrowsErrorAsync(try await adapter.connect(spec)) { error in
+            guard case .connectionFailed(let message)? = error as? RemoteFileSystemError else {
+                return XCTFail("Expected connectionFailed, got \(error)")
+            }
+            XCTAssertTrue(message.contains("remote shell printed text"))
+            XCTAssertTrue(message.contains("Migration Tools environment loaded"))
+            XCTAssertTrue(message.contains("~/.bashrc"))
+        }
+
+        XCTAssertEqual(factory.makeClientCallCount, 2)
+        XCTAssertEqual(primaryClient.disconnectCallCount, 1)
+        XCTAssertEqual(probeClient.connectCalls, [spec])
+        XCTAssertEqual(probeClient.authenticateCalls, [spec.auth])
+        XCTAssertEqual(probeClient.probeCalls, [FakeLibSSH2Client.ProbeCall(command: "true", timeout: 5, outputLimit: 4096)])
+        XCTAssertEqual(probeClient.disconnectCallCount, 1)
+    }
+
+    func testConnectUsesWeakStartupOutputProbeDiagnosticWhenOnlyStderrIsDetected() async {
+        let hostId = UUID()
+        let spec = makeSpec(hostId: hostId)
+        let trusted = makeTrustedKey(hostId: hostId, fingerprint: "SHA256:candidate")
+        let primaryClient = FakeLibSSH2Client(hostKey: trusted)
+        primaryClient.openSFTPError = RemoteFileSystemError.connectionFailed("Unable to open SFTP session")
+        let probeClient = FakeLibSSH2Client(hostKey: trusted)
+        probeClient.probeResult = SSHStartupOutputProbeResult(
+            stdout: Data(),
+            stderr: Data("bash: warning: setlocale\n".utf8),
+            outputLimit: 4096
+        )
+        let adapter = LibSSH2RemoteFileSystem(
+            runtime: FakeLibSSH2Runtime(),
+            trustedHostStore: FakeTrustedHostStore(trustedKey: trusted),
+            clientFactory: FakeLibSSH2ClientFactory(clients: [primaryClient, probeClient])
+        )
+
+        await XCTAssertThrowsErrorAsync(try await adapter.connect(spec)) { error in
+            guard case .connectionFailed(let message)? = error as? RemoteFileSystemError else {
+                return XCTFail("Expected connectionFailed, got \(error)")
+            }
+            XCTAssertTrue(message.contains("Unable to open SFTP session"))
+            XCTAssertTrue(message.contains("bash: warning: setlocale"))
+            XCTAssertTrue(message.contains("startup files"))
+        }
+    }
+
+    func testConnectPreservesOriginalSFTPErrorWhenStartupOutputProbeFindsNoOutput() async {
+        let hostId = UUID()
+        let spec = makeSpec(hostId: hostId)
+        let trusted = makeTrustedKey(hostId: hostId, fingerprint: "SHA256:candidate")
+        let primaryClient = FakeLibSSH2Client(hostKey: trusted)
+        primaryClient.openSFTPError = RemoteFileSystemError.connectionFailed("Unable to open SFTP session")
+        let probeClient = FakeLibSSH2Client(hostKey: trusted)
+        probeClient.probeResult = SSHStartupOutputProbeResult(stdout: Data(), stderr: Data(), outputLimit: 4096)
+        let adapter = LibSSH2RemoteFileSystem(
+            runtime: FakeLibSSH2Runtime(),
+            trustedHostStore: FakeTrustedHostStore(trustedKey: trusted),
+            clientFactory: FakeLibSSH2ClientFactory(clients: [primaryClient, probeClient])
+        )
+
+        await XCTAssertThrowsErrorAsync(try await adapter.connect(spec)) { error in
+            XCTAssertEqual(error as? RemoteFileSystemError, .connectionFailed("Unable to open SFTP session"))
+        }
+    }
+
+    func testConnectDoesNotProbeNonStartupConnectionFailures() async {
+        let hostId = UUID()
+        let spec = makeSpec(hostId: hostId)
+        let trusted = makeTrustedKey(hostId: hostId, fingerprint: "SHA256:candidate")
+        let primaryClient = FakeLibSSH2Client(hostKey: trusted)
+        primaryClient.openSFTPError = RemoteFileSystemError.connectionFailed("SSH authentication failed")
+        let probeClient = FakeLibSSH2Client(hostKey: trusted)
+        let factory = FakeLibSSH2ClientFactory(clients: [primaryClient, probeClient])
+        let adapter = LibSSH2RemoteFileSystem(
+            runtime: FakeLibSSH2Runtime(),
+            trustedHostStore: FakeTrustedHostStore(trustedKey: trusted),
+            clientFactory: factory
+        )
+
+        await XCTAssertThrowsErrorAsync(try await adapter.connect(spec)) { error in
+            XCTAssertEqual(error as? RemoteFileSystemError, .connectionFailed("SSH authentication failed"))
+        }
+
+        XCTAssertEqual(factory.makeClientCallCount, 1)
+        XCTAssertEqual(probeClient.connectCalls, [])
+    }
+
     func testListDirectoryUsesConnectedClient() async throws {
         let hostId = UUID()
         let spec = makeSpec(hostId: hostId)
@@ -689,13 +794,19 @@ private final class FakeLibSSH2Runtime: LibSSH2RuntimeManaging {
 private final class FakeLibSSH2ClientFactory: LibSSH2ClientFactory {
     private(set) var makeClientCallCount = 0
     private(set) var clients: [FakeLibSSH2Client] = []
-    private let client: FakeLibSSH2Client
+    private let clientsToReturn: [FakeLibSSH2Client]
 
     init(client: FakeLibSSH2Client) {
-        self.client = client
+        self.clientsToReturn = [client]
+    }
+
+    init(clients: [FakeLibSSH2Client]) {
+        self.clientsToReturn = clients
     }
 
     func makeClient() -> LibSSH2Client {
+        let index = min(makeClientCallCount, clientsToReturn.count - 1)
+        let client = clientsToReturn[index]
         makeClientCallCount += 1
         clients.append(client)
         return client
@@ -703,11 +814,21 @@ private final class FakeLibSSH2ClientFactory: LibSSH2ClientFactory {
 }
 
 private final class FakeLibSSH2Client: LibSSH2Client {
+    struct ProbeCall: Equatable {
+        let command: String
+        let timeout: TimeInterval
+        let outputLimit: Int
+    }
+
     private let key: TrustedHostKey
     private let listingsByPath: [String: [FileItem]]
+    var openSFTPError: Error?
+    var probeResult = SSHStartupOutputProbeResult(stdout: Data(), stderr: Data(), outputLimit: 4096)
+    var probeError: Error?
     private(set) var connectCalls: [ConnectionSpec] = []
     private(set) var authenticateCalls: [ConnectionAuth] = []
     private(set) var openSFTPCallCount = 0
+    private(set) var probeCalls: [ProbeCall] = []
     private(set) var listDirectoryCalls: [String] = []
     private(set) var ensureDirectoryCalls: [String] = []
     private(set) var uploadCalls: [UploadRequest] = []
@@ -742,6 +863,17 @@ private final class FakeLibSSH2Client: LibSSH2Client {
 
     func openSFTP() throws {
         openSFTPCallCount += 1
+        if let openSFTPError {
+            throw openSFTPError
+        }
+    }
+
+    func probeStartupOutput(command: String, timeout: TimeInterval, outputLimit: Int) throws -> SSHStartupOutputProbeResult {
+        probeCalls.append(ProbeCall(command: command, timeout: timeout, outputLimit: outputLimit))
+        if let probeError {
+            throw probeError
+        }
+        return probeResult
     }
 
     func listDirectory(_ path: String) throws -> [FileItem] {
