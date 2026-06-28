@@ -34,7 +34,7 @@
 - Create: `wetransTests/RemoteFileSystem/SSHStartupOutputProbeTests.swift`
 - Modify: `docs/superpowers/plans/2026-06-28-sftp-startup-output-probe.md`
 
-- [ ] **Step 1: Write failing model tests**
+- [x] **Step 1: Write failing model tests**
 
 Add tests that assert:
 
@@ -51,7 +51,7 @@ XCTAssertEqual(result.evidence, .strong)
 
 Also cover stderr-only weak evidence, empty no evidence, 4096 byte truncation, invalid UTF-8 replacement, startup-like trigger messages, and non-startup messages.
 
-- [ ] **Step 2: Run focused model tests and verify they fail**
+- [x] **Step 2: Run focused model tests and verify they fail**
 
 Run:
 
@@ -61,7 +61,7 @@ swift test --filter SSHStartupOutputProbeTests
 
 Expected: FAIL because `SSHStartupOutputProbeResult` is not defined.
 
-- [ ] **Step 3: Implement result and diagnostic model**
+- [x] **Step 3: Implement result and diagnostic model**
 
 Create `SSHStartupOutputProbe.swift` with:
 
@@ -140,7 +140,7 @@ public struct SSHStartupOutputProbeResult: Equatable, Sendable {
 }
 ```
 
-- [ ] **Step 4: Run focused model tests and verify they pass**
+- [x] **Step 4: Run focused model tests and verify they pass**
 
 Run:
 
@@ -150,7 +150,7 @@ swift test --filter SSHStartupOutputProbeTests
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit model task**
+- [x] **Step 5: Commit model task**
 
 Run:
 
