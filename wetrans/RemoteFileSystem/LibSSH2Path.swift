@@ -16,6 +16,23 @@ public enum LibSSH2Path {
         return "\(directory)/\(name)"
     }
 
+    public static func parentDirectory(of path: String) -> String {
+        var trimmed = path
+        while trimmed.count > 1 && trimmed.hasSuffix("/") {
+            trimmed.removeLast()
+        }
+        guard trimmed != "/" else {
+            return "/"
+        }
+        guard let separator = trimmed.lastIndex(of: "/") else {
+            return "."
+        }
+        if separator == trimmed.startIndex {
+            return "/"
+        }
+        return String(trimmed[..<separator])
+    }
+
     public static func isDirectory(permissions: UInt64) -> Bool {
         permissions & fileTypeMask == directoryType
     }

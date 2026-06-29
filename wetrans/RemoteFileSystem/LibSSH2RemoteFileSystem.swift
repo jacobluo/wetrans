@@ -136,6 +136,20 @@ public final class LibSSH2RemoteFileSystem: RemoteFileSystem, @unchecked Sendabl
         try client.ensureDirectory(path)
     }
 
+    public func copyItem(from sourcePath: String, to destinationPath: String, in session: RemoteSession) async throws {
+        guard let client = clientsLock.withLock({ clientsBySessionId[session.id] }) else {
+            throw RemoteFileSystemError.disconnected
+        }
+        try client.copyItem(from: sourcePath, to: destinationPath)
+    }
+
+    public func deleteItem(_ item: FileItem, in session: RemoteSession) async throws {
+        guard let client = clientsLock.withLock({ clientsBySessionId[session.id] }) else {
+            throw RemoteFileSystemError.disconnected
+        }
+        try client.deleteItem(item)
+    }
+
     public func upload(
         _ request: UploadRequest,
         in session: RemoteSession,

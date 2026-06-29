@@ -45,6 +45,8 @@ public protocol RemoteFileSystem: Sendable {
     func disconnect(_ session: RemoteSession) async
     func listDirectory(_ path: String, in session: RemoteSession) async throws -> [FileItem]
     func ensureDirectory(_ path: String, in session: RemoteSession) async throws
+    func copyItem(from sourcePath: String, to destinationPath: String, in session: RemoteSession) async throws
+    func deleteItem(_ item: FileItem, in session: RemoteSession) async throws
     func upload(
         _ request: UploadRequest,
         in session: RemoteSession,

@@ -276,6 +276,42 @@ final class LibSSH2RemoteFileSystemTests: XCTestCase {
         XCTAssertEqual(client.downloadCalls, [request])
     }
 
+    func testCopyItemDelegatesToConnectedClient() async throws {
+        let hostId = UUID()
+        let spec = makeSpec(hostId: hostId)
+        let candidate = makeTrustedKey(hostId: hostId, fingerprint: "SHA256:candidate")
+        let client = FakeLibSSH2Client(hostKey: candidate)
+        let adapter = LibSSH2RemoteFileSystem(
+            runtime: FakeLibSSH2Runtime(),
+            trustedHostStore: FakeTrustedHostStore(trustedKey: candidate),
+            clientFactory: FakeLibSSH2ClientFactory(client: client)
+        )
+        let session = try await adapter.connect(spec)
+
+        try await adapter.copyItem(from: "/project/a.txt", to: "/project/a copy.txt", in: session)
+
+        XCTAssertEqual(client.copyItemCalls.map(\.sourcePath), ["/project/a.txt"])
+        XCTAssertEqual(client.copyItemCalls.map(\.destinationPath), ["/project/a copy.txt"])
+    }
+
+    func testDeleteItemDelegatesToConnectedClient() async throws {
+        let hostId = UUID()
+        let spec = makeSpec(hostId: hostId)
+        let candidate = makeTrustedKey(hostId: hostId, fingerprint: "SHA256:candidate")
+        let item = FileItem(name: "a.txt", path: "/project/a.txt", isDirectory: false)
+        let client = FakeLibSSH2Client(hostKey: candidate)
+        let adapter = LibSSH2RemoteFileSystem(
+            runtime: FakeLibSSH2Runtime(),
+            trustedHostStore: FakeTrustedHostStore(trustedKey: candidate),
+            clientFactory: FakeLibSSH2ClientFactory(client: client)
+        )
+        let session = try await adapter.connect(spec)
+
+        try await adapter.deleteItem(item, in: session)
+
+        XCTAssertEqual(client.deleteItemCalls, [item])
+    }
+
     func testUploadAndDownloadThrowDisconnectedWithoutConnectedClient() async {
         let adapter = LibSSH2RemoteFileSystem(
             runtime: FakeLibSSH2Runtime(),
@@ -414,6 +450,27 @@ final class RemoteFileSystemRealHostIntegrationTests: XCTestCase {
         XCTAssertTrue(failures.isEmpty, failures.joined(separator: "\n"))
     }
 
+    func testConfiguredRealHostsCopyAndDeleteFilesAndDirectories() async throws {
+        let environment = ProcessInfo.processInfo.environment
+        let configURL = try Self.configURL(environment: environment)
+        let config = try SFTPIntegrationConfig.load(from: configURL)
+        guard !config.hosts.isEmpty else {
+            XCTFail("SFTP integration config has no hosts: \(configURL.path)")
+            return
+        }
+
+        var failures: [String] = []
+        for host in config.hosts {
+            do {
+                try await copyDeleteE2E(host: host, environment: environment)
+            } catch {
+                failures.append(String(describing: error))
+            }
+        }
+
+        XCTAssertTrue(failures.isEmpty, failures.joined(separator: "\n"))
+    }
+
     private func connect(
         adapter: LibSSH2RemoteFileSystem,
         spec: ConnectionSpec,
@@ -505,6 +562,37 @@ final class RemoteFileSystemRealHostIntegrationTests: XCTestCase {
         } catch {
             await adapter.disconnect(session)
             throw SFTPIntegrationError(host: host, operation: "upload/download E2E", underlying: error)
+        }
+    }
+
+    private func copyDeleteE2E(host: SFTPIntegrationHost, environment: [String: String]) async throws {
+        let hostId = UUID()
+        let spec = connectionSpec(host: host, environment: environment, hostId: hostId)
+        let trustedStore = FileTrustedHostStore(applicationSupportDirectory: temporaryDirectory())
+        if let trustedKey = host.trustedHostKey(hostId: hostId) {
+            try trustedStore.trust(trustedKey)
+        }
+
+        let adapter = LibSSH2RemoteFileSystem(trustedHostStore: trustedStore)
+        let session: RemoteSession
+        do {
+            session = try await connect(
+                adapter: adapter,
+                spec: spec,
+                trustedStore: trustedStore,
+                host: host,
+                hostId: hostId
+            )
+        } catch {
+            throw SFTPIntegrationError(host: host, operation: "connect", underlying: error)
+        }
+
+        do {
+            try await runCopyDeleteE2E(adapter: adapter, session: session, host: host)
+            await adapter.disconnect(session)
+        } catch {
+            await adapter.disconnect(session)
+            throw SFTPIntegrationError(host: host, operation: "copy/delete E2E", underlying: error)
         }
     }
 
@@ -620,6 +708,93 @@ final class RemoteFileSystemRealHostIntegrationTests: XCTestCase {
         }
     }
 
+    private func runCopyDeleteE2E(
+        adapter: LibSSH2RemoteFileSystem,
+        session: RemoteSession,
+        host: SFTPIntegrationHost
+    ) async throws {
+        _ = try await adapter.listDirectory(host.listPath, in: session)
+
+        let fixture = try makeTransferE2EFixture()
+        let remoteRoot = "/tmp/wetrans-copy-delete-e2e-\(UUID().uuidString)"
+        let sourceRoot = "\(remoteRoot)/source"
+        let copiesRoot = "\(remoteRoot)/copies"
+        let downloadRoot = temporaryDirectory().appendingPathComponent("copy-delete-downloads", isDirectory: true)
+
+        try await adapter.ensureDirectory(sourceRoot, in: session)
+        let remoteSinglePath = "\(sourceRoot)/single.txt"
+        try await adapter.upload(
+            UploadRequest(localPath: fixture.single.path, remotePath: remoteSinglePath),
+            in: session,
+            progress: { _ in }
+        )
+
+        let remoteFolderRoot = "\(sourceRoot)/folder"
+        for (relativePath, _) in fixture.directoryContentsByRelativePath {
+            let localPath = fixture.directory.appendingPathComponent(relativePath).path
+            let remotePath = "\(remoteFolderRoot)/\(relativePath)"
+            try await adapter.ensureDirectory(BrowserPath.remoteParent(of: remotePath), in: session)
+            try await adapter.upload(
+                UploadRequest(localPath: localPath, remotePath: remotePath),
+                in: session,
+                progress: { _ in }
+            )
+        }
+
+        let copiedSinglePath = "\(copiesRoot)/single-copy.txt"
+        try await adapter.copyItem(from: remoteSinglePath, to: copiedSinglePath, in: session)
+        try await assertRemoteNames(["single-copy.txt"], in: copiesRoot, adapter: adapter, session: session)
+        let downloadedCopiedSingle = downloadRoot.appendingPathComponent("single-copy.txt")
+        try await adapter.download(
+            DownloadRequest(remotePath: copiedSinglePath, localPath: downloadedCopiedSingle.path),
+            in: session,
+            progress: { _ in }
+        )
+        XCTAssertEqual(
+            try Data(contentsOf: downloadedCopiedSingle),
+            try XCTUnwrap(fixture.contentsByLocalPath[fixture.single.path])
+        )
+
+        let copiedFolderPath = "\(copiesRoot)/folder-copy"
+        try await adapter.copyItem(from: remoteFolderRoot, to: copiedFolderPath, in: session)
+        try await assertRemoteNames(
+            ["nested", "root-a.txt"],
+            in: copiedFolderPath,
+            adapter: adapter,
+            session: session
+        )
+        try await assertRemoteNames(
+            ["nested-a.txt", "nested-b.txt"],
+            in: "\(copiedFolderPath)/nested",
+            adapter: adapter,
+            session: session
+        )
+        for (relativePath, expectedData) in fixture.directoryContentsByRelativePath {
+            let downloaded = downloadRoot
+                .appendingPathComponent("folder-copy", isDirectory: true)
+                .appendingPathComponent(relativePath)
+            try await adapter.download(
+                DownloadRequest(remotePath: "\(copiedFolderPath)/\(relativePath)", localPath: downloaded.path),
+                in: session,
+                progress: { _ in }
+            )
+            XCTAssertEqual(try Data(contentsOf: downloaded), expectedData)
+        }
+
+        let copiedItems = try await adapter.listDirectory(copiesRoot, in: session)
+        try await adapter.deleteItem(try remoteItem(named: "single-copy.txt", in: copiedItems), in: session)
+        try await assertRemoteNames(["folder-copy"], in: copiesRoot, adapter: adapter, session: session)
+
+        try await adapter.deleteItem(try remoteItem(named: "folder-copy", in: copiedItems), in: session)
+        try await assertRemoteNames([], in: copiesRoot, adapter: adapter, session: session)
+
+        let remoteRootItem = FileItem(name: (remoteRoot as NSString).lastPathComponent, path: remoteRoot, isDirectory: true)
+        try await adapter.deleteItem(remoteRootItem, in: session)
+        await XCTAssertThrowsErrorAsync(try await adapter.listDirectory(remoteRoot, in: session)) { error in
+            XCTAssertEqual(error as? RemoteFileSystemError, .notDirectory(remoteRoot))
+        }
+    }
+
     private func assertRemoteNames(
         _ expectedNames: Set<String>,
         in path: String,
@@ -628,6 +803,10 @@ final class RemoteFileSystemRealHostIntegrationTests: XCTestCase {
     ) async throws {
         let items = try await adapter.listDirectory(path, in: session)
         XCTAssertEqual(Set(items.map(\.name)), expectedNames)
+    }
+
+    private func remoteItem(named name: String, in items: [FileItem]) throws -> FileItem {
+        try XCTUnwrap(items.first { $0.name == name })
     }
 
     private func makeTransferE2EFixture() throws -> TransferE2EFixture {
@@ -831,6 +1010,8 @@ private final class FakeLibSSH2Client: LibSSH2Client {
     private(set) var probeCalls: [ProbeCall] = []
     private(set) var listDirectoryCalls: [String] = []
     private(set) var ensureDirectoryCalls: [String] = []
+    private(set) var copyItemCalls: [(sourcePath: String, destinationPath: String)] = []
+    private(set) var deleteItemCalls: [FileItem] = []
     private(set) var uploadCalls: [UploadRequest] = []
     private(set) var downloadCalls: [DownloadRequest] = []
     private(set) var disconnectCallCount = 0
@@ -883,6 +1064,14 @@ private final class FakeLibSSH2Client: LibSSH2Client {
 
     func ensureDirectory(_ path: String) throws {
         ensureDirectoryCalls.append(path)
+    }
+
+    func copyItem(from sourcePath: String, to destinationPath: String) throws {
+        copyItemCalls.append((sourcePath: sourcePath, destinationPath: destinationPath))
+    }
+
+    func deleteItem(_ item: FileItem) throws {
+        deleteItemCalls.append(item)
     }
 
     func upload(

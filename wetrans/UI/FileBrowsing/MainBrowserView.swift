@@ -70,6 +70,34 @@ public struct MainBrowserView: View {
         } message: {
             Text(viewModel.pendingHostKeyTrustMessage)
         }
+        .confirmationDialog(
+            viewModel.pendingDeleteConfirmation?.title ?? "Delete Items?",
+            isPresented: Binding(
+                get: { viewModel.pendingDeleteConfirmation != nil },
+                set: { isPresented in
+                    if !isPresented {
+                        viewModel.cancelPendingDelete()
+                    }
+                }
+            ),
+            titleVisibility: .visible
+        ) {
+            if let confirmation = viewModel.pendingDeleteConfirmation {
+                Button(confirmation.actionTitle, role: .destructive) {
+                    let confirmation = confirmation
+                    Task {
+                        await viewModel.confirmDelete(confirmation)
+                    }
+                }
+                Button("Cancel", role: .cancel) {
+                    viewModel.cancelPendingDelete()
+                }
+            }
+        } message: {
+            if let confirmation = viewModel.pendingDeleteConfirmation {
+                Text(confirmation.message)
+            }
+        }
     }
 
     @ViewBuilder
@@ -183,6 +211,36 @@ public struct MainBrowserView: View {
                         }
                     ),
                     FilePanelContextAction(
+                        id: "copy-local-\(item.id)",
+                        title: "Copy",
+                        systemImage: "doc.on.doc",
+                        isEnabled: true,
+                        perform: {
+                            viewModel.copyLocalItems(item)
+                        }
+                    ),
+                    FilePanelContextAction(
+                        id: "paste-local-\(item.id)",
+                        title: "Paste",
+                        systemImage: "doc.on.clipboard",
+                        isEnabled: viewModel.canPasteIntoLocal,
+                        perform: {
+                            Task {
+                                await viewModel.pasteIntoLocal()
+                            }
+                        }
+                    ),
+                    FilePanelContextAction(
+                        id: "delete-local-\(item.id)",
+                        title: "Delete",
+                        systemImage: "trash",
+                        isEnabled: true,
+                        role: .destructive,
+                        perform: {
+                            viewModel.requestDeleteLocalItems(item)
+                        }
+                    ),
+                    FilePanelContextAction(
                         id: "reveal-\(item.id)",
                         title: "Show in Finder",
                         systemImage: "magnifyingglass",
@@ -242,6 +300,36 @@ public struct MainBrowserView: View {
                             Task {
                                 await viewModel.enqueueDownload(item)
                             }
+                        }
+                    ),
+                    FilePanelContextAction(
+                        id: "copy-remote-\(item.id)",
+                        title: "Copy",
+                        systemImage: "doc.on.doc",
+                        isEnabled: viewModel.selectedHost != nil,
+                        perform: {
+                            viewModel.copyRemoteItems(item)
+                        }
+                    ),
+                    FilePanelContextAction(
+                        id: "paste-remote-\(item.id)",
+                        title: "Paste",
+                        systemImage: "doc.on.clipboard",
+                        isEnabled: viewModel.canPasteIntoRemote,
+                        perform: {
+                            Task {
+                                await viewModel.pasteIntoRemote()
+                            }
+                        }
+                    ),
+                    FilePanelContextAction(
+                        id: "delete-remote-\(item.id)",
+                        title: "Delete",
+                        systemImage: "trash",
+                        isEnabled: viewModel.selectedHost != nil,
+                        role: .destructive,
+                        perform: {
+                            viewModel.requestDeleteRemoteItems(item)
                         }
                     ),
                     FilePanelContextAction(

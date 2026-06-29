@@ -115,6 +115,10 @@ private final class FakePlannerLocalFileSystem: LocalFileSystem, @unchecked Send
         listCalls.append(path)
         return listingsByPath[path] ?? []
     }
+
+    func copyItem(at sourcePath: String, to destinationPath: String) throws {}
+
+    func deleteItem(at path: String) throws {}
 }
 
 private extension SavedHost {

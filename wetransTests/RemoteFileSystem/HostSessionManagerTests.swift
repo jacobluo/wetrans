@@ -112,6 +112,31 @@ final class HostSessionManagerTests: XCTestCase {
         XCTAssertEqual(Set(snapshot.listSessionIds).count, 1)
     }
 
+    func testRemoteCopyReconnectsOnceWhenCachedSessionFails() async throws {
+        let host = SavedHost.fixture(lastRemotePath: "/project")
+        let remoteFileSystem = SequencedOperationRemoteFileSystem(
+            copyResults: [
+                .failure(RemoteFileSystemError.connectionFailed("Unable to send FXP_READ*")),
+                .success(())
+            ]
+        )
+        let manager = HostSessionManager(
+            remoteFileSystem: remoteFileSystem,
+            credentialStore: InMemoryCredentialStore(),
+            defaultLocalPath: { "/Users/me/Downloads" }
+        )
+
+        _ = try await manager.listRemoteDirectory(for: host)
+        try await manager.copyRemoteItem(from: "/project/a.txt", to: "/project/a copy.txt", for: host)
+
+        let snapshot = await remoteFileSystem.snapshot()
+        XCTAssertEqual(snapshot.connectCount, 2)
+        XCTAssertEqual(snapshot.disconnectCount, 1)
+        XCTAssertEqual(snapshot.copySourcePaths, ["/project/a.txt", "/project/a.txt"])
+        XCTAssertEqual(snapshot.copyDestinationPaths, ["/project/a copy.txt", "/project/a copy.txt"])
+        XCTAssertNotEqual(snapshot.copySessionIds[0], snapshot.copySessionIds[1])
+    }
+
     func testConcurrentFirstListingsForSameHostSharePendingSession() async throws {
         let host = SavedHost.fixture(lastRemotePath: "/project")
         let remoteFileSystem = SlowConnectRemoteFileSystem(listingsByPath: ["/project": []])
@@ -240,6 +265,40 @@ final class HostSessionManagerTests: XCTestCase {
         XCTAssertEqual(manager.state(for: oldHost).currentRemotePath, "/old")
         XCTAssertEqual(manager.state(for: recentHost).currentRemotePath, "/recent")
     }
+
+    func testCopyRemoteItemUsesConnectedSession() async throws {
+        let host = SavedHost.fixture(lastRemotePath: "/project")
+        let remoteFileSystem = MockRemoteFileSystem(listingsByPath: ["/project": []])
+        let manager = HostSessionManager(
+            remoteFileSystem: remoteFileSystem,
+            credentialStore: InMemoryCredentialStore(),
+            defaultLocalPath: { "/Users/me/Downloads" }
+        )
+
+        try await manager.copyRemoteItem(from: "/project/a.txt", to: "/project/a copy.txt", for: host)
+
+        XCTAssertEqual(remoteFileSystem.connectCalls.count, 1)
+        XCTAssertEqual(remoteFileSystem.copyItemCalls.map(\.sourcePath), ["/project/a.txt"])
+        XCTAssertEqual(remoteFileSystem.copyItemCalls.map(\.destinationPath), ["/project/a copy.txt"])
+        XCTAssertTrue(manager.state(for: host).isConnected)
+    }
+
+    func testDeleteRemoteItemUsesConnectedSession() async throws {
+        let host = SavedHost.fixture(lastRemotePath: "/project")
+        let item = FileItem(name: "a.txt", path: "/project/a.txt", isDirectory: false)
+        let remoteFileSystem = MockRemoteFileSystem(listingsByPath: ["/project": []])
+        let manager = HostSessionManager(
+            remoteFileSystem: remoteFileSystem,
+            credentialStore: InMemoryCredentialStore(),
+            defaultLocalPath: { "/Users/me/Downloads" }
+        )
+
+        try await manager.deleteRemoteItem(item, for: host)
+
+        XCTAssertEqual(remoteFileSystem.connectCalls.count, 1)
+        XCTAssertEqual(remoteFileSystem.deleteItemCalls.map(\.item), [item])
+        XCTAssertTrue(manager.state(for: host).isConnected)
+    }
 }
 
 private actor SlowConnectRemoteFileSystem: RemoteFileSystem {
@@ -269,6 +328,10 @@ private actor SlowConnectRemoteFileSystem: RemoteFileSystem {
     }
 
     func ensureDirectory(_ path: String, in session: RemoteSession) async throws {}
+
+    func copyItem(from sourcePath: String, to destinationPath: String, in session: RemoteSession) async throws {}
+
+    func deleteItem(_ item: FileItem, in session: RemoteSession) async throws {}
 
     func upload(
         _ request: UploadRequest,
@@ -343,6 +406,10 @@ private actor SequencedListRemoteFileSystem: RemoteFileSystem {
 
     func ensureDirectory(_ path: String, in session: RemoteSession) async throws {}
 
+    func copyItem(from sourcePath: String, to destinationPath: String, in session: RemoteSession) async throws {}
+
+    func deleteItem(_ item: FileItem, in session: RemoteSession) async throws {}
+
     func snapshot() -> Snapshot {
         Snapshot(
             connectCount: connectCallCount,
@@ -363,6 +430,77 @@ private actor SequencedListRemoteFileSystem: RemoteFileSystem {
         in session: RemoteSession,
         progress: @escaping @Sendable (TransferProgress) async -> Void
     ) async throws {}
+}
+
+private actor SequencedOperationRemoteFileSystem: RemoteFileSystem {
+    struct Snapshot {
+        let connectCount: Int
+        let disconnectCount: Int
+        let copySourcePaths: [String]
+        let copyDestinationPaths: [String]
+        let copySessionIds: [UUID]
+    }
+
+    private var copyResults: [Result<Void, Error>]
+    private var connectCallCount = 0
+    private var disconnectedSessions: [RemoteSession] = []
+    private var copyCalls: [(sourcePath: String, destinationPath: String, session: RemoteSession)] = []
+
+    init(copyResults: [Result<Void, Error>]) {
+        self.copyResults = copyResults
+    }
+
+    func connect(_ spec: ConnectionSpec) async throws -> RemoteSession {
+        connectCallCount += 1
+        return RemoteSession(hostId: spec.hostId, displayName: spec.displayName)
+    }
+
+    func disconnect(_ session: RemoteSession) async {
+        disconnectedSessions.append(session)
+    }
+
+    func listDirectory(_ path: String, in session: RemoteSession) async throws -> [FileItem] {
+        []
+    }
+
+    func ensureDirectory(_ path: String, in session: RemoteSession) async throws {}
+
+    func copyItem(from sourcePath: String, to destinationPath: String, in session: RemoteSession) async throws {
+        copyCalls.append((sourcePath: sourcePath, destinationPath: destinationPath, session: session))
+        guard !copyResults.isEmpty else {
+            return
+        }
+        switch copyResults.removeFirst() {
+        case .success:
+            return
+        case .failure(let error):
+            throw error
+        }
+    }
+
+    func deleteItem(_ item: FileItem, in session: RemoteSession) async throws {}
+
+    func upload(
+        _ request: UploadRequest,
+        in session: RemoteSession,
+        progress: @escaping @Sendable (TransferProgress) async -> Void
+    ) async throws {}
+
+    func download(
+        _ request: DownloadRequest,
+        in session: RemoteSession,
+        progress: @escaping @Sendable (TransferProgress) async -> Void
+    ) async throws {}
+
+    func snapshot() -> Snapshot {
+        Snapshot(
+            connectCount: connectCallCount,
+            disconnectCount: disconnectedSessions.count,
+            copySourcePaths: copyCalls.map(\.sourcePath),
+            copyDestinationPaths: copyCalls.map(\.destinationPath),
+            copySessionIds: copyCalls.map(\.session.id)
+        )
+    }
 }
 
 private extension SavedHost {
