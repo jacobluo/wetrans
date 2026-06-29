@@ -30,3 +30,18 @@ public struct TransferHistoryDocument: Codable, Equatable {
     }
 }
 
+public struct TransferQueueSettingsDocument: Codable, Equatable {
+    public var schemaVersion: Int
+    public var globalConcurrencyLimit: Int
+    public var perHostConcurrencyLimit: Int
+
+    public init(
+        schemaVersion: Int = 1,
+        globalConcurrencyLimit: Int = 3,
+        perHostConcurrencyLimit: Int = 2
+    ) {
+        self.schemaVersion = schemaVersion
+        self.globalConcurrencyLimit = globalConcurrencyLimit
+        self.perHostConcurrencyLimit = perHostConcurrencyLimit
+    }
+}

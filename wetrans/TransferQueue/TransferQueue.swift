@@ -1,11 +1,23 @@
 import Foundation
 
+public struct TransferQueueConcurrencyLimits: Codable, Equatable, Sendable {
+    public let global: Int
+    public let perHost: Int
+
+    public init(global: Int, perHost: Int) {
+        self.global = max(1, global)
+        self.perHost = max(1, perHost)
+    }
+}
+
 public actor TransferQueue {
+    public nonisolated let initialConcurrencyLimits: TransferQueueConcurrencyLimits
+
     private let engine: TransferEngine
     private let historyStore: TransferHistoryStore
-    private let globalConcurrencyLimit: Int
-    private let perHostConcurrencyLimit: Int
+    private let settingsStore: TransferQueueSettingsStore
     private let now: @Sendable () -> Date
+    private var currentConcurrencyLimits: TransferQueueConcurrencyLimits
 
     private var tasks: [TransferTask]
     private var runningJobs: [UUID: Task<Void, Never>] = [:]
@@ -15,14 +27,21 @@ public actor TransferQueue {
     public init(
         engine: TransferEngine,
         historyStore: TransferHistoryStore = EmptyTransferHistoryStore(),
+        settingsStore: TransferQueueSettingsStore = EmptyTransferQueueSettingsStore(),
         globalConcurrencyLimit: Int = 3,
         perHostConcurrencyLimit: Int = 2,
         now: @escaping @Sendable () -> Date = Date.init
     ) {
+        let fallbackLimits = TransferQueueConcurrencyLimits(
+            global: globalConcurrencyLimit,
+            perHost: perHostConcurrencyLimit
+        )
+        let loadedLimits = (try? settingsStore.load())?.concurrencyLimits ?? fallbackLimits
+        self.initialConcurrencyLimits = loadedLimits
+        self.currentConcurrencyLimits = loadedLimits
         self.engine = engine
         self.historyStore = historyStore
-        self.globalConcurrencyLimit = max(1, globalConcurrencyLimit)
-        self.perHostConcurrencyLimit = max(1, perHostConcurrencyLimit)
+        self.settingsStore = settingsStore
         self.now = now
 
         let loadedTasks = (try? historyStore.load()) ?? []
@@ -46,6 +65,20 @@ public actor TransferQueue {
 
     public func snapshot() -> [TransferTask] {
         tasks
+    }
+
+    public func concurrencyLimits() -> TransferQueueConcurrencyLimits {
+        currentConcurrencyLimits
+    }
+
+    public func updateConcurrencyLimits(_ limits: TransferQueueConcurrencyLimits) {
+        currentConcurrencyLimits = limits
+        do {
+            try settingsStore.save(TransferQueueSettings(concurrencyLimits: limits))
+        } catch {
+            lastPersistenceErrorMessage = error.localizedDescription
+        }
+        schedule()
     }
 
     public func lastPersistenceError() -> String? {
@@ -152,11 +185,11 @@ public actor TransferQueue {
             }
 
         for index in tasks.indices where tasks[index].status == .pending {
-            guard runningTotal < globalConcurrencyLimit else {
+            guard runningTotal < currentConcurrencyLimits.global else {
                 break
             }
             let hostId = tasks[index].hostId
-            guard (runningByHost[hostId] ?? 0) < perHostConcurrencyLimit else {
+            guard (runningByHost[hostId] ?? 0) < currentConcurrencyLimits.perHost else {
                 continue
             }
 
