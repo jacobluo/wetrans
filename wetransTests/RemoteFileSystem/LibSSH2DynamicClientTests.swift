@@ -60,6 +60,47 @@ final class LibSSH2DynamicClientTests: XCTestCase {
         )
     }
 
+    func testDirectoryCreationPolicyTreatsGenericFailureAsSuccessOnlyWhenDirectoryNowExists() {
+        XCTAssertTrue(
+            LibSSH2DirectoryCreationPolicy.shouldContinueAfterMkdirFailure(
+                sftpStatus: 4,
+                directoryExistsAfterFailure: { true }
+            )
+        )
+        XCTAssertFalse(
+            LibSSH2DirectoryCreationPolicy.shouldContinueAfterMkdirFailure(
+                sftpStatus: 4,
+                directoryExistsAfterFailure: { false }
+            )
+        )
+    }
+
+    func testDirectoryCreationPolicyHandlesExplicitSFTPStatusesWithoutDirectoryLookup() {
+        var didCheckDirectory = false
+
+        XCTAssertTrue(
+            LibSSH2DirectoryCreationPolicy.shouldContinueAfterMkdirFailure(
+                sftpStatus: 11,
+                directoryExistsAfterFailure: {
+                    didCheckDirectory = true
+                    return false
+                }
+            )
+        )
+        XCTAssertFalse(didCheckDirectory)
+
+        XCTAssertFalse(
+            LibSSH2DirectoryCreationPolicy.shouldContinueAfterMkdirFailure(
+                sftpStatus: 3,
+                directoryExistsAfterFailure: {
+                    didCheckDirectory = true
+                    return true
+                }
+            )
+        )
+        XCTAssertFalse(didCheckDirectory)
+    }
+
     func testPublicKeyAuthUsesPrivateKeyWithoutSeparatePublicKeyFile() {
         let files = LibSSH2PublicKeyAuthFiles(identityFile: "/Users/me/.ssh/id_ed25519")
 

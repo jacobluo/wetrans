@@ -97,12 +97,18 @@ public struct TransferQueueRowViewState: Identifiable, Equatable, Sendable {
 public final class TransferQueueViewModel: ObservableObject {
     @Published public private(set) var summary: TransferQueueSummary = .empty
     @Published public private(set) var rows: [TransferQueueRowViewState] = []
+    @Published public private(set) var concurrencyLimits: TransferQueueConcurrencyLimits
     @Published public var isExpanded = true
 
     private let queue: TransferQueue
 
     public init(queue: TransferQueue) {
         self.queue = queue
+        self.concurrencyLimits = queue.initialConcurrencyLimits
+    }
+
+    public var concurrencyHintText: String {
+        concurrencyLimits.hintText
     }
 
     public var summaryText: String {
@@ -128,8 +134,23 @@ public final class TransferQueueViewModel: ObservableObject {
 
     public func refresh() async {
         let tasks = await queue.snapshot()
+        concurrencyLimits = await queue.concurrencyLimits()
         summary = TransferQueueSummary(tasks: tasks)
         rows = tasks.map(TransferQueueRowViewState.init)
+    }
+
+    public func setGlobalConcurrencyLimit(_ value: Int) async {
+        await setConcurrencyLimits(TransferQueueConcurrencyLimits(global: value, perHost: concurrencyLimits.perHost))
+    }
+
+    public func setPerHostConcurrencyLimit(_ value: Int) async {
+        await setConcurrencyLimits(TransferQueueConcurrencyLimits(global: concurrencyLimits.global, perHost: value))
+    }
+
+    private func setConcurrencyLimits(_ limits: TransferQueueConcurrencyLimits) async {
+        await queue.updateConcurrencyLimits(limits)
+        concurrencyLimits = await queue.concurrencyLimits()
+        await refresh()
     }
 
     public func toggleExpanded() {
@@ -164,6 +185,12 @@ public final class TransferQueueViewModel: ObservableObject {
     public func clearFinished() async {
         await queue.clearFinished()
         await refresh()
+    }
+}
+
+private extension TransferQueueConcurrencyLimits {
+    var hintText: String {
+        "Up to \(global) global · \(perHost) per host · continues across host switching"
     }
 }
 

@@ -5,6 +5,8 @@ public enum TransferQueueLayout {
     public static let isVerticallyResizable = true
     public static let expandedMinHeight: CGFloat = 150
     public static let expandedIdealHeight: CGFloat = 210
+    public static let globalConcurrencyOptions = Array(1...8)
+    public static let perHostConcurrencyOptions = Array(1...6)
 }
 
 public struct TransferQueueSummaryView: View {
@@ -93,14 +95,56 @@ public struct TransferQueueSummaryView: View {
 
             Divider()
             HStack {
-                Text("Global 3 running · per-host 2 · survives host switching")
+                Text(viewModel.concurrencyHintText)
                     .foregroundStyle(.secondary)
                 Spacer()
+                concurrencyMenu
             }
             .font(.caption)
             .padding(.horizontal, 14)
             .padding(.vertical, 7)
         }
+    }
+
+    private var concurrencyMenu: some View {
+        Menu {
+            Section("Global") {
+                ForEach(TransferQueueLayout.globalConcurrencyOptions, id: \.self) { value in
+                    Button {
+                        Task {
+                            await viewModel.setGlobalConcurrencyLimit(value)
+                        }
+                    } label: {
+                        if viewModel.concurrencyLimits.global == value {
+                            Label("\(value)", systemImage: "checkmark")
+                        } else {
+                            Text("\(value)")
+                        }
+                    }
+                }
+            }
+
+            Section("Per Host") {
+                ForEach(TransferQueueLayout.perHostConcurrencyOptions, id: \.self) { value in
+                    Button {
+                        Task {
+                            await viewModel.setPerHostConcurrencyLimit(value)
+                        }
+                    } label: {
+                        if viewModel.concurrencyLimits.perHost == value {
+                            Label("\(value)", systemImage: "checkmark")
+                        } else {
+                            Text("\(value)")
+                        }
+                    }
+                }
+            }
+        } label: {
+            Image(systemName: "slider.horizontal.3")
+        }
+        .menuStyle(.borderlessButton)
+        .help("Configure Transfer Concurrency")
+        .accessibilityIdentifier("Transfer Queue Concurrency")
     }
 
     private var expandedHeader: some View {

@@ -255,21 +255,35 @@ public final class LibSSH2DynamicClient: LibSSH2Client {
                     )
                 }
                 guard status == 0 else {
-                    switch symbols.sftpLastError(sftp) {
-                    case LibSSH2Constants.sftpFileAlreadyExists:
+                    let sftpStatus = symbols.sftpLastError(sftp)
+                    if LibSSH2DirectoryCreationPolicy.shouldContinueAfterMkdirFailure(
+                        sftpStatus: sftpStatus,
+                        directoryExistsAfterFailure: { remoteDirectoryExists(directory) }
+                    ) {
                         continue
-                    case LibSSH2Constants.sftpPermissionDenied:
-                        throw RemoteFileSystemError.permissionDenied(directory)
-                    default:
-                        throw RemoteFileSystemError.connectionFailed(
-                            lastErrorMessage(
-                                fallback: "Unable to create remote directory \(directory)",
-                                sftpStatus: symbols.sftpLastError(sftp)
-                            )
-                        )
                     }
+
+                    if sftpStatus == LibSSH2Constants.sftpPermissionDenied {
+                        throw RemoteFileSystemError.permissionDenied(directory)
+                    }
+
+                    throw RemoteFileSystemError.connectionFailed(
+                        lastErrorMessage(
+                            fallback: "Unable to create remote directory \(directory)",
+                            sftpStatus: sftpStatus
+                        )
+                    )
                 }
             }
+        }
+    }
+
+    private func remoteDirectoryExists(_ directory: String) -> Bool {
+        do {
+            _ = try listDirectory(directory)
+            return true
+        } catch {
+            return false
         }
     }
 
@@ -803,6 +817,23 @@ public enum LibSSH2ErrorContext {
         default:
             return "unknown"
         }
+    }
+}
+
+enum LibSSH2DirectoryCreationPolicy {
+    static func shouldContinueAfterMkdirFailure(
+        sftpStatus: UInt64,
+        directoryExistsAfterFailure: () -> Bool
+    ) -> Bool {
+        if sftpStatus == LibSSH2Constants.sftpFileAlreadyExists {
+            return true
+        }
+
+        guard sftpStatus == LibSSH2Constants.sftpFailure else {
+            return false
+        }
+
+        return directoryExistsAfterFailure()
     }
 }
 

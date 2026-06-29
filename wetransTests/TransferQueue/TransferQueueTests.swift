@@ -62,6 +62,68 @@ final class TransferQueueTests: XCTestCase {
         XCTAssertEqual(stats.maxRunningByHost[hostB], 1)
     }
 
+    func testUpdatingConcurrencyLimitsSchedulesAdditionalPendingTasksAndSavesSetting() async throws {
+        let hostA = UUID()
+        let hostB = UUID()
+        let taskA = makeTask(hostId: hostA, fileName: "a.txt")
+        let taskB = makeTask(hostId: hostB, fileName: "b.txt")
+        let engine = ScriptedTransferEngine(behaviors: [
+            taskA.id: .block,
+            taskB.id: .block
+        ])
+        let settingsStore = InMemoryTransferQueueSettingsStore()
+        let queue = TransferQueue(
+            engine: engine,
+            historyStore: InMemoryTransferHistoryStore(),
+            settingsStore: settingsStore,
+            globalConcurrencyLimit: 1,
+            perHostConcurrencyLimit: 1,
+            now: fixedNow
+        )
+
+        await queue.enqueue([taskA, taskB])
+        try await waitUntil {
+            await engine.startedTaskIds == [taskA.id]
+        }
+
+        await queue.updateConcurrencyLimits(TransferQueueConcurrencyLimits(global: 2, perHost: 1))
+
+        try await waitUntil {
+            await Set(engine.startedTaskIds) == [taskA.id, taskB.id]
+        }
+        let limits = await queue.concurrencyLimits()
+        let savedSettings = await settingsStore.savedSettings
+        XCTAssertEqual(limits, TransferQueueConcurrencyLimits(global: 2, perHost: 1))
+        XCTAssertEqual(savedSettings, [TransferQueueSettings(concurrencyLimits: .init(global: 2, perHost: 1))])
+    }
+
+    func testQueueLoadsStoredConcurrencyLimits() async {
+        let settingsStore = InMemoryTransferQueueSettingsStore(
+            initialSettings: TransferQueueSettings(concurrencyLimits: .init(global: 5, perHost: 3))
+        )
+        let queue = TransferQueue(
+            engine: ScriptedTransferEngine(),
+            historyStore: InMemoryTransferHistoryStore(),
+            settingsStore: settingsStore
+        )
+
+        let limits = await queue.concurrencyLimits()
+        XCTAssertEqual(limits, TransferQueueConcurrencyLimits(global: 5, perHost: 3))
+    }
+
+    func testFileTransferQueueSettingsStorePersistsConcurrencyLimits() throws {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("wetrans-transfer-settings-\(UUID().uuidString).json")
+        let store = FileTransferQueueSettingsStore(url: url)
+
+        try store.save(TransferQueueSettings(concurrencyLimits: .init(global: 6, perHost: 4)))
+
+        XCTAssertEqual(
+            try FileTransferQueueSettingsStore(url: url).load(),
+            TransferQueueSettings(concurrencyLimits: .init(global: 6, perHost: 4))
+        )
+    }
+
     func testCancelPendingTaskDoesNotRunEngine() async throws {
         let running = makeTask(fileName: "running.txt")
         let pending = makeTask(fileName: "pending.txt")
@@ -333,6 +395,32 @@ private final class InMemoryTransferHistoryStore: TransferHistoryStore, @uncheck
         lock.withLock {
             self.tasks = tasks
             snapshots.append(tasks)
+        }
+    }
+}
+
+private final class InMemoryTransferQueueSettingsStore: TransferQueueSettingsStore, @unchecked Sendable {
+    private let lock = NSLock()
+    private let initialSettings: TransferQueueSettings?
+    private var saved: [TransferQueueSettings] = []
+
+    init(initialSettings: TransferQueueSettings? = nil) {
+        self.initialSettings = initialSettings
+    }
+
+    var savedSettings: [TransferQueueSettings] {
+        get async {
+            lock.withLock { saved }
+        }
+    }
+
+    func load() throws -> TransferQueueSettings? {
+        initialSettings
+    }
+
+    func save(_ settings: TransferQueueSettings) throws {
+        lock.withLock {
+            saved.append(settings)
         }
     }
 }

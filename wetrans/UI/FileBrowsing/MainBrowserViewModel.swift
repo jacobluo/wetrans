@@ -82,7 +82,8 @@ public final class MainBrowserViewModel: ObservableObject {
                     connectionProvider: transferConnectionProvider,
                     remoteFileSystem: transferRemoteFileSystem
                 ),
-                historyStore: FileTransferHistoryStore()
+                historyStore: FileTransferHistoryStore(),
+                settingsStore: FileTransferQueueSettingsStore()
             ),
             fileRevealer: NSWorkspaceFileRevealer(),
             pasteboardWriter: SystemPasteboardWriter(),

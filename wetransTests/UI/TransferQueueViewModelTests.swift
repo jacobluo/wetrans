@@ -14,6 +14,41 @@ final class TransferQueueViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.summaryText, "No transfers")
     }
 
+    func testConcurrencyHintUsesQueueLimitsInsteadOfFixedCopy() {
+        let viewModel = TransferQueueViewModel(
+            queue: TransferQueue(
+                engine: UnavailableTransferEngine(),
+                historyStore: TestTransferHistoryStore(),
+                globalConcurrencyLimit: 4,
+                perHostConcurrencyLimit: 1
+            )
+        )
+
+        XCTAssertEqual(
+            viewModel.concurrencyHintText,
+            "Up to 4 global · 1 per host · continues across host switching"
+        )
+        XCTAssertFalse(viewModel.concurrencyHintText.contains("running"))
+        XCTAssertFalse(viewModel.concurrencyHintText.contains("survives"))
+    }
+
+    func testSettingConcurrencyLimitsUpdatesQueueAndHint() async {
+        let queue = TransferQueue(
+            engine: UnavailableTransferEngine(),
+            historyStore: TestTransferHistoryStore(),
+            globalConcurrencyLimit: 3,
+            perHostConcurrencyLimit: 2
+        )
+        let viewModel = TransferQueueViewModel(queue: queue)
+
+        await viewModel.setGlobalConcurrencyLimit(4)
+        await viewModel.setPerHostConcurrencyLimit(1)
+
+        let limits = await queue.concurrencyLimits()
+        XCTAssertEqual(limits, TransferQueueConcurrencyLimits(global: 4, perHost: 1))
+        XCTAssertEqual(viewModel.concurrencyHintText, "Up to 4 global · 1 per host · continues across host switching")
+    }
+
     func testRefreshCountsTasksByDirectionAndStatus() async {
         let uploadRunning = makeSummaryTask(direction: .upload, status: .running, fileName: "upload.txt")
         let uploadPending = makeSummaryTask(direction: .upload, status: .pending, fileName: "pending.txt")
