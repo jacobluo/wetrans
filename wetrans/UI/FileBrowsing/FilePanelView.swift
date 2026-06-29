@@ -20,6 +20,7 @@ public struct FilePanelContextAction: Identifiable {
     public let title: String
     public let systemImage: String
     public let isEnabled: Bool
+    public let role: ButtonRole?
     public let perform: () -> Void
 
     public init(
@@ -27,12 +28,14 @@ public struct FilePanelContextAction: Identifiable {
         title: String,
         systemImage: String,
         isEnabled: Bool,
+        role: ButtonRole? = nil,
         perform: @escaping () -> Void
     ) {
         self.id = id
         self.title = title
         self.systemImage = systemImage
         self.isEnabled = isEnabled
+        self.role = role
         self.perform = perform
     }
 }
@@ -370,7 +373,7 @@ private struct FilePanelListView: View {
                                 )
                                 .contextMenu {
                                     ForEach(contextActions(item)) { action in
-                                        Button {
+                                        Button(role: action.role) {
                                             action.perform()
                                         } label: {
                                             Label(action.title, systemImage: action.systemImage)

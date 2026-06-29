@@ -733,6 +733,273 @@ final class MainBrowserViewModelTests: XCTestCase {
         XCTAssertEqual(pasteboard.strings, ["/var/log/app.log"])
     }
 
+    func testCopySelectedLocalItemsPastesIntoLocalDirectoryWithNonConflictingNames() async throws {
+        let first = FileItem(name: "report.txt", path: "/Users/me/Downloads/report.txt", isDirectory: false)
+        let second = FileItem(name: "folder", path: "/Users/me/Downloads/folder", isDirectory: true)
+        let existingFileCopy = FileItem(name: "report copy.txt", path: "/Users/me/Downloads/report copy.txt", isDirectory: false)
+        let existingFolderCopy = FileItem(name: "folder copy", path: "/Users/me/Downloads/folder copy", isDirectory: true)
+        let localFileSystem = FakeLocalFileSystem(
+            listingsByPath: [
+                "/Users/me/Downloads": [first, second, existingFileCopy, existingFolderCopy]
+            ]
+        )
+        let viewModel = makeViewModel(localFileSystem: localFileSystem)
+
+        viewModel.refreshLocal()
+        try await waitUntil {
+            viewModel.localPanel.loadingState == .loaded([first, second, existingFileCopy, existingFolderCopy])
+        }
+        viewModel.selectLocalItem(first)
+        viewModel.selectLocalItem(second, intent: .extend)
+        viewModel.copyLocalItems(second)
+        await viewModel.pasteIntoLocal()
+
+        XCTAssertEqual(localFileSystem.copyCalls, [
+            FakeLocalFileSystem.CopyCall(
+                sourcePath: "/Users/me/Downloads/report.txt",
+                destinationPath: "/Users/me/Downloads/report copy 2.txt"
+            ),
+            FakeLocalFileSystem.CopyCall(
+                sourcePath: "/Users/me/Downloads/folder",
+                destinationPath: "/Users/me/Downloads/folder copy 2"
+            )
+        ])
+        try await waitUntil {
+            localFileSystem.listCalls.filter { $0 == "/Users/me/Downloads" }.count >= 2
+        }
+    }
+
+    func testDeleteSelectedLocalItemsDeletesSelectionAndRefreshesLocalPanel() async throws {
+        let first = FileItem(name: "report.txt", path: "/Users/me/Downloads/report.txt", isDirectory: false)
+        let second = FileItem(name: "folder", path: "/Users/me/Downloads/folder", isDirectory: true)
+        let localFileSystem = FakeLocalFileSystem(listingsByPath: ["/Users/me/Downloads": [first, second]])
+        let viewModel = makeViewModel(localFileSystem: localFileSystem)
+
+        viewModel.refreshLocal()
+        try await waitUntil {
+            viewModel.localPanel.loadingState == .loaded([first, second])
+        }
+        viewModel.selectLocalItem(first)
+        viewModel.selectLocalItem(second, intent: .extend)
+        viewModel.deleteLocalItems(second)
+
+        XCTAssertEqual(localFileSystem.deleteCalls, [
+            "/Users/me/Downloads/report.txt",
+            "/Users/me/Downloads/folder"
+        ])
+        try await waitUntil {
+            localFileSystem.listCalls.filter { $0 == "/Users/me/Downloads" }.count >= 2
+        }
+    }
+
+    func testRequestLocalDeleteBuildsConfirmationAndDoesNotDeleteBeforeConfirming() async throws {
+        let first = FileItem(name: "report.txt", path: "/Users/me/Downloads/report.txt", isDirectory: false)
+        let second = FileItem(name: "folder", path: "/Users/me/Downloads/folder", isDirectory: true)
+        let localFileSystem = FakeLocalFileSystem(listingsByPath: ["/Users/me/Downloads": [first, second]])
+        let viewModel = makeViewModel(localFileSystem: localFileSystem)
+
+        viewModel.refreshLocal()
+        try await waitUntil {
+            viewModel.localPanel.loadingState == .loaded([first, second])
+        }
+        viewModel.selectLocalItem(first)
+        viewModel.selectLocalItem(second, intent: .extend)
+        viewModel.requestDeleteLocalItems(second)
+
+        let confirmation = try XCTUnwrap(viewModel.pendingDeleteConfirmation)
+        XCTAssertEqual(confirmation.title, "Delete 2 items?")
+        XCTAssertTrue(confirmation.message.contains("Trash"))
+        XCTAssertEqual(confirmation.actionTitle, "Delete")
+        XCTAssertEqual(localFileSystem.deleteCalls, [])
+
+        await viewModel.confirmPendingDelete()
+
+        XCTAssertNil(viewModel.pendingDeleteConfirmation)
+        XCTAssertEqual(localFileSystem.deleteCalls, [
+            "/Users/me/Downloads/report.txt",
+            "/Users/me/Downloads/folder"
+        ])
+    }
+
+    func testConfirmingCapturedLocalDeleteStillDeletesAfterDialogDismisses() async throws {
+        let item = FileItem(name: "report.txt", path: "/Users/me/Downloads/report.txt", isDirectory: false)
+        let localFileSystem = FakeLocalFileSystem(listingsByPath: ["/Users/me/Downloads": [item]])
+        let viewModel = makeViewModel(localFileSystem: localFileSystem)
+
+        viewModel.refreshLocal()
+        try await waitUntil {
+            viewModel.localPanel.loadingState == .loaded([item])
+        }
+        viewModel.requestDeleteLocalItems(item)
+        let confirmation = try XCTUnwrap(viewModel.pendingDeleteConfirmation)
+
+        viewModel.cancelPendingDelete()
+        await viewModel.confirmDelete(confirmation)
+
+        XCTAssertEqual(localFileSystem.deleteCalls, ["/Users/me/Downloads/report.txt"])
+    }
+
+    func testCopySelectedRemoteItemsPastesIntoRemoteDirectoryWithNonConflictingNames() async throws {
+        let host = SavedHost.fixture(lastRemotePath: "/project", lastLocalPath: "/Users/me/Downloads")
+        let first = FileItem(name: "report.txt", path: "/project/report.txt", isDirectory: false)
+        let second = FileItem(name: "folder", path: "/project/folder", isDirectory: true)
+        let existingFileCopy = FileItem(name: "report copy.txt", path: "/project/report copy.txt", isDirectory: false)
+        let existingFolderCopy = FileItem(name: "folder copy", path: "/project/folder copy", isDirectory: true)
+        let remoteFileSystem = MockRemoteFileSystem(
+            listingsByPath: ["/project": [first, second, existingFileCopy, existingFolderCopy]]
+        )
+        let viewModel = makeViewModel(hosts: [host], remoteFileSystem: remoteFileSystem)
+
+        try viewModel.loadHosts()
+        viewModel.select(hostId: host.id)
+        await viewModel.refreshRemote()
+        viewModel.selectRemoteItem(first)
+        viewModel.selectRemoteItem(second, intent: .extend)
+        viewModel.copyRemoteItems(second)
+        await viewModel.pasteIntoRemote()
+
+        XCTAssertEqual(remoteFileSystem.copyItemCalls.map(\.sourcePath), [
+            "/project/report.txt",
+            "/project/folder"
+        ])
+        XCTAssertEqual(remoteFileSystem.copyItemCalls.map(\.destinationPath), [
+            "/project/report copy 2.txt",
+            "/project/folder copy 2"
+        ])
+        XCTAssertEqual(remoteFileSystem.listCalls.map(\.path).filter { $0 == "/project" }.count, 2)
+    }
+
+    func testDeleteSelectedRemoteItemsDeletesSelectionAndRefreshesRemotePanel() async throws {
+        let host = SavedHost.fixture(lastRemotePath: "/project", lastLocalPath: "/Users/me/Downloads")
+        let first = FileItem(name: "report.txt", path: "/project/report.txt", isDirectory: false)
+        let second = FileItem(name: "folder", path: "/project/folder", isDirectory: true)
+        let remoteFileSystem = MockRemoteFileSystem(listingsByPath: ["/project": [first, second]])
+        let viewModel = makeViewModel(hosts: [host], remoteFileSystem: remoteFileSystem)
+
+        try viewModel.loadHosts()
+        viewModel.select(hostId: host.id)
+        await viewModel.refreshRemote()
+        viewModel.selectRemoteItem(first)
+        viewModel.selectRemoteItem(second, intent: .extend)
+        await viewModel.deleteRemoteItems(second)
+
+        XCTAssertEqual(remoteFileSystem.deleteItemCalls.map(\.item), [first, second])
+        XCTAssertEqual(remoteFileSystem.listCalls.map(\.path).filter { $0 == "/project" }.count, 2)
+    }
+
+    func testRequestRemoteDeleteBuildsPermanentConfirmationAndDoesNotDeleteBeforeConfirming() async throws {
+        let host = SavedHost.fixture(lastRemotePath: "/project", lastLocalPath: "/Users/me/Downloads")
+        let item = FileItem(name: "folder", path: "/project/folder", isDirectory: true)
+        let remoteFileSystem = MockRemoteFileSystem(listingsByPath: ["/project": [item]])
+        let viewModel = makeViewModel(hosts: [host], remoteFileSystem: remoteFileSystem)
+
+        try viewModel.loadHosts()
+        viewModel.select(hostId: host.id)
+        await viewModel.refreshRemote()
+        viewModel.requestDeleteRemoteItems(item)
+
+        let confirmation = try XCTUnwrap(viewModel.pendingDeleteConfirmation)
+        XCTAssertEqual(confirmation.title, "Delete folder?")
+        XCTAssertTrue(confirmation.message.contains("permanently"))
+        XCTAssertEqual(confirmation.actionTitle, "Delete")
+        XCTAssertEqual(remoteFileSystem.deleteItemCalls, [])
+
+        await viewModel.confirmPendingDelete()
+
+        XCTAssertNil(viewModel.pendingDeleteConfirmation)
+        XCTAssertEqual(remoteFileSystem.deleteItemCalls.map(\.item), [item])
+    }
+
+    func testConfirmingCapturedRemoteDeleteStillDeletesAfterDialogDismisses() async throws {
+        let host = SavedHost.fixture(lastRemotePath: "/project", lastLocalPath: "/Users/me/Downloads")
+        let item = FileItem(name: "folder", path: "/project/folder", isDirectory: true)
+        let remoteFileSystem = MockRemoteFileSystem(listingsByPath: ["/project": [item]])
+        let viewModel = makeViewModel(hosts: [host], remoteFileSystem: remoteFileSystem)
+
+        try viewModel.loadHosts()
+        viewModel.select(hostId: host.id)
+        await viewModel.refreshRemote()
+        viewModel.requestDeleteRemoteItems(item)
+        let confirmation = try XCTUnwrap(viewModel.pendingDeleteConfirmation)
+
+        viewModel.cancelPendingDelete()
+        await viewModel.confirmDelete(confirmation)
+
+        XCTAssertEqual(remoteFileSystem.deleteItemCalls.map(\.item), [item])
+    }
+
+    func testCancelPendingDeleteLeavesItemsUntouched() async throws {
+        let item = FileItem(name: "report.txt", path: "/Users/me/Downloads/report.txt", isDirectory: false)
+        let localFileSystem = FakeLocalFileSystem(listingsByPath: ["/Users/me/Downloads": [item]])
+        let viewModel = makeViewModel(localFileSystem: localFileSystem)
+
+        viewModel.refreshLocal()
+        try await waitUntil {
+            viewModel.localPanel.loadingState == .loaded([item])
+        }
+        viewModel.requestDeleteLocalItems(item)
+        viewModel.cancelPendingDelete()
+
+        XCTAssertNil(viewModel.pendingDeleteConfirmation)
+        XCTAssertEqual(localFileSystem.deleteCalls, [])
+    }
+
+    func testPastingLocalDirectoryIntoRemoteEnqueuesUploadTasks() async throws {
+        let host = SavedHost.fixture(lastRemotePath: "/project", lastLocalPath: "/Users/me/Downloads")
+        let directory = FileItem(name: "folder", path: "/Users/me/Downloads/folder", isDirectory: true)
+        let nested = FileItem(name: "nested.txt", path: "/Users/me/Downloads/folder/nested.txt", isDirectory: false, size: 9)
+        let transferQueue = TransferQueue(engine: RecordingTransferEngine())
+        let viewModel = makeViewModel(
+            hosts: [host],
+            localFileSystem: FakeLocalFileSystem(
+                listingsByPath: [
+                    "/Users/me/Downloads": [directory],
+                    "/Users/me/Downloads/folder": [nested]
+                ]
+            ),
+            remoteFileSystem: MockRemoteFileSystem(listingsByPath: ["/project": []]),
+            transferQueue: transferQueue
+        )
+
+        try viewModel.loadHosts()
+        viewModel.select(hostId: host.id)
+        viewModel.refreshLocal()
+        await viewModel.refreshRemote()
+        viewModel.copyLocalItems(directory)
+        await viewModel.pasteIntoRemote()
+
+        let tasks = await transferQueue.snapshot()
+        XCTAssertEqual(tasks.map(\.localPath), ["/Users/me/Downloads/folder/nested.txt"])
+        XCTAssertEqual(tasks.map(\.remotePath), ["/project/folder/nested.txt"])
+    }
+
+    func testPastingRemoteDirectoryIntoLocalEnqueuesDownloadTasks() async throws {
+        let host = SavedHost.fixture(lastRemotePath: "/project", lastLocalPath: "/Users/me/Downloads")
+        let directory = FileItem(name: "folder", path: "/project/folder", isDirectory: true)
+        let nested = FileItem(name: "nested.txt", path: "/project/folder/nested.txt", isDirectory: false, size: 9)
+        let transferQueue = TransferQueue(engine: RecordingTransferEngine())
+        let viewModel = makeViewModel(
+            hosts: [host],
+            remoteFileSystem: MockRemoteFileSystem(
+                listingsByPath: [
+                    "/project": [directory],
+                    "/project/folder": [nested]
+                ]
+            ),
+            transferQueue: transferQueue
+        )
+
+        try viewModel.loadHosts()
+        viewModel.select(hostId: host.id)
+        await viewModel.refreshRemote()
+        viewModel.copyRemoteItems(directory)
+        await viewModel.pasteIntoLocal()
+
+        let tasks = await transferQueue.snapshot()
+        XCTAssertEqual(tasks.map(\.remotePath), ["/project/folder/nested.txt"])
+        XCTAssertEqual(tasks.map(\.localPath), ["/Users/me/Downloads/folder/nested.txt"])
+    }
+
     func testCopyRemoteDebugDetailWritesRedactedFailureToPasteboard() async throws {
         let host = SavedHost.fixture(displayName: "Prod", lastRemotePath: "/Users/alice/project")
         let pasteboard = RecordingPasteboardWriter()
@@ -893,14 +1160,33 @@ private func waitUntil(
 }
 
 private final class FakeLocalFileSystem: LocalFileSystem, @unchecked Sendable {
+    struct CopyCall: Equatable {
+        let sourcePath: String
+        let destinationPath: String
+    }
+
     var listingsByPath: [String: [FileItem]]
     var errorsByPath: [String: Error]
     private let lock = NSLock()
     private var lockedListCalls: [String] = []
+    private var lockedCopyCalls: [CopyCall] = []
+    private var lockedDeleteCalls: [String] = []
 
     var listCalls: [String] {
         lock.withLock {
             lockedListCalls
+        }
+    }
+
+    var copyCalls: [CopyCall] {
+        lock.withLock {
+            lockedCopyCalls
+        }
+    }
+
+    var deleteCalls: [String] {
+        lock.withLock {
+            lockedDeleteCalls
         }
     }
 
@@ -917,6 +1203,18 @@ private final class FakeLocalFileSystem: LocalFileSystem, @unchecked Sendable {
             throw error
         }
         return listingsByPath[path] ?? []
+    }
+
+    func copyItem(at sourcePath: String, to destinationPath: String) throws {
+        lock.withLock {
+            lockedCopyCalls.append(CopyCall(sourcePath: sourcePath, destinationPath: destinationPath))
+        }
+    }
+
+    func deleteItem(at path: String) throws {
+        lock.withLock {
+            lockedDeleteCalls.append(path)
+        }
     }
 }
 
@@ -944,6 +1242,10 @@ private final class SlowLocalFileSystem: LocalFileSystem, @unchecked Sendable {
         Thread.sleep(forTimeInterval: delay)
         return items
     }
+
+    func copyItem(at sourcePath: String, to destinationPath: String) throws {}
+
+    func deleteItem(at path: String) throws {}
 }
 
 private final class FakeHostCatalog: HostCatalog {

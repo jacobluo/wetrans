@@ -35,6 +35,22 @@ public final class FileManagerLocalFileSystem: LocalFileSystem, @unchecked Senda
             }
     }
 
+    public func copyItem(at sourcePath: String, to destinationPath: String) throws {
+        do {
+            try fileManager.copyItem(atPath: sourcePath, toPath: destinationPath)
+        } catch {
+            throw LocalFileSystemError.cannotCopy(source: sourcePath, destination: destinationPath)
+        }
+    }
+
+    public func deleteItem(at path: String) throws {
+        do {
+            _ = try fileManager.trashItem(at: URL(fileURLWithPath: path), resultingItemURL: nil)
+        } catch {
+            throw LocalFileSystemError.cannotDelete(path)
+        }
+    }
+
     private func makeFileItem(url: URL) throws -> FileItem {
         let values = try url.resourceValues(forKeys: [
             .isDirectoryKey,

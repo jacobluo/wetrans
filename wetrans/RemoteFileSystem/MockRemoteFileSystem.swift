@@ -21,6 +21,17 @@ public final class MockRemoteFileSystem: RemoteFileSystem, @unchecked Sendable {
         public let session: RemoteSession
     }
 
+    public struct CopyItemCall: Equatable {
+        public let sourcePath: String
+        public let destinationPath: String
+        public let session: RemoteSession
+    }
+
+    public struct DeleteItemCall: Equatable {
+        public let item: FileItem
+        public let session: RemoteSession
+    }
+
     public var listingsByPath: [String: [FileItem]]
     public var connectError: Error?
     public var listErrorsByPath: [String: Error]
@@ -29,9 +40,13 @@ public final class MockRemoteFileSystem: RemoteFileSystem, @unchecked Sendable {
     public var uploadError: Error?
     public var downloadError: Error?
     public var ensureDirectoryError: Error?
+    public var copyItemError: Error?
+    public var deleteItemError: Error?
     public private(set) var connectCalls: [ConnectionSpec] = []
     public private(set) var listCalls: [ListCall] = []
     public private(set) var ensureDirectoryCalls: [EnsureDirectoryCall] = []
+    public private(set) var copyItemCalls: [CopyItemCall] = []
+    public private(set) var deleteItemCalls: [DeleteItemCall] = []
     public private(set) var uploadCalls: [UploadCall] = []
     public private(set) var downloadCalls: [DownloadCall] = []
     public private(set) var disconnectedSessions: [RemoteSession] = []
@@ -72,6 +87,20 @@ public final class MockRemoteFileSystem: RemoteFileSystem, @unchecked Sendable {
         ensureDirectoryCalls.append(EnsureDirectoryCall(path: path, session: session))
         if let ensureDirectoryError {
             throw ensureDirectoryError
+        }
+    }
+
+    public func copyItem(from sourcePath: String, to destinationPath: String, in session: RemoteSession) async throws {
+        copyItemCalls.append(CopyItemCall(sourcePath: sourcePath, destinationPath: destinationPath, session: session))
+        if let copyItemError {
+            throw copyItemError
+        }
+    }
+
+    public func deleteItem(_ item: FileItem, in session: RemoteSession) async throws {
+        deleteItemCalls.append(DeleteItemCall(item: item, session: session))
+        if let deleteItemError {
+            throw deleteItemError
         }
     }
 

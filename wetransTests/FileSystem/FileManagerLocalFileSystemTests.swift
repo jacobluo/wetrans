@@ -40,6 +40,32 @@ final class FileManagerLocalFileSystemTests: XCTestCase {
         }
     }
 
+    func testCopyItemCopiesFilesAndDirectories() throws {
+        let directory = temporaryDirectory()
+        let sourceFolderURL = directory.appendingPathComponent("folder")
+        let nestedURL = sourceFolderURL.appendingPathComponent("nested.txt")
+        let copiedFolderURL = directory.appendingPathComponent("folder copy")
+        try FileManager.default.createDirectory(at: sourceFolderURL, withIntermediateDirectories: true)
+        try Data("hello".utf8).write(to: nestedURL)
+
+        try FileManagerLocalFileSystem().copyItem(at: sourceFolderURL.path, to: copiedFolderURL.path)
+
+        XCTAssertEqual(
+            try String(contentsOf: copiedFolderURL.appendingPathComponent("nested.txt"), encoding: .utf8),
+            "hello"
+        )
+    }
+
+    func testDeleteItemMovesItemOutOfOriginalDirectory() throws {
+        let directory = temporaryDirectory()
+        let fileURL = directory.appendingPathComponent("delete-me.txt")
+        try Data("bye".utf8).write(to: fileURL)
+
+        try FileManagerLocalFileSystem().deleteItem(at: fileURL.path)
+
+        XCTAssertFalse(FileManager.default.fileExists(atPath: fileURL.path))
+    }
+
     private func temporaryDirectory() -> URL {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("wetrans-tests")
@@ -51,4 +77,3 @@ final class FileManagerLocalFileSystemTests: XCTestCase {
         return url
     }
 }
-

@@ -70,15 +70,51 @@ public final class HostSessionManager: @unchecked Sendable {
         }
     }
 
+    public func copyRemoteItem(from sourcePath: String, to destinationPath: String, for host: SavedHost) async throws {
+        let cachedSession = lock.withLock {
+            sessions[host.id]
+        }
+        let activeSession = try await session(for: host)
+        do {
+            try await remoteFileSystem.copyItem(from: sourcePath, to: destinationPath, in: activeSession)
+            markActive(host: host)
+        } catch RemoteFileSystemError.connectionFailed where cachedSession?.id == activeSession.id {
+            await removeCachedSession(activeSession, for: host.id)
+            let retrySession = try await session(for: host)
+            try await remoteFileSystem.copyItem(from: sourcePath, to: destinationPath, in: retrySession)
+            markActive(host: host)
+        }
+    }
+
+    public func deleteRemoteItem(_ item: FileItem, for host: SavedHost) async throws {
+        let cachedSession = lock.withLock {
+            sessions[host.id]
+        }
+        let activeSession = try await session(for: host)
+        do {
+            try await remoteFileSystem.deleteItem(item, in: activeSession)
+            markActive(host: host)
+        } catch RemoteFileSystemError.connectionFailed where cachedSession?.id == activeSession.id {
+            await removeCachedSession(activeSession, for: host.id)
+            let retrySession = try await session(for: host)
+            try await remoteFileSystem.deleteItem(item, in: retrySession)
+            markActive(host: host)
+        }
+    }
+
     private func listRemoteDirectory(_ path: String, session: RemoteSession, host: SavedHost) async throws -> [FileItem] {
         let items = try await remoteFileSystem.listDirectory(path, in: session)
+        markActive(host: host)
+        return items
+    }
+
+    private func markActive(host: SavedHost) {
         lock.withLock {
             var hostState = stateUnlocked(for: host.id) ?? makeInitialStateUnlocked(for: host)
             hostState.isConnected = true
             hostState.lastActiveAt = now()
             states[host.id] = hostState
         }
-        return items
     }
 
     private func removeCachedSession(_ session: RemoteSession, for hostId: UUID) async {

@@ -8,6 +8,8 @@ public protocol LibSSH2Client: AnyObject {
     func probeStartupOutput(command: String, timeout: TimeInterval, outputLimit: Int) throws -> SSHStartupOutputProbeResult
     func listDirectory(_ path: String) throws -> [FileItem]
     func ensureDirectory(_ path: String) throws
+    func copyItem(from sourcePath: String, to destinationPath: String) throws
+    func deleteItem(_ item: FileItem) throws
     func upload(
         _ request: UploadRequest,
         progress: @escaping @Sendable (TransferProgress) async -> Void
